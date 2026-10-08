@@ -20,6 +20,7 @@ def _load_dotenv() -> dict:
 
 
 _ENV = _load_dotenv()
+ENV = _ENV  # 公开只读访问（llm_client 读价格配置用）
 
 # DeepSeek OpenAI 兼容接口
 DEEPSEEK_API_KEY = _ENV.get("DEEPSEEK_API_KEY", os.environ.get("DEEPSEEK_API_KEY", ""))

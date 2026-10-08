@@ -79,7 +79,16 @@ def load_material(path) -> str:
 def clean(raw_material: str) -> CleanResult:
     """主入口：原始材料文本 → CleanResult。"""
     result = CleanResult()
-    blocks = [b.strip() for b in re.split(r"\n\s*\n", raw_material) if b.strip()]
+    # 先按空行分块；若某块内含多个 P 行（无空行分隔的紧凑格式），再按行拆开
+    blocks = []
+    for b in re.split(r"\n\s*\n", raw_material):
+        if not b.strip():
+            continue
+        lines = [l.strip() for l in b.splitlines() if l.strip()]
+        if len(lines) > 1 and sum(1 for l in lines if RE_SEGMENT.match(l)) > 1:
+            blocks.extend(lines)
+        else:
+            blocks.append(b.strip())
 
     seq = 0
     seen_texts = []  # 同内容连续刷屏合并的判定基准
