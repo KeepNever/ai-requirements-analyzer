@@ -1,0 +1,6 @@
+# 机密：API Key 绝不进 git（红线第一条）
+.env
+
+# Python
+__pycache__/
+*.pyc

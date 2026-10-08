@@ -1,0 +1,197 @@
+{
+  "node1": {
+    "customer_background": [
+      "华宇精工：汽车零部件制造商（冲压/焊接件），约 600 人（案例背景）",
+      "关键角色：王总（生产副总，主要决策者）、李工（IT 主管，技术把关）",
+      "数据散落在金蝶 K3 ERP、MES 与老系统中（D004/D006）"
+    ],
+    "business_goals": [
+      "质量问题当天发现、当天处理，减少批量返工损失（D002）",
+      "三季度产线改造完成后新产线即时上线使用（D012）"
+    ],
+    "explicit_needs": [
+      {
+        "id": "EN1",
+        "content": "生产实时看板：良品率、停机时长当日可视，多名车间主任均可查看",
+        "dids": [
+          "D003",
+          "D010"
+        ],
+        "quote": "车间要有块实时看板"
+      },
+      {
+        "id": "EN2",
+        "content": "良品率阈值预警（低于 95%）即时通知，通过企业微信推送",
+        "dids": [
+          "D007",
+          "D008"
+        ],
+        "quote": "良品率一旦掉到 95 以下必须马上通知我"
+      },
+      {
+        "id": "EN3",
+        "content": "集成金蝶 K3 ERP 与设备/MES 数据",
+        "dids": [
+          "D004",
+          "D005",
+          "D006"
+        ],
+        "quote": "把 ERP 和设备的数据都接进来"
+      },
+      {
+        "id": "EN4",
+        "content": "批次质量追溯（产线/班次维度）——客户明确表示可延后",
+        "dids": [
+          "D009"
+        ],
+        "quote": "查某个问题批次是哪条产线、哪个班次生产的"
+      }
+    ],
+    "competitor_signals": "无竞品信号（材料未提及任何竞品，不得编造）"
+  },
+  "node2": {
+    "potential_needs": [
+      {
+        "id": "IN1",
+        "content": "设备老接口的数据接入风险评估与实施保障",
+        "basis_dids": [
+          "D013"
+        ],
+        "reasoning": "李工主动表达担忧，暗示担心实施失败",
+        "confidence": "高"
+      },
+      {
+        "id": "IN2",
+        "content": "以预警替代人工日报，释放文员人力",
+        "basis_dids": [
+          "D007"
+        ],
+        "reasoning": "现行人工导表方式「人力花了还不及时」",
+        "confidence": "中"
+      }
+    ],
+    "pending_confirmations": [
+      {
+        "gap": "二十万预算是否含实施与首年服务",
+        "level": "决定性",
+        "level_reason": "预算口径决定 20 万能否覆盖总成本，若不含实施则本单不成立",
+        "impact": "方案配置档位与商务策略",
+        "question": "预算口径是软件年费还是含实施总包？"
+      },
+      {
+        "gap": "设备/MES 数据格式与接口现状未知",
+        "level": "关键",
+        "level_reason": "影响实施周期与报价，不决定成单",
+        "impact": "C5 集成的实施周期与报价",
+        "question": "可否安排现场勘察，确认老设备数据导出方式？"
+      }
+    ],
+    "capability_match": [
+      {
+        "target": "EN1",
+        "verdict": "匹配",
+        "reason": "C2 实时看板，支持大屏/车间投放"
+      },
+      {
+        "target": "EN2",
+        "verdict": "匹配",
+        "reason": "C4 阈值预警且明确支持企业微信推送"
+      },
+      {
+        "target": "EN3",
+        "verdict": "匹配",
+        "reason": "C5 含主流 ERP 连接器（金蝶 K3 属主流）；设备老接口按 C5 限制需定制，实施前勘察"
+      },
+      {
+        "target": "EN4",
+        "verdict": "部分匹配",
+        "reason": "批次维度追溯需定制报表（C1 限制条款）"
+      }
+    ],
+    "priority_dimensions": [
+      {
+        "id": "EN1",
+        "impact": 5,
+        "urgency": 4,
+        "coverage": 3,
+        "signal": 5,
+        "reason": "整批返工损失（D002）+ 三季度期限（D012）；信号：D002/D003/D010 反复且王总主动"
+      },
+      {
+        "id": "EN3",
+        "impact": 4,
+        "urgency": 3,
+        "coverage": 4,
+        "signal": 4,
+        "reason": "一切看板需求的前置（D005）；信号：D004/D005/D006/D013 多处"
+      },
+      {
+        "id": "EN2",
+        "impact": 4,
+        "urgency": 4,
+        "coverage": 3,
+        "signal": 3,
+        "reason": "「必须马上」（D007）；企微办公（D008）"
+      },
+      {
+        "id": "EN4",
+        "impact": 3,
+        "urgency": 1,
+        "coverage": 2,
+        "signal": 1,
+        "reason": "客户明确「以后再说」（D009）"
+      }
+    ]
+  },
+  "priority": [
+    {
+      "id": "EN1",
+      "content": "生产实时看板：良品率、停机时长当日可视，多名车间主任均可查看",
+      "impact": 5,
+      "urgency": 4,
+      "coverage": 3,
+      "signal": 5,
+      "reason": "整批返工损失（D002）+ 三季度期限（D012）；信号：D002/D003/D010 反复且王总主动",
+      "weighted": 4.35,
+      "tier": "高"
+    },
+    {
+      "id": "EN3",
+      "content": "集成金蝶 K3 ERP 与设备/MES 数据",
+      "impact": 4,
+      "urgency": 3,
+      "coverage": 4,
+      "signal": 4,
+      "reason": "一切看板需求的前置（D005）；信号：D004/D005/D006/D013 多处",
+      "weighted": 3.75,
+      "tier": "高"
+    },
+    {
+      "id": "EN2",
+      "content": "良品率阈值预警（低于 95%）即时通知，通过企业微信推送",
+      "impact": 4,
+      "urgency": 4,
+      "coverage": 3,
+      "signal": 3,
+      "reason": "「必须马上」（D007）；企微办公（D008）",
+      "weighted": 3.65,
+      "tier": "高"
+    },
+    {
+      "id": "EN4",
+      "content": "批次质量追溯（产线/班次维度）——客户明确表示可延后",
+      "impact": 3,
+      "urgency": 1,
+      "coverage": 2,
+      "signal": 1,
+      "reason": "客户明确「以后再说」（D009）",
+      "weighted": 2.0,
+      "tier": "低"
+    }
+  ],
+  "meta": {
+    "model": "deepseek-chat",
+    "weights": "W-v0.1",
+    "mock": true
+  }
+}
