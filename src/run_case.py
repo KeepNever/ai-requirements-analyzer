@@ -22,8 +22,9 @@ DEFAULT_CASE = PROJECT_ROOT / "test_data" / "case_01_制造业会议转写.md"
 def main():
     parser = argparse.ArgumentParser(description="AI 客户需求分析助手 · 最小 Workflow")
     parser.add_argument("--case", default=str(DEFAULT_CASE), help="案例材料路径")
-    parser.add_argument("--real", action="store_true", help="真实调用 LLM（默认 mock 离线模式）")
-    parser.add_argument("--mock", action="store_true", help="离线 mock 模式（默认行为，显式写出便于阅读）")
+    mode_group = parser.add_mutually_exclusive_group()
+    mode_group.add_argument("--real", action="store_true", help="真实调用 LLM（默认 mock 离线模式）")
+    mode_group.add_argument("--mock", action="store_true", help="离线 mock 模式（默认行为，显式写出便于阅读）")
     args = parser.parse_args()
 
     mode = "真实调用" if args.real else "mock 离线"

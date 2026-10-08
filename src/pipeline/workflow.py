@@ -194,16 +194,31 @@ def run_case(material_path: str, mock: bool = False) -> Path:
             validators.validate_node1, data, log)
 
     # 节点3~7：需求分析（LLM 或 mock）
+    def _validator2(result: dict, data, ) -> list:
+        """节点2 校验 + 一致性校验：维度打分必须与显性需求一一对应。
+
+        若 AI 漏给某条显性需求打维度分，该需求将不进优先级表——这属于静默遗漏，
+        比格式错误更危险，因此在闸门层强制拦截（触发带错误反馈重试）。
+        """
+        errors = validators.validate_node2(result, data)
+        scored = {d.get("id") for d in result.get("priority_dimensions", [])}
+        expected = {n["id"] for n in node1["explicit_needs"]}
+        if scored != expected:
+            errors.append(
+                f"维度打分覆盖不全：显性需求 {sorted(expected)} vs 已打分 {sorted(scored)}，必须一一对应（不多不少）"
+            )
+        return errors
+
     if mock:
         node2, log = MOCK_NODE2, log + [{"node": "分析(mock)", "attempt": 1, "耗时秒": 0, "校验错误数": 0, "错误": []}]
-        errors = validators.validate_node2(node2, data)
+        errors = _validator2(node2, data)
         if errors:
             raise RuntimeError(f"mock 数据未通过校验闸（mock 本身有错）：{errors}")
     else:
         node2 = _llm_with_gates("分析", prompts.LLM_NODE2.format(
             capability=prompts.CAPABILITY_LIST, rules=prompts._COMMON_RULES,
             material=material_block, node1_json=json.dumps(node1, ensure_ascii=False)),
-            validators.validate_node2, data, log)
+            _validator2, data, log)
 
     # 节点4：优先级评分（代码加权）
     priority = scoring.build_priority_table(node2["priority_dimensions"], node1["explicit_needs"])
