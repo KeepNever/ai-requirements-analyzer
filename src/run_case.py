@@ -11,8 +11,8 @@ import argparse
 import sys
 from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parent
-sys.path.insert(0, str(PROJECT_ROOT))
+PROJECT_ROOT = Path(__file__).resolve().parents[1]  # src/run_case.py → 项目根
+sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
 from pipeline import workflow  # noqa: E402
 

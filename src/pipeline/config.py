@@ -2,7 +2,7 @@
 import os
 from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
+PROJECT_ROOT = Path(__file__).resolve().parents[2]  # src/pipeline/config.py → 项目根
 
 
 def _load_dotenv() -> dict:

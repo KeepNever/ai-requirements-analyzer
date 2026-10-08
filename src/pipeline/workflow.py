@@ -169,7 +169,7 @@ def _render_report(case_name: str, data, node1: dict, node2: dict, priority: lis
 def run_case(material_path: str, mock: bool = False) -> Path:
     material_path = Path(material_path)
     case_name = material_path.stem
-    out_dir = Path(__file__).resolve().parent.parent / "output" / case_name
+    out_dir = Path(__file__).resolve().parents[2] / "output" / case_name
     out_dir.mkdir(parents=True, exist_ok=True)
     log = []
 
