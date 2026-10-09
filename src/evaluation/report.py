@@ -22,8 +22,8 @@ def render_baseline_report(per_case: dict, aggregate: dict, badcases: list,
         "",
         "## 一、逐案例结果",
         "",
-        "| 案例 | ①F1(P/R/F1) | ②关键遗漏 | ③引用错位嫌疑 | ⑤优先级一致 | ⑥能力匹配一致 | BC探针 |",
-        "|---|---|---|---|---|---|---|",
+        "| 案例 | ①F1(P/R/F1) | ②关键遗漏 | ③引用错位嫌疑 | ⑤优先级一致 | ⑥能力匹配一致 | ⑦引用完整性 | BC探针 |",
+        "|---|---|---|---|---|---|---|---|",
     ]
     for stem, r in per_case.items():
         f1 = r["①提取F1"]
@@ -31,12 +31,14 @@ def render_baseline_report(per_case: dict, aggregate: dict, badcases: list,
         m3 = r["③事实推断区分"]
         m5 = r["⑤优先级一致性"]
         m6 = r["⑥能力匹配准确率"]
+        m7 = r["⑦引用完整性"]
         bc = "、".join(p["type"] for p in r["BC自动探针"]) or "—"
         lines.append(
             f"| {stem} | {f1['precision']}/{f1['recall']}/{f1['f1']} | {m2['rate']}"
             f"（漏 {('、'.join(m2['missed']) or '无')}） | {m3['引用错位嫌疑比例']} | "
             f"{m5['率'] if m5['率'] is not None else '—'}（{m5['一致数']}/{m5['可比数']}） | "
-            f"{m6['率'] if m6['率'] is not None else '—'}（{m6['一致数']}/{m6['可比数']}） | {bc} |"
+            f"{m6['率'] if m6['率'] is not None else '—'}（{m6['一致数']}/{m6['可比数']}） | "
+            f"{m7['均值'] if m7['均值'] is not None else '—'} | {bc} |"
         )
 
     lines += [

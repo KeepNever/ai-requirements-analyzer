@@ -10,14 +10,16 @@
 """
 import argparse
 import json
+import subprocess
 import sys
 import traceback
+from datetime import datetime
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
-from pipeline import workflow  # noqa: E402
+from pipeline import config, prompts, scoring, workflow  # noqa: E402
 from pipeline.llm_client import reset_usage  # noqa: E402
 from evaluation import gt_loader, metrics  # noqa: E402
 from evaluation.badcase import make_record  # noqa: E402
@@ -27,6 +29,18 @@ TEST_DATA = PROJECT_ROOT / "test_data"
 OUTPUT = PROJECT_ROOT / "output"
 EVAL_DIR = OUTPUT / "evaluation"
 EVAL_NAME = "Baseline R1（开发集首轮）"
+EVAL_PROGRAM_VERSION = "run_eval v1.1（M2 Final 收口：+⑦引用完整性 / 人工记录合并 / run_metadata）"
+GT_VERSION = "07_测试数据集 v1.2（5 案例开发集）"
+
+
+def _git_short() -> str:
+    """当前 commit——R1 元数据的核心字段：三周后还能说清「当时跑的是哪版代码」。"""
+    try:
+        r = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=PROJECT_ROOT,
+                           capture_output=True, text=True, timeout=10)
+        return r.stdout.strip() or "unknown"
+    except Exception:
+        return "unknown"
 
 
 def find_cases(selected: list[str] | None = None) -> list[Path]:
@@ -92,6 +106,7 @@ def main():
         "③引用错位嫌疑均值": _avg(("③事实推断区分", "引用错位嫌疑比例")),
         "⑤优先级一致率均值": _avg(("⑤优先级一致性", "率")),
         "⑥能力匹配一致率均值": _avg(("⑥能力匹配准确率", "率")),
+        "⑦引用完整性均值": _avg(("⑦引用完整性", "均值")),
     }
 
     usage_files = sorted(OUTPUT.glob("case_*/usage.json"))
@@ -102,7 +117,38 @@ def main():
             usage[k] += u.get(k, 0) if k != "估算成本元" else u.get(k, 0)
     usage["估算成本元"] = round(usage["估算成本元"], 3)
 
-    flat_badcases = [b for blist in badcases.values() for b in blist]
+    # Badcase 合并保护（M2 Final 收口新增）：人工复核记录（note 含「人工复核」）不因重算被冲掉，
+    # 自动探针记录仅在无同案例同标签的人工记录时追加——人工归因 > 自动探针
+    bc_path = EVAL_DIR / "badcases.json"
+    human_kept = []
+    if bc_path.exists():
+        for b in json.loads(bc_path.read_text(encoding="utf-8")):
+            if "人工复核" in (b.get("note") or ""):
+                human_kept.append(b)
+    flat_badcases = list(human_kept)
+    for b in (b for blist in badcases.values() for b in blist):
+        if not any(h["case_id"] == b["case_id"] and h["type"] == b["type"] for h in flat_badcases):
+            flat_badcases.append(b)
+
+    # R1 元数据固化（M2 Final 收口新增）：模型/Prompt/GT/评测程序/代码版本全部入档，
+    # R1 由此成为 M3 所有轮次的唯一对照组（外部建议 §7）
+    metadata = {
+        "评测轮次": EVAL_NAME,
+        "运行模式": "复用已有产物" if args.from_output else "真实调用",
+        "时间戳": datetime.now().isoformat(timespec="seconds"),
+        "代码版本(commit)": _git_short(),
+        "Prompt版本": prompts.PROMPTS_VERSION,
+        "模型": config.MODEL_MAIN,
+        "权重表": scoring.WEIGHTS_VERSION,
+        "测试集版本": GT_VERSION,
+        "评测程序版本": EVAL_PROGRAM_VERSION,
+        "成功案例": sorted(per_case),
+        "失败": errors,
+        "usage汇总": usage,
+    }
+    (EVAL_DIR / "run_metadata.json").write_text(
+        json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8")
+
     md = report_mod.render_baseline_report(per_case, aggregate, flat_badcases, usage, EVAL_NAME,
                                            round_note=f"- 运行模式：{'复用已有产物' if args.from_output else '真实调用'}；"
                                                       f"成功 {len(per_case)}/{len(cases)} 案例"
@@ -115,7 +161,8 @@ def main():
         json.dumps(flat_badcases, ensure_ascii=False, indent=2), encoding="utf-8")
 
     print(f"\n[M2] 评测完成 ✓ 报告：{EVAL_DIR / 'baseline_r1_report.md'}")
-    print(f"[M2] 指标：{EVAL_DIR / 'metrics.json'}｜Badcase：{EVAL_DIR / 'badcases.json'}")
+    print(f"[M2] 指标：{EVAL_DIR / 'metrics.json'}｜Badcase：{bc_path}")
+    print(f"[M2] 元数据：{EVAL_DIR / 'run_metadata.json'}（commit {_git_short()}）")
     if errors:
         print(f"[M2] ⚠ 失败案例：{errors}")
 

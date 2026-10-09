@@ -101,6 +101,20 @@ def compute_case_metrics(analysis: dict, mapping: list, gt: GT) -> dict:
     cap_pairs = [(g, a) for g, a in pairs if g in gt.capability and a in ai_cap_by_need]
     cap_agree = sum(1 for g, a in cap_pairs if ai_cap_by_need[a] == gt.capability[g])
 
+    # ⑦ 引用完整性 Citation Coverage（M2 Final 收口新增，2026-10-08，外部建议 §6）
+    # 口径：只评价「已识别（语义配对命中）」需求的证据覆盖 = AI 命中需求 P 引用 ∩ GT 该需求 P 引用 / GT P 引用数
+    # 与①分离：①管「有没有识别到」，⑦管「识别后证据引得全不全」，③管「有没有把事实推断放对层」
+    # ——三者各管一个命题，混算会掩盖 M3 迭代的真实归因（BC-07 改判的直接动因）
+    gt_pids_by_id = {g["id"]: set(g["pids"]) for g in gt.explicit}
+    cov_detail = {}
+    for g_id, idxs in m["matched"].items():
+        gp = gt_pids_by_id[g_id]
+        ap = ai_pids[idxs[0]] if idxs else set()
+        cov_detail[f"{g_id}↔{ai_id_by_index[idxs[0]] if idxs else '?'}"] = (
+            round(len(gp & ap) / len(gp), 3) if gp else None)
+    cov_vals = [v for v in cov_detail.values() if v is not None]
+    cov_mean = round(sum(cov_vals) / len(cov_vals), 3) if cov_vals else None
+
     # BC 自动探针（确定性规则，且只对语义配对生效；其余靠人工）
     probes = []
     for g, a in tier_common:
@@ -128,6 +142,8 @@ def compute_case_metrics(analysis: dict, mapping: list, gt: GT) -> dict:
         "⑥能力匹配准确率": {"一致数": cap_agree, "可比数": len(cap_pairs),
                         "率": round(cap_agree / len(cap_pairs), 3) if cap_pairs else None,
                         "配对": [f"{g}↔{a}" for g, a in cap_pairs]},
+        "⑦引用完整性": {"均值": cov_mean, "逐需求": cov_detail, "已识别需求数": len(cov_detail),
+                     "口径": "仅对已识别需求的证据覆盖（BC-COV 的量化依据）；与①提取F1分离"},
         "BC自动探针": probes,
     }
 

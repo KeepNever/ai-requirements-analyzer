@@ -12,7 +12,12 @@
 
 Prompt 编写原则：输出约束（三道闸第一道）内嵌于此——
 每条显性需求必须带 D 编号引用 + 原文片段，缺引用即非法输出。
+
+版本纪律（M2 Final 收口确立）：每轮 M3 迭代升一个版本号并记录改动，不直接覆盖——
+run_metadata.json 里的 Prompt 版本指回这里，保证每轮评测结果可归因到具体 Prompt 内容。
 """
+# Prompt 版本：v1.0 = M2 Baseline 所用版本（R1 的对照组基准）
+PROMPTS_VERSION = "v1.0（M2 Baseline）"
 
 # 被分析方能力清单（07 测试数据集 v1.2 §2 正式版，硬编码——V1 无 RAG 的降级方案）
 CAPABILITY_LIST = """| 编号 | 能力 | 说明与限制 |
