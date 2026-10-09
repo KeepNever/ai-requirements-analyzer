@@ -29,7 +29,7 @@ TEST_DATA = PROJECT_ROOT / "test_data"
 OUTPUT = PROJECT_ROOT / "output"
 EVAL_DIR = OUTPUT / "evaluation"
 EVAL_NAME = "Baseline R1（开发集首轮）"
-EVAL_PROGRAM_VERSION = "run_eval v1.1（M2 Final 收口：+⑦引用完整性 / 人工记录合并 / run_metadata）"
+EVAL_PROGRAM_VERSION = "run_eval v1.2（M3-R1：+报告文件名/轮次名参数化，防覆盖基线成绩单）"
 GT_VERSION = "07_测试数据集 v1.2（5 案例开发集）"
 
 
@@ -54,11 +54,15 @@ def main():
     parser = argparse.ArgumentParser(description="AI 客户需求分析助手 · 批量评测")
     parser.add_argument("--from-output", action="store_true", help="复用 output/ 已有 analysis.json，离线算指标")
     parser.add_argument("--cases", nargs="*", help="只评测指定案例编号（如 01 05）")
+    parser.add_argument("--eval-name", default=EVAL_NAME,
+                        help="评测轮次名（写入报告标题与 run_metadata）")
+    parser.add_argument("--report-name", default="baseline_r1_report",
+                        help="报告文件名（不含扩展名）；迭代轮次应另起名，防止覆盖基线成绩单")
     args = parser.parse_args()
 
     cases = find_cases(args.cases)
     if not cases:
-        print("[M2] 未找到案例，检查 test_data/"); return
+        print("[评测] 未找到案例，检查 test_data/"); return
 
     EVAL_DIR.mkdir(parents=True, exist_ok=True)
     gts = gt_loader.load_all_gt()
@@ -70,7 +74,7 @@ def main():
         gt = gts.get(case_id)
         if gt is None:
             errors.append(f"{stem}: 无对应 GT"); continue
-        print(f"[M2] {stem} ...", flush=True)
+        print(f"[评测] {stem} ...", flush=True)
         try:
             if not args.from_output:
                 reset_usage()
@@ -81,13 +85,13 @@ def main():
                 badcases[stem] = badcases.get(stem, []) + [
                     make_record(case_id, probe["type"], "model", probe["evidence"],
                                 "自动探针捕获，人工复核归因")]
-            print(f"[M2]   ✓ 完成")
+            print(f"[评测]   ✓ 完成")
         except Exception as e:
             errors.append(f"{stem}: {e}")
             traceback.print_exc()
 
     if not per_case:
-        print("[M2] 无任何案例成功，评测终止"); return
+        print("[评测] 无任何案例成功，评测终止"); return
 
     # 开发集聚合（均值；小样本不显著，报告内已声明）
     def _avg(path, key=None):
@@ -133,7 +137,7 @@ def main():
     # R1 元数据固化（M2 Final 收口新增）：模型/Prompt/GT/评测程序/代码版本全部入档，
     # R1 由此成为 M3 所有轮次的唯一对照组（外部建议 §7）
     metadata = {
-        "评测轮次": EVAL_NAME,
+        "评测轮次": args.eval_name,
         "运行模式": "复用已有产物" if args.from_output else "真实调用",
         "时间戳": datetime.now().isoformat(timespec="seconds"),
         "代码版本(commit)": _git_short(),
@@ -149,22 +153,23 @@ def main():
     (EVAL_DIR / "run_metadata.json").write_text(
         json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8")
 
-    md = report_mod.render_baseline_report(per_case, aggregate, flat_badcases, usage, EVAL_NAME,
+    md = report_mod.render_baseline_report(per_case, aggregate, flat_badcases, usage, args.eval_name,
                                            round_note=f"- 运行模式：{'复用已有产物' if args.from_output else '真实调用'}；"
                                                       f"成功 {len(per_case)}/{len(cases)} 案例"
                                                       + (f"；失败：{errors}" if errors else ""))
-    (EVAL_DIR / "baseline_r1_report.md").write_text(md, encoding="utf-8")
+    report_path = EVAL_DIR / f"{args.report_name}.md"
+    report_path.write_text(md, encoding="utf-8")
     (EVAL_DIR / "metrics.json").write_text(
         json.dumps({"aggregate": aggregate, "per_case": per_case}, ensure_ascii=False, indent=2, default=str),
         encoding="utf-8")
     (EVAL_DIR / "badcases.json").write_text(
         json.dumps(flat_badcases, ensure_ascii=False, indent=2), encoding="utf-8")
 
-    print(f"\n[M2] 评测完成 ✓ 报告：{EVAL_DIR / 'baseline_r1_report.md'}")
-    print(f"[M2] 指标：{EVAL_DIR / 'metrics.json'}｜Badcase：{bc_path}")
-    print(f"[M2] 元数据：{EVAL_DIR / 'run_metadata.json'}（commit {_git_short()}）")
+    print(f"\n[评测] 完成 ✓ 报告：{report_path}")
+    print(f"[评测] 指标：{EVAL_DIR / 'metrics.json'}｜Badcase：{bc_path}")
+    print(f"[评测] 元数据：{EVAL_DIR / 'run_metadata.json'}（commit {_git_short()}）")
     if errors:
-        print(f"[M2] ⚠ 失败案例：{errors}")
+        print(f"[评测] ⚠ 失败案例：{errors}")
 
 
 if __name__ == "__main__":
