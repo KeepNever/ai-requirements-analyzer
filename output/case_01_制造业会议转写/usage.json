@@ -1,21 +1,21 @@
 {
   "调用次数": 2,
-  "输入token": 3484,
-  "输出token": 2888,
-  "估算成本元": 0.0093,
+  "输入token": 3688,
+  "输出token": 3182,
+  "估算成本元": 0.0101,
   "明细": [
     {
       "model": "deepseek-chat",
       "prompt_tokens": 1073,
-      "completion_tokens": 640,
-      "cost_cny": 0.002372,
+      "completion_tokens": 764,
+      "cost_cny": 0.002622,
       "node": "提取"
     },
     {
       "model": "deepseek-chat",
-      "prompt_tokens": 2411,
-      "completion_tokens": 2248,
-      "cost_cny": 0.006962,
+      "prompt_tokens": 2615,
+      "completion_tokens": 2418,
+      "cost_cny": 0.007511,
       "node": "分析"
     }
   ]
