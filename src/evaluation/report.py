@@ -62,7 +62,7 @@ def render_baseline_report(per_case: dict, aggregate: dict, badcases: list,
     ]
     if badcases:
         for b in badcases:
-            lines.append(f"| {b['case_id']} | {b['type']} | {BC_LABELS[b['type']]} | "
+            lines.append(f"| {b['case_id']} | {b['type']} | {BC_LABELS.get(b['type'], '（新标签，待补描述）')} | "
                          f"{b['cause']} | {b['evidence']} | {b['note'] or '待定'} |")
     else:
         lines.append("| — | 本轮自动探针未捕获确定性 Badcase，人工评分后补充 | — | — | — | — |")

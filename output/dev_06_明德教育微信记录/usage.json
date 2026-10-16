@@ -1,0 +1,22 @@
+{
+  "调用次数": 2,
+  "输入token": 3327,
+  "输出token": 2841,
+  "估算成本元": 0.0091,
+  "明细": [
+    {
+      "model": "deepseek-chat",
+      "prompt_tokens": 968,
+      "completion_tokens": 602,
+      "cost_cny": 0.002189,
+      "node": "提取"
+    },
+    {
+      "model": "deepseek-chat",
+      "prompt_tokens": 2359,
+      "completion_tokens": 2239,
+      "cost_cny": 0.006892,
+      "node": "分析"
+    }
+  ]
+}
