@@ -33,5 +33,19 @@
     "cause": "model",
     "evidence": "配对 EN3↔EN4: GT=待确认 AI=部分匹配（证据不足仍强行归类）",
     "note": "自动探针捕获，人工复核归因"
+  },
+  {
+    "case_id": "hold02",
+    "type": "BC-06",
+    "cause": "model",
+    "evidence": "配对 EN4↔EN6: GT=待确认 AI=不支持（证据不足仍强行归类）",
+    "note": "自动探针捕获，人工复核归因"
+  },
+  {
+    "case_id": "hold03",
+    "type": "BC-06",
+    "cause": "model",
+    "evidence": "配对 EN5↔EN5: GT=待确认 AI=部分匹配（证据不足仍强行归类）",
+    "note": "自动探针捕获，人工复核归因"
   }
 ]
