@@ -18,6 +18,9 @@ from .gt_loader import GT, dids_to_pids
 # 匹配阈值：AI 需求的 P 引用与 GT 需求 P 引用交集占 GT 侧比例 ≥ 0.5 视为覆盖该 GT 需求
 COVER_RATIO = 0.5
 
+# 配对规则版本（v1.4，Validation Dev R1 后新增拆分感知配对）
+METRICS_VERSION = "v1.4（+拆分感知配对：单条不足阈值时，多条 AI 需求引用并集覆盖过半且各自引用完全落在 GT 引用集内即共同命中）"
+
 
 def _ai_explicit_pids(analysis: dict, mapping: list) -> list[set]:
     return [dids_to_pids(n.get("dids", []), mapping) for n in analysis["node1"]["explicit_needs"]]
@@ -41,6 +44,25 @@ def match_explicit(analysis: dict, gt: GT, mapping: list) -> dict:
         if best_i is not None:
             gt_matched[g["id"]] = [best_i]
             consumed_ai.add(best_i)
+
+    # 第二遍（v1.4 拆分感知配对）：GT 引用打包宽 + AI 合理拆条时，单条交集不足阈值会被误判漏识别。
+    # 修正：多条未消费 AI 需求的引用并集覆盖 GT 过半、且每条引用完全落在 GT 引用集内（防误吞无关需求）
+    # → 共同命中。组内按与 GT 引用重叠度降序，首条为主条目（⑤⑥对照用）。
+    for g in gt.explicit:
+        if g["id"] in gt_matched:
+            continue
+        gp = set(g["pids"])
+        if not gp:
+            continue
+        group = [i for i, ap in enumerate(ai_pids)
+                 if i not in consumed_ai and ap and ap <= gp]
+        if not group:
+            continue
+        union = set().union(*(ai_pids[i] for i in group))
+        if len(union & gp) / len(gp) >= COVER_RATIO:
+            group.sort(key=lambda i: len(ai_pids[i] & gp), reverse=True)
+            gt_matched[g["id"]] = group
+            consumed_ai.update(group)
 
     # 拆分不扣分：未被 GT 消费的 AI 需求，若其 P 引用完全落在某个已命中 GT 需求的引用集内，
     # 视为合理拆分（不算 FP）；否则视为疑似多余（FP 候选，人工复核）
@@ -109,7 +131,8 @@ def compute_case_metrics(analysis: dict, mapping: list, gt: GT) -> dict:
     cov_detail = {}
     for g_id, idxs in m["matched"].items():
         gp = gt_pids_by_id[g_id]
-        ap = ai_pids[idxs[0]] if idxs else set()
+        # v1.4：组命中按组内引用并集计覆盖（单条命中并集即其自身，行为不变）
+        ap = set().union(*(ai_pids[i] for i in idxs)) if idxs else set()
         cov_detail[f"{g_id}↔{ai_id_by_index[idxs[0]] if idxs else '?'}"] = (
             round(len(gp & ap) / len(gp), 3) if gp else None)
     cov_vals = [v for v in cov_detail.values() if v is not None]

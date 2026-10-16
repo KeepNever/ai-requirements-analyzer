@@ -30,7 +30,7 @@ VALIDATION_DATA = TEST_DATA / "validation"
 OUTPUT = PROJECT_ROOT / "output"
 EVAL_DIR = OUTPUT / "evaluation"
 EVAL_NAME = "Baseline R1（开发集首轮）"
-EVAL_PROGRAM_VERSION = "run_eval v1.3（validation 数据集支持：dev/hold 案例发现+GT 配对+usage 按案例归集）"
+EVAL_PROGRAM_VERSION = "run_eval v1.4（M3-R3 第①步：metrics v1.4 拆分感知配对——GT引用打包宽+AI拆条的误杀修正）"
 GT_VERSION = "07_测试数据集 v1.2（5 案例开发集）"
 GT_VERSION_VALIDATION = "validation GT v1.0（6 案例，曦复核锁定 2026-10-16）"
 
@@ -175,6 +175,7 @@ def main():
         "权重表": scoring.WEIGHTS_VERSION,
         "测试集版本": GT_VERSION_VALIDATION if is_validation else GT_VERSION,
         "评测程序版本": EVAL_PROGRAM_VERSION,
+        "配对规则版本": metrics.METRICS_VERSION,
         "成功案例": sorted(per_case),
         "失败": errors,
         "usage汇总": usage,
