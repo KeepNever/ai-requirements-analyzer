@@ -26,11 +26,13 @@ from evaluation.badcase import make_record  # noqa: E402
 from evaluation import report as report_mod  # noqa: E402
 
 TEST_DATA = PROJECT_ROOT / "test_data"
+VALIDATION_DATA = TEST_DATA / "validation"
 OUTPUT = PROJECT_ROOT / "output"
 EVAL_DIR = OUTPUT / "evaluation"
 EVAL_NAME = "Baseline R1（开发集首轮）"
-EVAL_PROGRAM_VERSION = "run_eval v1.2（M3-R1：+报告文件名/轮次名参数化，防覆盖基线成绩单）"
+EVAL_PROGRAM_VERSION = "run_eval v1.3（validation 数据集支持：dev/hold 案例发现+GT 配对+usage 按案例归集）"
 GT_VERSION = "07_测试数据集 v1.2（5 案例开发集）"
+GT_VERSION_VALIDATION = "validation GT v1.0（6 案例，曦复核锁定 2026-10-16）"
 
 
 def _git_short() -> str:
@@ -43,35 +45,61 @@ def _git_short() -> str:
         return "unknown"
 
 
-def find_cases(selected: list[str] | None = None) -> list[Path]:
-    cases = sorted(TEST_DATA.glob("case_*.md"))
+def find_cases(selected: list[str] | None = None, dataset: str = "main") -> list[Path]:
+    """数据集发现：main=旧开发集 case_XX；dev/hold=validation 目录（GT 与 README 排除）。"""
+    if dataset == "main":
+        cases = sorted(TEST_DATA.glob("case_*.md"))
+        if selected:
+            cases = [c for c in cases if any(c.stem.startswith(f"case_{s}") or c.stem == s for s in selected)]
+        return cases
+    pat = "dev_*.md" if dataset == "dev" else "hold_*.md" if dataset == "hold" else "[dh]*_*.md"
+    cases = [c for c in sorted(VALIDATION_DATA.glob(pat))
+             if not c.stem.startswith("gt_") and c.stem != "README"]
     if selected:
-        cases = [c for c in cases if any(c.stem.startswith(f"case_{s}") or c.stem == s for s in selected)]
+        cases = [c for c in cases if any(c.stem.split("_")[1] == s or c.stem == s for s in selected)]
     return cases
+
+
+def gt_path_for(case_path: Path) -> Path:
+    """validation 案例 → 配对 GT：dev_06_xxx → gt_dev_06.md（前缀+编号命名约定）。"""
+    prefix, num = case_path.stem.split("_")[0], case_path.stem.split("_")[1]
+    return VALIDATION_DATA / f"gt_{prefix}_{num}.md"
 
 
 def main():
     parser = argparse.ArgumentParser(description="AI 客户需求分析助手 · 批量评测")
     parser.add_argument("--from-output", action="store_true", help="复用 output/ 已有 analysis.json，离线算指标")
     parser.add_argument("--cases", nargs="*", help="只评测指定案例编号（如 01 05）")
+    parser.add_argument("--dataset", default="main", choices=["main", "dev", "hold"],
+                        help="main=旧开发集 case_XX；dev=validation 开发集新增；hold=validation 冻结集（收口专用）")
     parser.add_argument("--eval-name", default=EVAL_NAME,
                         help="评测轮次名（写入报告标题与 run_metadata）")
     parser.add_argument("--report-name", default="baseline_r1_report",
                         help="报告文件名（不含扩展名）；迭代轮次应另起名，防止覆盖基线成绩单")
     args = parser.parse_args()
 
-    cases = find_cases(args.cases)
+    cases = find_cases(args.cases, args.dataset)
     if not cases:
         print("[评测] 未找到案例，检查 test_data/"); return
+    if args.dataset == "hold":
+        print("[评测] ⚠ 冻结验证集：仅限 M3 收口一次性运行，任何 Prompt 迭代前不得预跑（validation README 锁定纪律）")
 
     EVAL_DIR.mkdir(parents=True, exist_ok=True)
-    gts = gt_loader.load_all_gt()
+    is_validation = args.dataset != "main"
+    main_gts = gt_loader.load_all_gt() if not is_validation else None
     per_case, badcases, errors = {}, {}, []
 
     for case_path in cases:
         stem = case_path.stem
-        case_id = stem.split("_")[1]
-        gt = gts.get(case_id)
+        if is_validation:
+            gt_file = gt_path_for(case_path)
+            if not gt_file.exists():
+                errors.append(f"{stem}: 无对应 GT（{gt_file.name}）"); continue
+            gt = gt_loader.load_gt(gt_file)
+            case_id = stem.split("_")[0] + stem.split("_")[1]  # dev_06_xxx → dev06
+        else:
+            case_id = stem.split("_")[1]
+            gt = main_gts.get(case_id)
         if gt is None:
             errors.append(f"{stem}: 无对应 GT"); continue
         print(f"[评测] {stem} ...", flush=True)
@@ -113,12 +141,13 @@ def main():
         "⑦引用完整性均值": _avg(("⑦引用完整性", "均值")),
     }
 
-    usage_files = sorted(OUTPUT.glob("case_*/usage.json"))
     usage = {"调用次数": 0, "输入token": 0, "输出token": 0, "估算成本元": 0}
-    for uf in usage_files:
-        u = json.loads(uf.read_text(encoding="utf-8"))
-        for k in usage:
-            usage[k] += u.get(k, 0) if k != "估算成本元" else u.get(k, 0)
+    for stem in per_case:  # 按成功案例归集（v1.3：兼容 validation 的 dev_*/hold_* 目录名）
+        uf = OUTPUT / stem / "usage.json"
+        if uf.exists():
+            u = json.loads(uf.read_text(encoding="utf-8"))
+            for k in usage:
+                usage[k] += u.get(k, 0)
     usage["估算成本元"] = round(usage["估算成本元"], 3)
 
     # Badcase 合并保护（M2 Final 收口新增）：人工复核记录（note 含「人工复核」）不因重算被冲掉，
@@ -144,7 +173,7 @@ def main():
         "Prompt版本": prompts.PROMPTS_VERSION,
         "模型": config.MODEL_MAIN,
         "权重表": scoring.WEIGHTS_VERSION,
-        "测试集版本": GT_VERSION,
+        "测试集版本": GT_VERSION_VALIDATION if is_validation else GT_VERSION,
         "评测程序版本": EVAL_PROGRAM_VERSION,
         "成功案例": sorted(per_case),
         "失败": errors,
