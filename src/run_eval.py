@@ -27,12 +27,14 @@ from evaluation import report as report_mod  # noqa: E402
 
 TEST_DATA = PROJECT_ROOT / "test_data"
 VALIDATION_DATA = TEST_DATA / "validation"
+FINAL_DATA = TEST_DATA / "final_validation"
 OUTPUT = PROJECT_ROOT / "output"
 EVAL_DIR = OUTPUT / "evaluation"
 EVAL_NAME = "Baseline R1（开发集首轮）"
 EVAL_PROGRAM_VERSION = "run_eval v1.4（M3-R3 第①步：metrics v1.4 拆分感知配对——GT引用打包宽+AI拆条的误杀修正）"
 GT_VERSION = "07_测试数据集 v1.2（5 案例开发集）"
 GT_VERSION_VALIDATION = "validation GT v1.0（6 案例，曦复核锁定 2026-10-16）"
+GT_VERSION_FINAL = "final_validation GT v1.0（6 案例，曦复核锁定 2026-10-19）"
 
 
 def _git_short() -> str:
@@ -46,14 +48,17 @@ def _git_short() -> str:
 
 
 def find_cases(selected: list[str] | None = None, dataset: str = "main") -> list[Path]:
-    """数据集发现：main=旧开发集 case_XX；dev/hold=validation 目录（GT 与 README 排除）。"""
+    """数据集发现：main=旧开发集 case_XX；dev/hold=validation 目录；final=final_validation 目录（GT 与 README 排除）。"""
     if dataset == "main":
         cases = sorted(TEST_DATA.glob("case_*.md"))
         if selected:
             cases = [c for c in cases if any(c.stem.startswith(f"case_{s}") or c.stem == s for s in selected)]
         return cases
-    pat = "dev_*.md" if dataset == "dev" else "hold_*.md" if dataset == "hold" else "[dh]*_*.md"
-    cases = [c for c in sorted(VALIDATION_DATA.glob(pat))
+    if dataset == "final":
+        base, pat = FINAL_DATA, "final_*.md"
+    else:
+        base, pat = VALIDATION_DATA, ("dev_*.md" if dataset == "dev" else "hold_*.md" if dataset == "hold" else "[dh]*_*.md")
+    cases = [c for c in sorted(base.glob(pat))
              if not c.stem.startswith("gt_") and c.stem != "README"]
     if selected:
         cases = [c for c in cases if any(c.stem.split("_")[1] == s or c.stem == s for s in selected)]
@@ -61,17 +66,17 @@ def find_cases(selected: list[str] | None = None, dataset: str = "main") -> list
 
 
 def gt_path_for(case_path: Path) -> Path:
-    """validation 案例 → 配对 GT：dev_06_xxx → gt_dev_06.md（前缀+编号命名约定）。"""
+    """验证案例 → 配对 GT：dev_06_xxx → gt_dev_06.md；final_01_xxx → gt_final_01.md（前缀+编号命名约定，按案例所在目录解析）。"""
     prefix, num = case_path.stem.split("_")[0], case_path.stem.split("_")[1]
-    return VALIDATION_DATA / f"gt_{prefix}_{num}.md"
+    return case_path.parent / f"gt_{prefix}_{num}.md"
 
 
 def main():
     parser = argparse.ArgumentParser(description="AI 客户需求分析助手 · 批量评测")
     parser.add_argument("--from-output", action="store_true", help="复用 output/ 已有 analysis.json，离线算指标")
     parser.add_argument("--cases", nargs="*", help="只评测指定案例编号（如 01 05）")
-    parser.add_argument("--dataset", default="main", choices=["main", "dev", "hold"],
-                        help="main=旧开发集 case_XX；dev=validation 开发集新增；hold=validation 冻结集（收口专用）")
+    parser.add_argument("--dataset", default="main", choices=["main", "dev", "hold", "final"],
+                        help="main=旧开发集 case_XX；dev=validation 开发集新增；hold=validation 固定回归集；final=正式验证集（盲测专用）")
     parser.add_argument("--eval-name", default=EVAL_NAME,
                         help="评测轮次名（写入报告标题与 run_metadata）")
     parser.add_argument("--report-name", default="baseline_r1_report",
@@ -83,6 +88,8 @@ def main():
         print("[评测] 未找到案例，检查 test_data/"); return
     if args.dataset == "hold":
         print("[评测] ⚠ 冻结验证集：仅限 M3 收口一次性运行，任何 Prompt 迭代前不得预跑（validation README 锁定纪律）")
+    if args.dataset == "final":
+        print("[评测] ⚠ 正式验证集：一次性盲测专用，验证当前冻结基线（Prompt v1.7.1 + metrics v1.5 + GT v1.1/main）；结果不得回改 Prompt")
 
     EVAL_DIR.mkdir(parents=True, exist_ok=True)
     is_validation = args.dataset != "main"
@@ -174,7 +181,7 @@ def main():
         "Prompt版本": prompts.PROMPTS_VERSION,
         "模型": config.MODEL_MAIN,
         "权重表": scoring.WEIGHTS_VERSION,
-        "测试集版本": GT_VERSION_VALIDATION if is_validation else GT_VERSION,
+        "测试集版本": GT_VERSION_FINAL if args.dataset == "final" else GT_VERSION_VALIDATION if is_validation else GT_VERSION,
         "评测程序版本": EVAL_PROGRAM_VERSION,
         "配对规则版本": metrics.METRICS_VERSION,
         "成功案例": sorted(per_case),
