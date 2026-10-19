@@ -38,7 +38,8 @@ def render_baseline_report(per_case: dict, aggregate: dict, badcases: list,
             f"（漏 {('、'.join(m2['missed']) or '无')}） | {m3['引用错位嫌疑比例']} | "
             f"{m5['率'] if m5['率'] is not None else '—'}（{m5['一致数']}/{m5['可比数']}） | "
             f"{m6['率'] if m6['率'] is not None else '—'}（{m6['一致数']}/{m6['可比数']}） | "
-            f"{m7['均值'] if m7['均值'] is not None else '—'} | {bc} |"
+            f"{m7['均值'] if m7['均值'] is not None else '—'}"
+            f"（完整 {m7.get('完整率') if m7.get('完整率') is not None else '—'}） | {bc} |"
         )
 
     lines += [

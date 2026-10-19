@@ -18,8 +18,8 @@ from .gt_loader import GT, dids_to_pids
 # 匹配阈值：AI 需求的 P 引用与 GT 需求 P 引用交集占 GT 侧比例 ≥ 0.5 视为覆盖该 GT 需求
 COVER_RATIO = 0.5
 
-# 配对规则版本（v1.4，Validation Dev R1 后新增拆分感知配对）
-METRICS_VERSION = "v1.4（+拆分感知配对：单条不足阈值时，多条 AI 需求引用并集覆盖过半且各自引用完全落在 GT 引用集内即共同命中）"
+# 配对规则版本（v1.4 拆分感知配对；v1.5 候选①⑦引用覆盖启发式）
+METRICS_VERSION = "v1.5（v1.4 拆分感知配对 + ⑦引用覆盖启发式：多事实点需求须 GT 引用集全覆盖才算引用完整——完整率为二值口径，旧连续均值保留作对照）"
 
 
 def _ai_explicit_pids(analysis: dict, mapping: list) -> list[set]:
@@ -127,16 +127,26 @@ def compute_case_metrics(analysis: dict, mapping: list, gt: GT) -> dict:
     # 口径：只评价「已识别（语义配对命中）」需求的证据覆盖 = AI 命中需求 P 引用 ∩ GT 该需求 P 引用 / GT P 引用数
     # 与①分离：①管「有没有识别到」，⑦管「识别后证据引得全不全」，③管「有没有把事实推断放对层」
     # ——三者各管一个命题，混算会掩盖 M3 迭代的真实归因（BC-07 改判的直接动因）
+    # v1.5（候选①，曦拍板 2026-10-19）：新增「完整率」二值口径——一条需求合并多个关键事实点时，
+    # GT 引用集全部被 AI 引用覆盖才算引用完整，部分覆盖不计支撑（双人评分引用错位判例的规则自动化，
+    # 如 case_03 EN4 两事实点仅引 P8 漏 P7）。旧连续「均值」保留作对照，两者并列输出不互相替代。
     gt_pids_by_id = {g["id"]: set(g["pids"]) for g in gt.explicit}
     cov_detail = {}
+    cov_full_detail = {}
     for g_id, idxs in m["matched"].items():
         gp = gt_pids_by_id[g_id]
         # v1.4：组命中按组内引用并集计覆盖（单条命中并集即其自身，行为不变）
         ap = set().union(*(ai_pids[i] for i in idxs)) if idxs else set()
-        cov_detail[f"{g_id}↔{ai_id_by_index[idxs[0]] if idxs else '?'}"] = (
-            round(len(gp & ap) / len(gp), 3) if gp else None)
+        label = f"{g_id}↔{ai_id_by_index[idxs[0]] if idxs else '?'}"
+        cov_detail[label] = round(len(gp & ap) / len(gp), 3) if gp else None
+        # v1.5 完整率判定：全覆盖=完整；缺失事实点写入明细便于定位
+        if gp:
+            missing = sorted(gp - ap, key=lambda p: int(p[1:]) if p[1:].isdigit() else 0)
+            cov_full_detail[label] = {"完整": ap >= gp, "缺失": missing}
     cov_vals = [v for v in cov_detail.values() if v is not None]
     cov_mean = round(sum(cov_vals) / len(cov_vals), 3) if cov_vals else None
+    full_vals = [1 if d["完整"] else 0 for d in cov_full_detail.values()]
+    cov_full_rate = round(sum(full_vals) / len(full_vals), 3) if full_vals else None
 
     # BC 自动探针（确定性规则，且只对语义配对生效；其余靠人工）
     probes = []
@@ -165,8 +175,9 @@ def compute_case_metrics(analysis: dict, mapping: list, gt: GT) -> dict:
         "⑥能力匹配准确率": {"一致数": cap_agree, "可比数": len(cap_pairs),
                         "率": round(cap_agree / len(cap_pairs), 3) if cap_pairs else None,
                         "配对": [f"{g}↔{a}" for g, a in cap_pairs]},
-        "⑦引用完整性": {"均值": cov_mean, "逐需求": cov_detail, "已识别需求数": len(cov_detail),
-                     "口径": "仅对已识别需求的证据覆盖（BC-COV 的量化依据）；与①提取F1分离"},
+        "⑦引用完整性": {"均值": cov_mean, "完整率": cov_full_rate, "逐需求": cov_detail,
+                     "逐需求完整判定": cov_full_detail, "已识别需求数": len(cov_detail),
+                     "口径": "仅对已识别需求的证据覆盖（BC-COV 的量化依据）；v1.5 完整率=GT 引用集全覆盖才计完整，均值保留作对照"},
         "BC自动探针": probes,
     }
 
