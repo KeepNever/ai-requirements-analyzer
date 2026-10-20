@@ -4,11 +4,9 @@
 用法（项目根目录）：
   python web_demo.py            # http://127.0.0.1:8000
 
-功能：
-  - 首页列出 output/ 下全部已有案例报告，点击直接查看
-  - 报告页：report.md 正文 + 四维雷达图 + 优先级矩阵散点 + 能力匹配分布
-  - Dashboard（/dashboard）：六指标四数据集对比 + 逐案例表现
-  - 粘贴或上传客户材料（md），在线跑真实分析
+工作台流程：输入脏材料 → ① 实时清洗预览（免费、可反复调）→ ② 运行完整分析
+→ ③ 分节点查看中间产物（清洗/提取/分析）→ 报告页。
+另有 /dashboard 评测看板。
 """
 import html
 import json
@@ -23,10 +21,12 @@ from urllib.parse import unquote, urlparse
 PROJECT_ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
+from pipeline import cleaner  # noqa: E402
+from pipeline import workflow as wf  # noqa: E402
+
 UPLOAD_DIR = PROJECT_ROOT / "test_data" / "web_uploads"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
-# 现役口径（Prompt v1.7.1 + GT v1.1/v1.0）的最新快照
 METRIC_SNAPSHOTS = {
     "MAIN": "metrics_m4gtreview_main.json",
     "DEV": "metrics_m4gtreview_dev.json",
@@ -39,18 +39,20 @@ METRIC_SHORT = ["①提取F1", "②关键遗漏", "③引用错位", "⑤优先�
 
 PAGE_CSS = """
   :root { --bg:#f7f8fc; --panel:#fff; --panel2:#eef1f8; --line:#e2e6f0;
-    --blue:#2b5cff; --blues:#2f54eb; --text:#1f2430; --muted:#5f6b80; }
+    --blue:#2b5cff; --blues:#2f54eb; --text:#1f2430; --muted:#5f6b80;
+    --green:#16855c; --amber:#b26a00; --red:#c9404e; }
   * { margin:0; padding:0; box-sizing:border-box; }
   body { background:var(--bg); color:var(--text); font-family:"PingFang SC","Microsoft YaHei",sans-serif;
     line-height:1.7; padding:40px 20px 80px; }
-  .wrap { max-width:960px; margin:0 auto; }
+  .wrap { max-width:1000px; margin:0 auto; }
   .tag { display:inline-block; padding:2px 12px; border:1px solid var(--blue); color:var(--blues);
     border-radius:999px; font-size:13px; margin-bottom:14px; letter-spacing:2px; background:#fff; }
   h1 { font-size:26px; margin-bottom:6px; }
+  h2 { font-size:16px; margin-bottom:12px; padding-left:10px; border-left:4px solid var(--blue); }
+  h3 { font-size:14px; margin:14px 0 8px; color:var(--blues); }
   .sub { color:var(--muted); font-size:14px; margin-bottom:24px; }
   .panel { background:var(--panel); border:1px solid var(--line); border-radius:10px;
     padding:20px 22px; margin-bottom:18px; box-shadow:0 1px 4px rgba(31,36,48,.05); }
-  h2 { font-size:16px; margin-bottom:12px; padding-left:10px; border-left:4px solid var(--blue); }
   textarea { width:100%; min-height:180px; border:1px solid var(--line); border-radius:8px;
     padding:12px; font-size:13px; font-family:inherit; resize:vertical; background:var(--panel2); }
   textarea:focus { outline:2px solid var(--blue); border-color:transparent; }
@@ -61,58 +63,174 @@ PAGE_CSS = """
     font-size:14px; cursor:pointer; font-weight:600; }
   button:hover { background:var(--blues); }
   button:disabled { background:#a9b6d6; cursor:wait; }
+  button.ghost { background:#fff; color:var(--blues); border:1px solid var(--blue); }
+  .stat { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin:12px 0; }
+  .stat div { background:var(--panel2); border-radius:8px; padding:10px; text-align:center; }
+  .stat b { font-size:20px; color:var(--blues); display:block; }
+  .stat span { font-size:12px; color:var(--muted); }
+  table { border-collapse:collapse; width:100%; font-size:13px; margin:8px 0; }
+  th,td { border:1px solid var(--line); padding:6px 9px; text-align:left; vertical-align:top; }
+  th { background:var(--panel2); color:var(--muted); font-weight:500; font-size:12.5px; }
   .list a { display:flex; justify-content:space-between; padding:10px 12px; border-bottom:1px solid var(--line);
     color:var(--text); text-decoration:none; font-size:14px; border-radius:6px; }
   .list a:hover { background:var(--panel2); }
   .list .meta { color:var(--muted); font-size:12px; }
   .hint { font-size:12.5px; color:var(--muted); margin-top:10px; }
   .md table { border-collapse:collapse; width:100%; font-size:13.5px; margin:10px 0; }
-  .md th,.md td { border:1px solid var(--line); padding:7px 10px; text-align:left; }
+  .md th,.md td { border:1px solid var(--line); padding:7px 10px; }
   .md th { background:var(--panel2); }
   .md h1{font-size:22px} .md h2{font-size:18px;border:none;padding:0;margin:20px 0 10px}
   .md blockquote { border-left:3px solid var(--line); padding:4px 14px; color:var(--muted); margin:8px 0; }
   .back { color:var(--blues); text-decoration:none; font-size:13px; }
   .chart { width:100%; height:360px; }
   .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
-  .err { color:#c9404e; background:rgba(201,64,78,.08); border:1px solid rgba(201,64,78,.25);
+  .err { color:var(--red); background:rgba(201,64,78,.08); border:1px solid rgba(201,64,78,.25);
     border-radius:8px; padding:10px 14px; font-size:13.5px; margin-top:12px; display:none; }
+  .warn { color:var(--amber); background:rgba(178,106,0,.08); border:1px solid rgba(178,106,0,.25);
+    border-radius:8px; padding:8px 12px; font-size:13px; margin-top:10px; display:none; }
+  .ok { color:var(--green); background:rgba(22,133,92,.08); border:1px solid rgba(22,133,92,.25);
+    border-radius:8px; padding:8px 12px; font-size:13px; margin-top:10px; }
+  .pill { display:inline-block; padding:1px 10px; border-radius:999px; font-size:12px; font-weight:600; }
+  .p-high { background:rgba(47,84,235,.10); color:var(--blues); }
+  .p-mid { background:rgba(178,106,0,.10); color:var(--amber); }
+  .p-low { background:rgba(95,107,128,.10); color:var(--muted); }
+  .p-ok { background:rgba(22,133,92,.10); color:var(--green); }
+  .p-tbd { background:rgba(95,107,128,.10); color:var(--muted); }
+  .p-bad { background:rgba(201,64,78,.10); color:var(--red); }
+  .seglist { max-height:340px; overflow-y:auto; border:1px solid var(--line); border-radius:8px; }
+  .seg { padding:8px 12px; border-bottom:1px solid var(--line); font-size:12.5px; }
+  .seg:last-child { border-bottom:none; }
+  .seg .did { color:var(--blues); font-weight:700; margin-right:6px; }
+  .seg .pid { color:var(--muted); font-size:11px; margin-left:6px; }
+  .seg .scrub { color:var(--amber); font-size:11px; }
+  .flowbar { display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; }
+  .flowbar .step { flex:1; min-width:120px; background:var(--panel2); border-radius:8px;
+    padding:8px 10px; text-align:center; font-size:12.5px; color:var(--muted); }
+  .flowbar .step.done { background:rgba(22,133,92,.10); color:var(--green); border:1px solid rgba(22,133,92,.25); }
+  .flowbar .step b { display:block; font-size:13px; }
+  ul.plain { padding-left:18px; font-size:13px; }
+  ul.plain li { margin:3px 0; }
   .topnav a { margin-right:16px; color:var(--blues); text-decoration:none; font-size:14px; font-weight:600; }
-  @media (max-width:700px){ .grid2 { grid-template-columns:1fr; } }
+  @media (max-width:700px){ .grid2{grid-template-columns:1fr} .stat{grid-template-columns:1fr 1fr} }
 """
 
 HOME_PAGE = """<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AI 客户需求分析助手 · Web 演示</title><style>__CSS__</style></head>
+<title>AI 客户需求分析助手 · 工作台</title><style>__CSS__</style></head>
 <body><div class="wrap">
-<div class="tag">产 品 演 示</div>
+<div class="tag">产 品 工 作 台</div>
 <h1>AI 客户需求分析助手</h1>
-<div class="sub topnav"><a href="/">报告列表</a><a href="/dashboard">评测 Dashboard</a></div>
-<div class="sub">上传一份客户材料（会议转写 / 邮件 / 微信记录），自动生成结构化需求分析报告</div>
+<div class="sub topnav"><a href="/">工作台</a><a href="/dashboard">评测 Dashboard</a></div>
 
 <div class="panel">
-<h2>① 已有分析报告（点击查看，报告页含可视化图表）</h2>
-<div class="list">__CASES__</div>
-</div>
-
-<div class="panel">
-<h2>② 跑一份新的（真实分析）</h2>
-<form id="f" action="/run" method="post" enctype="multipart/form-data">
-<textarea name="material" placeholder="把客户材料粘贴到这里。格式：每段一行，段前标 P1、P2、P3……（可参照已有案例格式）"></textarea>
+<h2>① 输入原始材料</h2>
+<textarea id="mat" placeholder="把客户的会议转写 / 邮件 / 微信记录原样粘贴到这里，越脏越真实越好。格式：每段一行，段前标 P1、P2、P3……（不标也能清洗，但引用回链会缺失）"></textarea>
 <div class="row">
   <span style="font-size:13px;color:var(--muted)">或上传文件：</span>
-  <input type="file" name="file" accept=".md,.txt">
-  <button type="submit" id="btn">开始分析</button>
+  <input type="file" id="file" accept=".md,.txt">
+  <button class="ghost" id="btnClean" onclick="doClean()">① 清洗预览（免费·秒出）</button>
+  <button id="btnRun" onclick="doRun()" disabled>② 运行完整分析（约 0.3 元）</button>
 </div>
 <div class="err" id="err"></div>
-<div class="hint">调用 DeepSeek 真实分析，约 1~2 分钟、约 0.3 元，页面会自动等待并跳转到报告。报告为草稿态，高风险字段需人工终审。想先看效果：直接点击上面任意已有报告。</div>
-</form>
+<div class="warn" id="warn"></div>
+<div class="hint">清洗为纯代码节点，实时执行不消耗 API；确认材料质量后再运行完整分析（提取 + 分析 + 报告，约 1~2 分钟）。</div>
+</div>
+
+<div class="panel" id="cleanPanel" style="display:none">
+<h2>② 清洗结果（节点 1 · 纯代码）</h2>
+<div class="stat" id="cleanStats"></div>
+<div id="cleanWarn"></div>
+<h3>原始段落 → 清洗后编号（点击报告中的 D 编号即回链到这里）</h3>
+<div class="seglist" id="segList"></div>
+</div>
+
+<div class="panel">
+<h2>③ 已有分析报告（点开即看，报告页含图表）</h2>
+<div class="list">__CASES__</div>
 </div>
 </div>
 <script>
-document.getElementById('f').addEventListener('submit', function() {
-  var b = document.getElementById('btn');
-  b.disabled = true; b.textContent = '分析中，请稍候…（约 1~2 分钟）';
-});
+var cleaned = false;
+function showErr(msg) { var e = document.getElementById('err'); e.textContent = msg; e.style.display = 'block'; }
+function getMaterial() {
+  var t = document.getElementById('mat').value.trim();
+  if (!t) { showErr('请先粘贴材料，或上传文件'); return null; }
+  return t;
+}
+function fetchFile(cb) {
+  var f = document.getElementById('file').files[0];
+  if (!f) { cb(); return; }
+  var r = new FileReader();
+  r.onload = function() { document.getElementById('mat').value = r.result; cb(); };
+  r.readAsText(f, 'utf-8');
+}
+function doClean() {
+  document.getElementById('err').style.display = 'none';
+  fetchFile(function() {
+    var t = getMaterial(); if (!t) return;
+    fetch('/api/clean', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ material: t }) })
+    .then(function(r){ return r.json(); })
+    .then(function(d) {
+      if (d.error) { showErr(d.error); return; }
+      cleaned = true;
+      document.getElementById('btnRun').disabled = false;
+      var p = document.getElementById('cleanPanel'); p.style.display = 'block';
+      var s = d.stats;
+      document.getElementById('cleanStats').innerHTML =
+        '<div><b>' + s['输入块数'] + '</b><span>输入块数</span></div>' +
+        '<div><b>' + s['解析段落数'] + '</b><span>解析段落数</span></div>' +
+        '<div><b>' + s['PII脱敏段落数'] + '</b><span>PII 脱敏段落</span></div>' +
+        '<div><b>' + s['刷屏合并数'] + '</b><span>刷屏合并</span></div>';
+      var w = document.getElementById('warn');
+      if (d.warnings.length) { w.innerHTML = d.warnings.join('<br>'); w.style.display = 'block'; }
+      else { w.style.display = 'none'; }
+      document.getElementById('segList').innerHTML = d.segments.map(function(sg) {
+        return '<div class="seg"><span class="did">' + sg.did + '</span>' +
+          (sg.pii_scrubbed ? '<span class="scrub">[已脱敏] </span>' : '') +
+          sg.text.replace(/</g,'&lt;') + '<span class="pid">← 原始 ' + sg.pid + '</span></div>';
+      }).join('');
+      p.scrollIntoView({ behavior:'smooth' });
+    })
+    .catch(function(e){ showErr('清洗失败：' + e); });
+  });
+}
+function doRun() {
+  if (!cleaned) return;
+  var t = document.getElementById('mat').value.trim();
+  var b = document.getElementById('btnRun');
+  b.disabled = true; b.textContent = '分析中…（1~2 分钟，请勿关闭）';
+  fetch('/run-text', { method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ material: t }) })
+  .then(function(r){ return r.json().then(function(d){ return { status:r.status, d:d }; }); })
+  .then(function(x) {
+    if (x.status === 200 && x.d.case) { window.location.href = '/pipeline/' + encodeURIComponent(x.d.case); }
+    else { showErr(x.d.error || '运行失败'); b.disabled = false; b.textContent = '② 运行完整分析（约 0.3 元）'; }
+  })
+  .catch(function(e){ showErr('请求失败：' + e); b.disabled = false; });
+}
+</script>
+</body></html>"""
+
+PIPELINE_PAGE = """<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>__TITLE__ · 分析流水线</title><style>__CSS__</style>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+</head>
+<body><div class="wrap">
+<p><a class="back" href="/">← 返回工作台</a>　<a class="back" href="/report/__URLNAME__">完整报告（可阅读版）→</a>　<a class="back" href="/dashboard">评测 Dashboard</a></p>
+<div class="tag">分 析 流 水 线</div>
+<h1>__TITLE__</h1>
+<div class="flowbar">
+  <div class="step done"><b>✓ 节点1 清洗</b>纯代码 · PII脱敏 · 编号映射</div>
+  <div class="step done"><b>✓ 节点2~3 提取</b>LLM + Schema 校验闸</div>
+  <div class="step done"><b>✓ 节点4~7 分析</b>评分加权 + 能力匹配</div>
+  <div class="step done"><b>✓ 节点8 报告</b>草稿态 · 待人工终审</div>
+</div>
+__BODY__
+</div>
+<script>
+__CHART__
 </script>
 </body></html>"""
 
@@ -123,7 +241,7 @@ REPORT_PAGE = """<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">
 <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
 </head>
 <body><div class="wrap">
-<p><a class="back" href="/">← 返回首页</a>　<a class="back" href="/dashboard">评测 Dashboard →</a></p>
+<p><a class="back" href="/">← 返回工作台</a>　<a class="back" href="/pipeline/__URLNAME__">流水线视图 →</a>　<a class="back" href="/dashboard">评测 Dashboard</a></p>
 <div class="panel">
 <h2>优先级可视化（AI 评分）</h2>
 <div class="grid2">
@@ -203,7 +321,7 @@ DASHBOARD_PAGE = """<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8
 <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
 </head>
 <body><div class="wrap">
-<p><a class="back" href="/">← 返回首页</a></p>
+<p><a class="back" href="/">← 返回工作台</a></p>
 <div class="tag">评 测 驱 动 迭 代</div>
 <h1>评测 Dashboard</h1>
 <div class="sub">现役口径：Prompt v1.7.1 · 评测器 v1.5 · GT v1.1/v1.0 ｜ 17 案例三层验证集，双人盲评校准</div>
@@ -267,6 +385,166 @@ window.addEventListener('resize', function() { g1.resize(); g2.resize(); g3.resi
 
 DS_COLORS = {"MAIN": "#2f54eb", "DEV": "#7a5cd6", "HOLD": "#16855c", "FINAL": "#b26a00"}
 
+TIER_PILL = {"高": "p-high", "中": "p-mid", "低": "p-low"}
+VERDICT_PILL = {"匹配": "p-ok", "部分匹配": "p-mid", "待确认": "p-tbd", "不支持": "p-bad"}
+
+
+def run_clean(material: str) -> dict:
+    """节点1 清洗：纯代码、零成本。返回统计 + 段落对照 + 兜底警告。"""
+    data = cleaner.clean(material)
+    segs = [{"pid": s.pid, "did": s.did, "text": s.text, "pii_scrubbed": s.pii_scrubbed}
+            for s in data.segments]
+    cleaned_len = len(data.cleaned_text())
+    warnings = []
+    if cleaned_len < wf.MIN_MATERIAL_CHARS:
+        warnings.append(f"⚠ 清洗后仅 {cleaned_len} 字符（少于 {wf.MIN_MATERIAL_CHARS}），材料不足，正式分析会被拒收——请补充更多内容")
+    elif cleaned_len > wf.MAX_MATERIAL_CHARS:
+        warnings.append(f"⚠ 清洗后 {cleaned_len} 字符（超过 {wf.MAX_MATERIAL_CHARS}），请先人工分段或摘要后再分析")
+    else:
+        warnings.append(f"✓ 清洗后 {cleaned_len} 字符，可进入正式分析")
+    return {"stats": data.stats, "segments": segs, "cleaned_len": cleaned_len, "warnings": warnings}
+
+
+def save_material(material: str) -> str:
+    safe = "web_" + time.strftime("%m%d_%H%M%S") + "_" + uuid.uuid4().hex[:6]
+    case_path = UPLOAD_DIR / f"{safe}.md"
+    case_path.write_text(material, encoding="utf-8")
+    return case_path.stem
+
+
+def load_case(name: str):
+    out = PROJECT_ROOT / "output" / name
+    ana = out / "analysis.json"
+    mp = out / "mapping.json"
+    if not ana.exists():
+        return None
+    a = json.loads(ana.read_text(encoding="utf-8"))
+    m = json.loads(mp.read_text(encoding="utf-8")) if mp.exists() else {}
+    return a, m
+
+
+def list_cases() -> str:
+    out = PROJECT_ROOT / "output"
+    rows = []
+    for d in sorted(out.iterdir(), reverse=True):
+        if not d.is_dir() or d.name == "evaluation":
+            continue
+        report = d / "report.md"
+        if not report.exists():
+            continue
+        mtime = time.strftime("%m-%d %H:%M", time.localtime(report.stat().st_mtime))
+        rows.append(f'<a href="/pipeline/{html.escape(d.name)}"><span>{html.escape(d.name)}'
+                    f'</span><span class="meta">{mtime}</span></a>')
+    return "\n".join(rows) or '<span class="meta">暂无报告，先在工作台跑一份</span>'
+
+
+def esc(s) -> str:
+    return html.escape(str(s), quote=False)
+
+
+def build_pipeline_body(a: dict, m: dict) -> tuple[str, str]:
+    """节点产物卡片 + ECharts 配置。"""
+    stats = m.get("stats", {})
+    mapping = m.get("mapping", [])
+    node1, node2, priority = a.get("node1", {}), a.get("node2", {}), a.get("priority", [])
+    caps = node2.get("capability_match", [])
+
+    # 节点1 卡片
+    seg_rows = "".join(
+        f"<tr><td>{esc(x['pid'])}</td><td><b style='color:#2f54eb'>{esc(x['did'])}</b></td></tr>"
+        for x in mapping)
+    body = f"""
+<div class="panel">
+<h2>节点 1 · 清洗（纯代码）</h2>
+<div class="stat">
+  <div><b>{stats.get('输入块数', '—')}</b><span>输入块数</span></div>
+  <div><b>{stats.get('解析段落数', '—')}</b><span>解析段落数</span></div>
+  <div><b>{stats.get('PII脱敏段落数', '—')}</b><span>PII 脱敏段落</span></div>
+  <div><b>{stats.get('刷屏合并数', '—')}</b><span>刷屏合并</span></div>
+</div>
+<details><summary style="cursor:pointer;font-size:13px;color:#5f6b80">P ↔ D 编号映射表（{len(mapping)} 段）</summary>
+<table><tr><th>原始编号</th><th>清洗编号</th></tr>{seg_rows}</table></details>
+</div>
+"""
+
+    # 节点2 提取卡片
+    n1 = ""
+    for k, label in [("customer_background", "客户背景"), ("business_goals", "业务目标")]:
+        items = node1.get(k) or []
+        if items:
+            n1 += f"<h3>{label}</h3><ul class='plain'>" + "".join(f"<li>{esc(i)}</li>" for i in items) + "</ul>"
+    en = node1.get("explicit_needs") or []
+    if en:
+        rows = "".join(f"<tr><td><b>{esc(e.get('id'))}</b></td><td>{esc(e.get('content'))}</td>"
+                       f"<td>{esc('、'.join(e.get('dids', []) or []))}</td></tr>" for e in en)
+        n1 += f"<h3>显性需求（{len(en)} 条，带原文回链）</h3><table><tr><th>#</th><th>需求</th><th>出处</th></tr>{rows}</table>"
+    inf = node1.get("inferred_needs") or []
+    if inf:
+        rows = "".join(f"<tr><td>{esc(i.get('id'))}</td><td>{esc(i.get('content'))}</td>"
+                       f"<td><span class='pill p-{{}}'>".replace("p-{}", "p-tbd") + f"{esc(i.get('confidence'))}</span></td></tr>" for i in inf)
+        n1 += f"<h3>潜在需求（推断）</h3><table><tr><th>#</th><th>推断</th><th>置信</th></tr>{rows}</table>"
+    gaps = node1.get("info_gaps") or node1.get("gaps") or []
+    if gaps:
+        rows = ""
+        for g in gaps:
+            lvl = g.get("level") or g.get("级别") or ""
+            cls = "p-bad" if "决定" in str(lvl) else ("p-mid" if "关键" in str(lvl) else "p-tbd")
+            rows += (f"<tr><td>{esc(g.get('gap') or g.get('缺口'))}</td>"
+                     f"<td><span class='pill {cls}'>{esc(lvl)}</span></td>"
+                     f"<td>{esc(g.get('impact') or g.get('影响'))}</td>"
+                     f"<td>{esc(g.get('question') or g.get('追问'))}</td></tr>")
+        n1 += f"<h3>待确认信息（缺口 → 追问）</h3><table><tr><th>缺口</th><th>级别</th><th>影响</th><th>追问</th></tr>{rows}</table>"
+    body += f"""
+<div class="panel">
+<h2>节点 2~3 · 信息提取（LLM + 校验闸）</h2>
+{n1 or '<em>无 node1 数据</em>'}
+</div>
+"""
+
+    # 节点4~7 分析卡片
+    pr = ""
+    if priority:
+        rows = "".join(
+            f"<tr><td>{esc(r['id'])}</td><td>{esc(r.get('content'))[:44]}</td>"
+            f"<td>{r.get('impact')}</td><td>{r.get('urgency')}</td><td>{r.get('coverage')}</td><td>{r.get('signal')}</td>"
+            f"<td><b>{r.get('weighted')}</b></td><td><span class='pill {TIER_PILL.get(r.get('tier'), 'p-low')}'>{esc(r.get('tier'))}</span></td></tr>"
+            for r in priority)
+        pr = (f"<table><tr><th>#</th><th>需求</th><th>影响</th><th>紧迫</th><th>覆盖</th><th>信号</th><th>加权</th><th>档位</th></tr>"
+              f"{rows}</table>")
+    cap_rows = "".join(
+        f"<tr><td>{esc(c.get('target'))}</td>"
+        f"<td><span class='pill {VERDICT_PILL.get(c.get('verdict'), 'p-tbd')}'>{esc(c.get('verdict'))}</span></td>"
+        f"<td>{esc(c.get('reason'))}</td></tr>" for c in caps)
+    body += f"""
+<div class="panel">
+<h2>节点 4~7 · 需求分析（四维加权 + 能力匹配）</h2>
+{pr}
+<h3>能力匹配裁定</h3>
+<table><tr><th>对象</th><th>结论</th><th>依据</th></tr>{cap_rows}</table>
+<div id="radar" class="chart"></div>
+</div>
+"""
+
+    # 图表：雷达 + 矩阵（复用报告页逻辑，精简为一张雷达）
+    chart = """
+if (window.echarts) {
+  var ana = __ANA__;
+  var C = { high:'#2f54eb', mid:'#b26a00', low:'#8a93a6' };
+  var pri = (ana.priority||[]).slice().sort(function(a,b){ return b.weighted - a.weighted; }).slice(0, 6);
+  var radar = echarts.init(document.getElementById('radar'));
+  radar.setOption({
+    title: { text: '四维评分雷达（Top6）', left: 'center', textStyle: { fontSize: 13, color: '#5f6b80' } },
+    legend: { bottom: 0, type: 'scroll', textStyle: { fontSize: 11 } },
+    radar: { indicator: [{ name: '影响', max: 5 }, { name: '紧迫', max: 5 }, { name: '覆盖', max: 5 }, { name: '信号', max: 5 }], radius: '55%' },
+    series: [{ type: 'radar', data: pri.map(function(r) {
+      return { name: r.id + ' ' + r.tier, value: [r.impact, r.urgency, r.coverage, r.signal],
+        itemStyle: { color: C[r.tier] || C.low }, areaStyle: { opacity: .08 } }; }) }]
+  });
+  window.addEventListener('resize', function() { radar.resize(); });
+}
+""".replace("__ANA__", json.dumps({"priority": priority}, ensure_ascii=False))
+    return body, chart
+
 
 def load_snapshots():
     ev = PROJECT_ROOT / "output" / "evaluation"
@@ -295,21 +573,6 @@ def load_snapshots():
             "case_1": case_1, "case_5": case_5, "case_6": case_6}
 
 
-def list_cases() -> str:
-    out = PROJECT_ROOT / "output"
-    rows = []
-    for d in sorted(out.iterdir(), reverse=True):
-        if not d.is_dir() or d.name == "evaluation":
-            continue
-        report = d / "report.md"
-        if not report.exists():
-            continue
-        mtime = time.strftime("%m-%d %H:%M", time.localtime(report.stat().st_mtime))
-        rows.append(f'<a href="/report/{html.escape(d.name)}"><span>{html.escape(d.name)}'
-                    f'</span><span class="meta">{mtime}</span></a>')
-    return "\n".join(rows) or '<span class="meta">暂无报告，先跑一份新的</span>'
-
-
 def render(template: str, **kw: str) -> str:
     body = template
     for k, v in kw.items():
@@ -326,20 +589,34 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
+    def _json(self, obj, code: int = 200):
+        self._send(json.dumps(obj, ensure_ascii=False), code, "application/json; charset=utf-8")
+
     def do_GET(self):
         path = unquote(urlparse(self.path).path)
         if path in ("/", "/index.html"):
             self._send(render(HOME_PAGE, css=PAGE_CSS, cases=list_cases()))
         elif path == "/dashboard":
-            data = json.dumps(load_snapshots(), ensure_ascii=False)
-            self._send(render(DASHBOARD_PAGE, css=PAGE_CSS, data=data))
+            self._send(render(DASHBOARD_PAGE, css=PAGE_CSS,
+                              data=json.dumps(load_snapshots(), ensure_ascii=False)))
         elif path.startswith("/api/case/"):
             name = path.split("/api/case/", 1)[1]
-            p = PROJECT_ROOT / "output" / name / "analysis.json"
-            if not p.exists():
-                self._send("{}", 404, "application/json; charset=utf-8")
+            got = load_case(name)
+            if got is None:
+                self._json({"error": "案例不存在"}, 404)
                 return
-            self._send(p.read_text(encoding="utf-8"), 200, "application/json; charset=utf-8")
+            a, m = got
+            self._json({"analysis": a, "mapping": m})
+        elif path.startswith("/pipeline/"):
+            name = path.split("/pipeline/", 1)[1]
+            got = load_case(name)
+            if got is None:
+                self._send("<h1>案例不存在</h1><p><a href='/'>返回</a></p>", 404)
+                return
+            a, m = got
+            body, chart = build_pipeline_body(a, m)
+            self._send(render(PIPELINE_PAGE, title=html.escape(name), css=PAGE_CSS,
+                              urlname=name, body=body, chart=chart))
         elif path.startswith("/report/"):
             name = path.split("/report/", 1)[1]
             report = PROJECT_ROOT / "output" / name / "report.md"
@@ -349,60 +626,73 @@ class Handler(BaseHTTPRequestHandler):
                 return
             raw = json.dumps(report.read_text(encoding="utf-8"), ensure_ascii=False)
             a = ana.read_text(encoding="utf-8") if ana.exists() else "{}"
-            self._send(render(REPORT_PAGE, title=html.escape(name), css=PAGE_CSS, raw=raw, ana=a))
+            self._send(render(REPORT_PAGE, title=html.escape(name), css=PAGE_CSS,
+                              urlname=name, raw=raw, ana=a))
         else:
             self._send("<h1>404</h1>", 404)
 
     def do_POST(self):
-        if self.path != "/run":
-            self._send("<h1>404</h1>", 404)
+        path = unquote(urlparse(self.path).path)
+        if path == "/api/clean":
+            length = int(self.headers.get("Content-Length", 0))
+            try:
+                payload = json.loads(self.rfile.read(length).decode("utf-8"))
+                material = (payload.get("material") or "").strip()
+                if not material:
+                    self._json({"error": "材料为空"}, 400)
+                    return
+                self._json(run_clean(material))
+            except Exception as e:  # noqa: BLE001
+                self._json({"error": f"{type(e).__name__}: {e}"}, 500)
             return
-        ctype = self.headers.get("Content-Type", "")
-        boundary = re.search(r"boundary=([^;]+)", ctype)
-        length = int(self.headers.get("Content-Length", 0))
-        body = self.rfile.read(length)
-        fields, filename, filedata = {}, None, b""
-        if boundary:
-            for part in body.split(("--" + boundary.group(1)).encode()):
-                m = re.search(rb'name="([^"]+)"(?:; filename="([^"]+)")?', part)
-                if not m:
-                    continue
-                name, fname = m.group(1).decode(), m.group(2)
-                _, _, val = part.partition(b"\r\n\r\n")
-                val = val.rsplit(b"\r\n", 1)[0]
-                if fname:
-                    filename, filedata = fname, val
-                else:
-                    fields[name] = val.decode("utf-8", "replace")
-        material = (fields.get("material") or "").strip()
-        if filename and filedata.strip():
-            safe = re.sub(r'[\\/:*?"<>|]', "_", Path(filename).stem)[:40]
-            material = filedata.decode("utf-8", "replace")
-        elif material:
-            safe = "粘贴材料_" + time.strftime("%m%d_%H%M%S")
-        if not material:
-            self._send("<h1>材料为空</h1><p><a href='/'>返回重试</a></p>", 400)
+        if path == "/run-text":
+            length = int(self.headers.get("Content-Length", 0))
+            try:
+                payload = json.loads(self.rfile.read(length).decode("utf-8"))
+                material = (payload.get("material") or "").strip()
+                if not material:
+                    self._json({"error": "材料为空"}, 400)
+                    return
+                stem = save_material(material)
+                wf.run_case(str(UPLOAD_DIR / f"{stem}.md"), mock=False)
+                self._json({"case": stem})
+            except Exception as e:  # noqa: BLE001
+                self._json({"error": f"{type(e).__name__}: {e}"}, 500)
             return
-        case_path = UPLOAD_DIR / f"web_{safe}_{uuid.uuid4().hex[:6]}.md"
-        case_path.write_text(material, encoding="utf-8")
-
-        from pipeline import workflow
-        try:
-            out_dir = workflow.run_case(str(case_path), mock=False)
-            self.send_response(303)
-            self.send_header("Location", f"/report/{out_dir.name}")
-            self.end_headers()
-        except Exception as e:  # noqa: BLE001
-            msg = html.escape(f"{type(e).__name__}: {e}")
-            self._send(render(HOME_PAGE, css=PAGE_CSS, cases=list_cases())
-                       .replace("</div>\n</div>\n<script>",
-                                f'<div class="err" style="display:block">运行失败：{msg}</div></div>\n</div>\n<script>'))
+        if path == "/run":
+            # 兼容旧表单（multipart）：直接跑完整分析
+            ctype = self.headers.get("Content-Type", "")
+            boundary = re.search(r"boundary=([^;]+)", ctype)
+            length = int(self.headers.get("Content-Length", 0))
+            body = self.rfile.read(length)
+            material = ""
+            if boundary:
+                for part in body.split(("--" + boundary.group(1)).encode()):
+                    m = re.search(rb'name="material"', part)
+                    if not m:
+                        continue
+                    _, _, val = part.partition(b"\r\n\r\n")
+                    material = val.rsplit(b"\r\n", 1)[0].decode("utf-8", "replace").strip()
+                    break
+            if not material:
+                self._send("<h1>材料为空</h1>", 400)
+                return
+            stem = save_material(material)
+            try:
+                wf.run_case(str(UPLOAD_DIR / f"{stem}.md"), mock=False)
+                self.send_response(303)
+                self.send_header("Location", f"/pipeline/{stem}")
+                self.end_headers()
+            except Exception as e:  # noqa: BLE001
+                self._send(f"<h1>运行失败</h1><p>{html.escape(str(e))}</p><p><a href='/'>返回</a></p>", 500)
+            return
+        self._send("<h1>404</h1>", 404)
 
 
 def main():
     port = 8000
-    print(f"[Web] AI 客户需求分析助手演示界面：http://127.0.0.1:{port}")
-    print("[Web] 评测 Dashboard：http://127.0.0.1:8000/dashboard")
+    print(f"[Web] 工作台：http://127.0.0.1:{port}")
+    print(f"[Web] 评测 Dashboard：http://127.0.0.1:{port}/dashboard")
     print("[Web] Ctrl+C 退出")
     HTTPServer(("127.0.0.1", port), Handler).serve_forever()
 
