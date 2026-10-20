@@ -72,13 +72,18 @@ def _scrub_pii(text: str) -> tuple[str, bool]:
     return text, scrubbed
 
 
-def load_material(path) -> str:
-    """读取案例文件，截取「## 原始材料」之后的部分（无该标题则用全文）。"""
-    raw = open(path, encoding="utf-8").read()
+def extract_material(raw: str) -> str:
+    """从完整 Markdown 提取「## 原始材料」之后正文（无该标题则用全文）。
+
+    V2 存储层与旧 Workflow 共用同一提取规则，保证新旧路径 P/D 映射一致。
+    """
     marker = "## 原始材料"
-    if marker in raw:
-        raw = raw.split(marker, 1)[1]
-    return raw
+    return raw.split(marker, 1)[1] if marker in raw else raw
+
+
+def load_material(path) -> str:
+    """读取案例文件，提取「## 原始材料」之后的部分（无该标题则用全文）。"""
+    return extract_material(open(path, encoding="utf-8").read())
 
 
 def clean(raw_material: str) -> CleanResult:
