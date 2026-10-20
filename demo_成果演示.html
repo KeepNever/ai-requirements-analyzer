@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 客户需求分析助手 · 成果演示</title>
+<style>
+  :root {
+    --bg: #0b0e14;
+    --panel: #12161f;
+    --panel2: #171c28;
+    --line: #232a3a;
+    --blue: #2b5cff;
+    --blue-soft: #5b82ff;
+    --text: #e8ecf4;
+    --muted: #8a93a6;
+    --green: #3ecf8e;
+    --amber: #f5b04c;
+    --red: #e5636f;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+    line-height: 1.7;
+    padding: 48px 20px 80px;
+  }
+  .wrap { max-width: 960px; margin: 0 auto; }
+  .tag {
+    display: inline-block; padding: 3px 12px; border: 1px solid var(--blue);
+    color: var(--blue-soft); border-radius: 999px; font-size: 13px; margin-bottom: 16px;
+    letter-spacing: 2px;
+  }
+  h1 { font-size: 34px; font-weight: 700; letter-spacing: 1px; }
+  .sub { color: var(--muted); margin: 10px 0 28px; font-size: 15px; }
+  .flow {
+    display: flex; align-items: stretch; gap: 0; margin: 28px 0 40px;
+  }
+  .flow .box {
+    flex: 1; background: var(--panel); border: 1px solid var(--line);
+    border-radius: 10px; padding: 16px 14px; text-align: center;
+  }
+  .flow .box b { display: block; font-size: 14px; margin-bottom: 4px; }
+  .flow .box span { font-size: 12px; color: var(--muted); }
+  .flow .arr {
+    display: flex; align-items: center; padding: 0 10px; color: var(--blue);
+    font-size: 20px;
+  }
+  h2 {
+    font-size: 20px; margin: 44px 0 16px; padding-left: 12px;
+    border-left: 4px solid var(--blue); letter-spacing: 1px;
+  }
+  .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .card {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+    padding: 16px;
+  }
+  .card .num { font-size: 26px; font-weight: 700; color: var(--blue-soft); }
+  .card .num.good { color: var(--green); }
+  .card .num.warn { color: var(--amber); }
+  .card .lbl { font-size: 13px; color: var(--muted); margin-top: 4px; }
+  .note {
+    background: var(--panel2); border: 1px solid var(--line); border-radius: 10px;
+    padding: 14px 18px; font-size: 13px; color: var(--muted); margin-top: 14px;
+  }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; margin-top: 6px; }
+  th, td { padding: 9px 10px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+  th { color: var(--muted); font-weight: 500; font-size: 12.5px; }
+  .pill {
+    display: inline-block; padding: 1px 10px; border-radius: 999px;
+    font-size: 12px; font-weight: 600;
+  }
+  .pill.high { background: rgba(43,92,255,.18); color: var(--blue-soft); }
+  .pill.mid { background: rgba(245,176,76,.16); color: var(--amber); }
+  .pill.low { background: rgba(138,147,166,.16); color: var(--muted); }
+  .pill.match { background: rgba(62,207,142,.15); color: var(--green); }
+  .pill.part { background: rgba(245,176,76,.16); color: var(--amber); }
+  .pill.tbd { background: rgba(138,147,166,.18); color: var(--muted); }
+  .pill.crit { background: rgba(229,99,111,.16); color: var(--red); }
+  .quote {
+    border-left: 3px solid var(--line); padding: 4px 12px; margin: 4px 0;
+    color: var(--muted); font-size: 12.5px; font-style: italic;
+  }
+  .footer { margin-top: 56px; color: var(--muted); font-size: 12.5px; text-align: center; }
+  .steps { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .step {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px;
+  }
+  .step b { color: var(--blue-soft); }
+  .step p { font-size: 13px; color: var(--muted); margin-top: 4px; }
+  @media (max-width: 700px) { .cards, .steps { grid-template-columns: 1fr; } .flow { flex-direction: column; } .flow .arr { transform: rotate(90deg); justify-content: center; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="tag">求 职 作 品 集 · 产 品 演 示</div>
+  <h1>AI 客户需求分析助手</h1>
+  <div class="sub">输入一封客户邮件 / 一段会议转写 / 一份微信记录，自动输出结构化需求分析报告：显性需求提取、四维优先级评分、能力匹配、信息缺口与追问清单。LLM 应用 · DeepSeek · 全流程评测驱动迭代。</div>
+
+  <div class="flow">
+    <div class="box"><b>原始材料</b><span>会议转写 / 邮件 / 微信记录<br>含脏数据、跑题、矛盾信息</span></div>
+    <div class="arr">→</div>
+    <div class="box"><b>清洗 · 提取 · 分析</b><span>三节点 Pipeline，逐级 JSON Schema 校验<br>PII 脱敏，失败自动重试</span></div>
+    <div class="arr">→</div>
+    <div class="box"><b>需求分析报告</b><span>F1~F9 九大模块<br>草稿态标注，交产品经理终审</span></div>
+  </div>
+
+  <h2>评测成绩（17 个案例 · 双人盲评校准的 GT）</h2>
+  <div class="cards">
+    <div class="card"><div class="num good">0.79</div><div class="lbl">① 需求提取 F1<br>识别得全不全</div></div>
+    <div class="card"><div class="num good">0</div><div class="lbl">② 关键需求遗漏率<br>正式验证集 6 案全部命中</div></div>
+    <div class="card"><div class="num good">0.30 元/案</div><div class="lbl">单案例综合成本<br>11 案例全流程 &lt; 0.5 元</div></div>
+    <div class="card"><div class="num">0.61~0.86</div><div class="lbl">⑥ 能力匹配准确率<br>分数据集区间</div></div>
+    <div class="card"><div class="num warn">0.40~0.83</div><div class="lbl">⑤ 优先级一致率<br>已知弱项，两轮实验挂账</div></div>
+    <div class="card"><div class="num">28 项</div><div class="lbl">pytest 全绿<br>GT 双人独立评分一致率 97.3%+</div></div>
+  </div>
+
+  <h2>真实产出示例 · 制造业客户会议转写</h2>
+  <div class="note">输入：14 段未经整理的会议口语转写，含跑题与模糊表述。以下为 AI 全自动输出的报告节选，未人工修改。</div>
+
+  <h2 style="font-size:16px;">F3 显性需求（含原文引用回链）</h2>
+  <table>
+    <tr><th style="width:8%">#</th><th>AI 识别的需求</th><th style="width:38%">材料原文</th></tr>
+    <tr><td>EN1</td><td>车间需要实时看板，良品率、停机时长等指标当天可见，不必等一周一次的报告</td><td><div class="quote">"车间要有块实时看板，良品率、停机时长这些东西当天就能看到，别等一周。"</div></td></tr>
+    <tr><td>EN3</td><td>良品率掉到 95 以下必须马上通知王总，不能等到第二天</td><td><div class="quote">"良品率一旦掉到 95 以下必须马上通知我，不能等第二天。"</div></td></tr>
+    <tr><td>EN4</td><td>预警最好通过企业微信发送</td><td><div class="quote">"预警的话最好走企微，我们全厂办公都在企微上。"</div></td></tr>
+  </table>
+
+  <h2 style="font-size:16px;">F4 潜在需求推断（客户没说出口的）</h2>
+  <table>
+    <tr><th style="width:8%">#</th><th>推断</th><th style="width:34%">依据</th><th style="width:10%">置信</th></tr>
+    <tr><td>IN3</td><td>需定制化数据集成：金蝶 K3 老版本 ERP + 老旧设备私有协议</td><td>李工说明数据分散在三套老系统，且担心接口不好接，多段交叉印证</td><td><span class="pill high">高</span></td></tr>
+    <tr><td>IN1</td><td>看板需多终端支持（车间现场大屏 / 移动端）</td><td>客户强调不能只在办公室可见，结合车间场景推断</td><td><span class="pill mid">中</span></td></tr>
+  </table>
+
+  <h2 style="font-size:16px;">F5 信息缺口与追问清单（决定性缺口置顶）</h2>
+  <table>
+    <tr><th style="width:30%">缺口</th><th style="width:12%">级别</th><th>AI 生成的追问</th></tr>
+    <tr><td>设备数据接口协议与可接入性</td><td><span class="pill crit">决定性</span></td><td>请安排现场勘查，确认设备接口类型、协议、数据格式，以及老系统是否提供可用的数据导出方式</td></tr>
+    <tr><td>金蝶 K3 版本及接口开放情况</td><td><span class="pill mid">关键</span></td><td>请确认具体版本号，以及是否开放数据库只读权限或提供 API</td></tr>
+    <tr><td>预警接收人范围</td><td><span class="pill tbd">普通</span></td><td>请确认除王总外是否还需通知车间主任、质量部等</td></tr>
+  </table>
+
+  <h2 style="font-size:16px;">F6 优先级评分（四维加权：影响 40% · 紧迫 25% · 覆盖 20% · 信号 15%）</h2>
+  <table>
+    <tr><th>需求</th><th>影响</th><th>紧迫</th><th>覆盖</th><th>信号</th><th>加权</th><th>档位</th></tr>
+    <tr><td>EN1 实时看板当天可见</td><td>5</td><td>5</td><td>4</td><td>5</td><td><b>4.80</b></td><td><span class="pill high">高</span></td></tr>
+    <tr><td>EN2 接入 ERP 与设备数据</td><td>5</td><td>4</td><td>4</td><td>5</td><td><b>4.55</b></td><td><span class="pill high">高</span></td></tr>
+    <tr><td>EN3 良品率跌破 95 即时预警</td><td>4</td><td>4</td><td>2</td><td>5</td><td><b>3.75</b></td><td><span class="pill high">高</span></td></tr>
+    <tr><td>EN6 批次追溯（客户自述以后再说）</td><td>3</td><td>1</td><td>2</td><td>2</td><td><b>2.15</b></td><td><span class="pill low">低</span></td></tr>
+  </table>
+
+  <h2 style="font-size:16px;">F7 能力匹配（对照产品能力清单逐条裁定）</h2>
+  <table>
+    <tr><th style="width:30%">客户需求</th><th style="width:12%">结论</th><th>依据</th></tr>
+    <tr><td>实时看板</td><td><span class="pill match">匹配</span></td><td>C2 支持核心指标实时刷新（延迟 &lt; 1 分钟）与大屏投放</td></tr>
+    <tr><td>接入 ERP 和设备数据</td><td><span class="pill part">部分匹配</span></td><td>C5 有 50+ 标准连接器覆盖主流 ERP；但设备数据为老旧私有协议需定制开发，且客户方自述接口不确定</td></tr>
+    <tr><td>批次追溯</td><td><span class="pill tbd">待确认</span></td><td>能力清单未提及该功能，不强行归类，留待确认</td></tr>
+  </table>
+
+  <h2>评测体系：这不是调出来的，是测出来的</h2>
+  <div class="steps">
+    <div class="step"><b>17 案例三层验证集</b><p>5 主开发集 + 3 开发验证 + 3 冻结回归 + 6 正式盲测。GT 人工双人独立评分，一致率 97.3%~100% 方可锁定；LLM-as-judge 只做参考不做终审。</p></div>
+    <div class="step"><b>六指标量化看板</b><p>提取 F1 / 关键遗漏 / 引用错位 / 优先级一致 / 能力匹配 / 引用完整率，每轮 Prompt 迭代全量回归，单变量实验、逐需求留痕。</p></div>
+    <div class="step"><b>两次失败实验完整留档</b><p>优先级锚点两轮优化未达标，逐条归因到模型因果观与 GT 口径的语义分歧后主动止损挂账——评测驱动迭代的诚实边界。</p></div>
+    <div class="step"><b>工程纪律</b><p>版本快照（git tag 冻结基线）、双轮验收抗噪声、盲测集用后即封、数据集身份管理（hold 用后转回归集，绝不复用当盲测）。</p></div>
+  </div>
+
+  <div class="footer">
+    技术栈：Python · DeepSeek · pytest · git 版本化评测 · JSON Schema 逐级校验<br>
+    本页数据截至 2026-10-19，全部指标可复现，快照与报告见仓库 docs/ 与 output/evaluation/
+  </div>
+
+</div>
+</body>
+</html>
