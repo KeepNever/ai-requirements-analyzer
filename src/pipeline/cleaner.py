@@ -11,6 +11,10 @@
 import re
 from dataclasses import dataclass, field
 
+# 清洗器版本（V2 P0 新增）：v1 = 未版本化的历史行为（合并时段落丢弃、无留痕）
+# v2 = 合并段落留痕增强（merged_from），LLM 输入形态零变化
+CLEANER_VERSION = "v2"
+
 # PII 正则（中国场景常见三类）
 RE_PHONE = re.compile(r"(?<!\d)1[3-9]\d{9}(?!\d)")
 RE_IDCARD = re.compile(r"(?<!\d)\d{17}[\dXx](?!\d)")
@@ -27,6 +31,7 @@ class Segment:
     text: str         # 脱敏后文本（供 LLM 与引用校验）
     raw_text: str     # 脱敏前文本（留痕，不进 LLM）
     pii_scrubbed: bool = False
+    merged_from: list = field(default_factory=list)  # 被合并段落 [{pid, raw_text}]（审计留痕，不进 LLM）
 
 
 @dataclass
@@ -101,8 +106,10 @@ def clean(raw_material: str) -> CleanResult:
         text = re.sub(r"\s+", " ", text)  # 空白归一
 
         # 同内容刷屏合并（仅相邻且完全一致才合并——保守规则，防误杀）
+        # v2：被合并段落留痕于上一 segment 的 merged_from，不再静默丢弃
         if seen_texts and seen_texts[-1] == text:
             merged_count += 1
+            result.segments[-1].merged_from.append({"pid": pid, "raw_text": text})
             continue
 
         scrubbed_text, hit = _scrub_pii(text)
