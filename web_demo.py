@@ -17,6 +17,7 @@ import time
 import uuid
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
+from urllib.parse import unquote, urlparse
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(PROJECT_ROOT / "src"))
@@ -142,7 +143,7 @@ class Handler(BaseHTTPRequestHandler):
         if self.path in ("/", "/index.html"):
             self._send(HOME_PAGE.format(css=PAGE_CSS, cases=list_cases()))
         elif self.path.startswith("/report/"):
-            name = self.path.split("/report/", 1)[1].split("?")[0]
+            name = unquote(urlparse(self.path).path.split("/report/", 1)[1])
             report = PROJECT_ROOT / "output" / name / "report.md"
             if not report.exists():
                 self._send("<h1>报告不存在</h1><p><a href='/'>返回</a></p>", 404)
