@@ -6,17 +6,17 @@
 <title>AI 客户需求分析助手 · 成果演示</title>
 <style>
   :root {
-    --bg: #0b0e14;
-    --panel: #12161f;
-    --panel2: #171c28;
-    --line: #232a3a;
+    --bg: #f7f8fc;
+    --panel: #ffffff;
+    --panel2: #eef1f8;
+    --line: #e2e6f0;
     --blue: #2b5cff;
-    --blue-soft: #5b82ff;
-    --text: #e8ecf4;
-    --muted: #8a93a6;
-    --green: #3ecf8e;
-    --amber: #f5b04c;
-    --red: #e5636f;
+    --blue-soft: #2f54eb;
+    --text: #1f2430;
+    --muted: #5f6b80;
+    --green: #16855c;
+    --amber: #b26a00;
+    --red: #c9404e;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
@@ -30,7 +30,7 @@
   .tag {
     display: inline-block; padding: 3px 12px; border: 1px solid var(--blue);
     color: var(--blue-soft); border-radius: 999px; font-size: 13px; margin-bottom: 16px;
-    letter-spacing: 2px;
+    letter-spacing: 2px; background: #fff;
   }
   h1 { font-size: 34px; font-weight: 700; letter-spacing: 1px; }
   .sub { color: var(--muted); margin: 10px 0 28px; font-size: 15px; }
@@ -40,6 +40,7 @@
   .flow .box {
     flex: 1; background: var(--panel); border: 1px solid var(--line);
     border-radius: 10px; padding: 16px 14px; text-align: center;
+    box-shadow: 0 1px 4px rgba(31,36,48,.05);
   }
   .flow .box b { display: block; font-size: 14px; margin-bottom: 4px; }
   .flow .box span { font-size: 12px; color: var(--muted); }
@@ -54,7 +55,7 @@
   .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
   .card {
     background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
-    padding: 16px;
+    padding: 16px; box-shadow: 0 1px 4px rgba(31,36,48,.05);
   }
   .card .num { font-size: 26px; font-weight: 700; color: var(--blue-soft); }
   .card .num.good { color: var(--green); }
@@ -71,13 +72,13 @@
     display: inline-block; padding: 1px 10px; border-radius: 999px;
     font-size: 12px; font-weight: 600;
   }
-  .pill.high { background: rgba(43,92,255,.18); color: var(--blue-soft); }
-  .pill.mid { background: rgba(245,176,76,.16); color: var(--amber); }
-  .pill.low { background: rgba(138,147,166,.16); color: var(--muted); }
-  .pill.match { background: rgba(62,207,142,.15); color: var(--green); }
-  .pill.part { background: rgba(245,176,76,.16); color: var(--amber); }
-  .pill.tbd { background: rgba(138,147,166,.18); color: var(--muted); }
-  .pill.crit { background: rgba(229,99,111,.16); color: var(--red); }
+  .pill.high { background: rgba(47,84,235,.10); color: var(--blue-soft); }
+  .pill.mid { background: rgba(178,106,0,.10); color: var(--amber); }
+  .pill.low { background: rgba(95,107,128,.10); color: var(--muted); }
+  .pill.match { background: rgba(22,133,92,.10); color: var(--green); }
+  .pill.part { background: rgba(178,106,0,.10); color: var(--amber); }
+  .pill.tbd { background: rgba(95,107,128,.10); color: var(--muted); }
+  .pill.crit { background: rgba(201,64,78,.10); color: var(--red); }
   .quote {
     border-left: 3px solid var(--line); padding: 4px 12px; margin: 4px 0;
     color: var(--muted); font-size: 12.5px; font-style: italic;
@@ -86,6 +87,7 @@
   .steps { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   .step {
     background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px;
+    box-shadow: 0 1px 4px rgba(31,36,48,.05);
   }
   .step b { color: var(--blue-soft); }
   .step p { font-size: 13px; color: var(--muted); margin-top: 4px; }
