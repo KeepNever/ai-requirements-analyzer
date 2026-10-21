@@ -66,12 +66,13 @@ def test_same_source_new_cleaner_version_creates_new_version(store, monkeypatch)
     """审查问题 3：同原文 + 新 CLEANER_VERSION → 允许建新版本（可追溯重新清洗）。"""
     doc = _add()
     doc_id = doc["document"]["document_id"]
-    monkeypatch.setattr(cleaner, "CLEANER_VERSION", "v9")
+    v1_cleaner_version = storage.get_version("测试项目A", doc_id, "v1")["cleaner_version"]
+    monkeypatch.setattr(cleaner, "CLEANER_VERSION", v1_cleaner_version + "-next")
     v2 = storage.add_document_version("测试项目A", doc_id, MATERIAL)
     assert v2["version"]["version_id"] == "v2"
-    assert v2["version"]["cleaner_version"] == "v9"
-    # 新版本清洗器版本与旧版本并存，旧版未动（真实历史值 v2，非 monkeypatch 后的 v9）
-    assert storage.get_version("测试项目A", doc_id, "v1")["cleaner_version"] == "v2"
+    assert v2["version"]["cleaner_version"] == v1_cleaner_version + "-next"
+    # 新版本清洗器版本与旧版本并存，旧版未动
+    assert storage.get_version("测试项目A", doc_id, "v1")["cleaner_version"] == v1_cleaner_version
 
 
 def test_duplicate_content_rejected(store):

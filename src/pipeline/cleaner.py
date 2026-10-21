@@ -11,9 +11,11 @@
 import re
 from dataclasses import dataclass, field
 
-# 清洗器版本（V2 P0 新增）：v1 = 未版本化的历史行为（合并时段落丢弃、无留痕）
+# 清洗器版本（V2 P0 新增）：
 # v2 = 合并段落留痕增强（merged_from），LLM 输入形态零变化
-CLEANER_VERSION = "v2"
+# v3 = 无 P 编号自动兜底——用户直接粘贴原始对话（无 P 编号）时按非空行自动编号，
+#      真实用户不应被要求手动加 P 编号（曦实测反馈 2026-10-21）
+CLEANER_VERSION = "v3"
 
 # PII 正则（中国场景常见三类）
 RE_PHONE = re.compile(r"(?<!\d)1[3-9]\d{9}(?!\d)")
@@ -86,8 +88,38 @@ def load_material(path) -> str:
     return extract_material(open(path, encoding="utf-8").read())
 
 
+def _auto_number_lines(raw_material: str) -> str:
+    """无 P 编号兜底（v3）：把任意多行文本转成 P 编号段落格式。
+
+    按非空行切段，每行自动编号 P1、P2…；过滤空壳行（纯时间戳、纯符号）。
+    「学生：」「老师：」等说话人前缀保留（对 LLM 有信息量）。
+    """
+    out, seq = [], 0
+    for line in raw_material.splitlines():
+        line = line.strip()
+        if len(line) < 2:                      # 空行、单字符噪声行跳过
+            continue
+        if re.fullmatch(r"[（(]\s*时间[:：].*?[)）]", line):   # 纯时间戳行
+            continue
+        seq += 1
+        out.append(f"P{seq} {line}")
+    return "\n\n".join(out)
+
+
+def _has_p_segments(raw_material: str) -> bool:
+    """逐行探测是否存在 P 编号段落行（v3 修复：全文单行化后 ^P 锚会因
+    前导空行误判为无编号，导致双重编号错位）。"""
+    return any(RE_SEGMENT.match(line.strip()) for line in raw_material.splitlines())
+
+
 def clean(raw_material: str) -> CleanResult:
-    """主入口：原始材料文本 → CleanResult。"""
+    """主入口：原始材料文本 → CleanResult。
+
+    v3：若全文不含任何 P 编号行，先走 _auto_number_lines 自动编号，
+    保证用户直接粘贴原始对话也能进入分析（真实使用零门槛）。
+    """
+    if not _has_p_segments(raw_material):
+        raw_material = _auto_number_lines(raw_material)
     result = CleanResult()
     # 先按空行分块；若某块内含多个 P 行（无空行分隔的紧凑格式），再按行拆开
     blocks = []
