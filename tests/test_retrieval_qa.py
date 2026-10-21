@@ -250,7 +250,7 @@ def _last_conv_id(project_id):
 
 
 def test_zero_hit_fallback_to_history_material(store, monkeypatch):
-    """审查后实测缺陷修复：总结类追问零命中时，材料回落到历史轮引用过的段落。"""
+    """总结类追问零命中：材料回落（v1.3 小材料回落全量 ⊇ 历史引用段），可引用历史编号。"""
     refs = store
     captured = {}
 
@@ -262,12 +262,12 @@ def test_zero_hit_fallback_to_history_material(store, monkeypatch):
     # 第一轮：正常命中
     r1 = retrieval.answer_question("测试项目A", refs, "看板的核心要求是什么？", mock=True)
     assert r1["hits"]
-    # 第二轮：总结类问题零命中 → 应回落历史段落而非给空材料
+    # 第二轮：总结类问题零命中 → 回落全量段落（含历史引用过的 D003）
     r2 = retrieval.answer_question("测试项目A", refs, "能否帮我总结一下", mock=False,
                                    conversation_id=r1["conversation_id"])
     user_msgs = [m for m in captured["messages"] if m["role"] == "user"]
     last = user_msgs[-1]["content"]
-    assert "此前对话中引用过的内容" in last            # 回落标注存在
+    assert "已提供全部材料段落" in last            # 回落标注存在
     assert "D003" in last                              # 历史段落进入材料块
     assert r2["cited_dids"] == ["D003"] and r2["sufficient"] is True
 
@@ -279,7 +279,7 @@ def test_zero_hit_no_history_still_insufficient(store):
 
 
 def test_zero_hit_fallback_to_history_material(store, monkeypatch):
-    """审查后实测缺陷修复：总结类追问零命中时，材料回落到历史轮引用过的段落。"""
+    """总结类追问零命中：材料回落（v1.3 小材料回落全量 ⊇ 历史引用段），可引用历史编号。"""
     refs = store
     captured = {}
 
@@ -291,12 +291,12 @@ def test_zero_hit_fallback_to_history_material(store, monkeypatch):
     # 第一轮：正常命中
     r1 = retrieval.answer_question("测试项目A", refs, "看板的核心要求是什么？", mock=True)
     assert r1["hits"]
-    # 第二轮：总结类问题零命中 → 应回落历史段落而非给空材料
+    # 第二轮：总结类问题零命中 → 回落全量段落（含历史引用过的 D003）
     r2 = retrieval.answer_question("测试项目A", refs, "能否帮我总结一下", mock=False,
                                    conversation_id=r1["conversation_id"])
     user_msgs = [m for m in captured["messages"] if m["role"] == "user"]
     last = user_msgs[-1]["content"]
-    assert "此前对话中引用过的内容" in last            # 回落标注存在
+    assert "已提供全部材料段落" in last            # 回落标注存在
     assert "D003" in last                              # 历史段落进入材料块
     assert r2["cited_dids"] == ["D003"] and r2["sufficient"] is True
 
@@ -359,3 +359,43 @@ def test_zero_hit_full_fallback_on_small_material(store, monkeypatch):
     assert "已提供全部材料段落" in last_user            # 全量回落标注
     assert "D001" in last_user and "D004" in last_user  # 全量段落进入材料块
     assert r["sufficient"] is True
+
+
+def test_followup_zero_hit_uses_full_fallback_not_history_only(store, monkeypatch):
+    """四审修复：小材料零命中追问回落全量段落（而非仅历史引用段），历史编号不再假阳性剔除。"""
+    refs = store
+    captured = {}
+
+    def fake_chat(messages, **kw):
+        captured["messages"] = messages
+        return json.dumps({"answer": "还有 ERP 接入与库存预警需求（D004）。", "cited_dids": ["D004"], "sufficient": True})
+
+    monkeypatch.setattr("pipeline.llm_client.chat", fake_chat)
+    # 第一轮只命中 D003（历史引用段 = D003）
+    retrieval.answer_question("测试项目A", refs, "看板？", mock=True)
+    # 第二轮零命中追问（旧逻辑只给 D003 → D004 会被误判无效；新逻辑给全量 → D004 有效）
+    r2 = retrieval.answer_question("测试项目A", refs, "还有没有其他需求", mock=False,
+                                   conversation_id=_last_conv_id("测试项目A"))
+    last_user = [m for m in captured["messages"] if m["role"] == "user"][-1]["content"]
+    assert "已提供全部材料段落" in last_user
+    assert r2["invalid_dids"] == [] and r2["cited_dids"] == ["D004"] and r2["sufficient"] is True
+
+
+def test_followup_zero_hit_uses_full_fallback_not_history_only(store, monkeypatch):
+    """四审修复：小材料零命中追问回落全量段落（而非仅历史引用段），历史编号不再假阳性剔除。"""
+    refs = store
+    captured = {}
+
+    def fake_chat(messages, **kw):
+        captured["messages"] = messages
+        return json.dumps({"answer": "还有 ERP 接入与库存预警需求（D004）。", "cited_dids": ["D004"], "sufficient": True})
+
+    monkeypatch.setattr("pipeline.llm_client.chat", fake_chat)
+    # 第一轮只命中 D003（历史引用段 = D003）
+    retrieval.answer_question("测试项目A", refs, "看板？", mock=True)
+    # 第二轮零命中追问（旧逻辑只给 D003 → D004 会被误判无效；新逻辑给全量 → D004 有效）
+    r2 = retrieval.answer_question("测试项目A", refs, "还有没有其他需求", mock=False,
+                                   conversation_id=_last_conv_id("测试项目A"))
+    last_user = [m for m in captured["messages"] if m["role"] == "user"][-1]["content"]
+    assert "已提供全部材料段落" in last_user
+    assert r2["invalid_dids"] == [] and r2["cited_dids"] == ["D004"] and r2["sufficient"] is True

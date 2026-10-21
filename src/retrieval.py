@@ -168,19 +168,19 @@ def answer_question(project_id: str, version_refs: list, question: str,
         index.extend(idx)
         provided_dids |= {c["did"] for c in idx}
 
-    # 2. 检索；零命中时按序回落：
-    #    ① 多轮会话 → 历史引用过的段落
-    #    ② 材料规模小（≤40 段）→ 全量段落给模型自行定位（词汇鸿沟兜底：用户用词
-    #       常与材料字面不同，如问「需求」材料写「报表/汇总」，字面匹配天然失灵）
-    #    ③ 大材料零命中 → 证据不足
+    # 2. 检索；零命中时按序回落（v1.3 修正：小材料永远给全量——历史段落 ⊆ 全量，
+    #    互斥回落会导致「历史只命中 1 段时其他历史编号全部被判无效」的假阳性）：
+    #    ① 小材料（≤40 段）→ 全量段落给模型自行定位（词汇鸿沟兜底）
+    #    ② 大材料 + 多轮会话 → 历史引用过的段落（省 token）
+    #    ③ 大材料无会话 → 证据不足
     hits = keyword_search(question, index)
     fallback_material, fallback_note = [], ""
-    if not hits and conversation_id:
-        fallback_material = _load_history_material(project_id, conversation_id)
-        fallback_note = "（本次检索零命中，材料段落来自此前对话中引用过的内容）"
-    if not hits and not fallback_material and len(index) <= FULL_FALLBACK_MAX_SEGMENTS:
+    if not hits and len(index) <= FULL_FALLBACK_MAX_SEGMENTS:
         fallback_material = [{"did": c["did"], "text": c["text"]} for c in index]
         fallback_note = "（本次检索零命中，已提供全部材料段落，请自行定位与问题相关的内容）"
+    elif not hits and conversation_id:
+        fallback_material = _load_history_material(project_id, conversation_id)
+        fallback_note = "（本次检索零命中，材料段落来自此前对话中引用过的内容）"
 
     # 3. 生成答案（真实 LLM 或 mock）；多轮时带历史上下文
     material_source = hits if hits else fallback_material

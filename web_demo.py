@@ -608,7 +608,7 @@ function citesHtml(citations){
         + '<span class="did" style="color:var(--blues);font-weight:700;margin-right:6px">'+esc(e.source_paragraph_id)+'</span>'
         + esc(e.text) + '</div>';
     }).join('');
-  }).join('') || '<div style="color:var(--muted);font-size:12.5px">无引用（证据不足）</div>';
+  }).join('');
 }
 function appendBubble(role, text, meta){
   var log = document.getElementById('chatlog');
@@ -618,10 +618,11 @@ function appendBubble(role, text, meta){
     div.style.cssText = 'text-align:right;margin:10px 0';
     div.innerHTML = '<span style="display:inline-block;background:var(--blue);color:#fff;border-radius:12px;padding:7px 14px;font-size:13.5px;max-width:75%;text-align:left">'+text+'</span>';
   } else {
-    var extra = meta ? '<div style="margin-top:6px">'+badge(meta.sufficient)
-      + (meta.invalid_dids && meta.invalid_dids.length ? ' <span style="font-size:12px;color:var(--red)">⚠ 已剔除无效引用：'+esc(meta.invalid_dids.join('、'))+'</span>' : '') + '</div>'
-      + '<div style="margin-top:8px"><b style="font-size:12.5px;color:var(--muted)">引用来源</b>' + citesHtml(meta.citations) + '</div>'
-      + '<div style="font-size:11.5px;color:var(--muted);margin-top:4px">检索命中 ' + (meta.hits||[]).length + ' 段</div>' : '';
+    var hasCites = (meta.citations||[]).some(function(c){ return (c.source_excerpts||[]).length; });
+    var extra = meta ? '<div style="margin-top:6px">'+badge(meta.sufficient) + '</div>'
+      + (hasCites ? '<div style="margin-top:8px"><b style="font-size:12.5px;color:var(--muted)">引用来源</b>' + citesHtml(meta.citations) + '</div>'
+        + '<div style="font-size:11.5px;color:var(--muted);margin-top:4px">检索命中 ' + (meta.hits||[]).length + ' 段</div>' : '')
+      + (meta.invalid_dids && meta.invalid_dids.length ? '<div style="font-size:12px;color:var(--red);margin-top:4px">⚠ 剔除无效引用：'+esc(meta.invalid_dids.join('、'))+'</div>' : '') : '';
     div.style.cssText = 'margin:10px 0';
     div.innerHTML = '<span style="display:inline-block;background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:9px 14px;font-size:13.5px;max-width:85%;text-align:left;white-space:pre-wrap">'+text+'</span>' + extra;
   }
