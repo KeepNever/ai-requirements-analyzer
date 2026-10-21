@@ -41,9 +41,19 @@ def _tokens(text: str) -> set:
     return tokens
 
 
+# 停用词（问句功能词，不参与命中——避免「什么/怎么」稀释有效关键词）
+STOPWORDS = {"什么", "怎么", "怎样", "哪些", "一下", "这个", "那个", "如何",
+             "还是", "以及", "进行", "没有", "是否", "你们", "我们", "他们",
+             "对方", "大家", "就是", "是不是", "有没有", "为什么", "多少"}
+
+# 零命中全量回落阈值：段落级材料规模小（≤40 段）时整份给模型自行定位，
+# 大材料零命中才真正判证据不足
+FULL_FALLBACK_MAX_SEGMENTS = 40
+
+
 def keyword_search(query: str, index: list, top_k: int = 6) -> list:
-    """关键词检索：query 分词命中 chunk 计分，归一化后取 top_k。零命中返回空表。"""
-    q = _tokens(query)
+    """关键词检索：query 分词（过滤停用词）命中 chunk 计分，归一化后取 top_k。"""
+    q = _tokens(query) - STOPWORDS
     if not q:
         return []
     hits = []
@@ -158,11 +168,19 @@ def answer_question(project_id: str, version_refs: list, question: str,
         index.extend(idx)
         provided_dids |= {c["did"] for c in idx}
 
-    # 2. 检索；零命中且有多轮会话时回落到历史引用过的段落
+    # 2. 检索；零命中时按序回落：
+    #    ① 多轮会话 → 历史引用过的段落
+    #    ② 材料规模小（≤40 段）→ 全量段落给模型自行定位（词汇鸿沟兜底：用户用词
+    #       常与材料字面不同，如问「需求」材料写「报表/汇总」，字面匹配天然失灵）
+    #    ③ 大材料零命中 → 证据不足
     hits = keyword_search(question, index)
-    fallback_material = []
+    fallback_material, fallback_note = [], ""
     if not hits and conversation_id:
         fallback_material = _load_history_material(project_id, conversation_id)
+        fallback_note = "（本次检索零命中，材料段落来自此前对话中引用过的内容）"
+    if not hits and not fallback_material and len(index) <= FULL_FALLBACK_MAX_SEGMENTS:
+        fallback_material = [{"did": c["did"], "text": c["text"]} for c in index]
+        fallback_note = "（本次检索零命中，已提供全部材料段落，请自行定位与问题相关的内容）"
 
     # 3. 生成答案（真实 LLM 或 mock）；多轮时带历史上下文
     material_source = hits if hits else fallback_material
@@ -175,7 +193,7 @@ def answer_question(project_id: str, version_refs: list, question: str,
             material_note = ""
         elif fallback_material:
             material_block = "\n\n".join(f"{m['did']} {m['text']}" for m in fallback_material)
-            material_note = "（本次检索零命中，材料段落来自此前对话中引用过的内容——总结类问题请结合对话历史归纳）"
+            material_note = fallback_note
         else:
             material_block = "（无命中段落，且无历史引用）"
             material_note = ""

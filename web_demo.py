@@ -130,7 +130,12 @@ PAGE_CSS = """
   ul.plain li { margin:3px 0; }
   .topnav a { margin-right:16px; color:var(--blues); text-decoration:none; font-size:14px; font-weight:600; }
   @media (max-width:700px){ .grid2{grid-template-columns:1fr} .stat{grid-template-columns:1fr 1fr} }
-  .qa-grid { display:grid; grid-template-columns:minmax(0,1fr) 320px; gap:14px; align-items:start; }
+  .qa-grid { display:grid; grid-template-columns:minmax(0,1fr) 300px; gap:14px; align-items:start; }
+  details.ctx { background:var(--panel2); border:none; border-radius:10px; padding:12px 16px; box-shadow:none; }
+  details.ctx summary { cursor:pointer; font-size:13px; color:var(--muted); letter-spacing:1px; list-style:none; }
+  details.ctx summary::before { content:"▸ "; }
+  details.ctx[open] summary::before { content:"▾ "; }
+  details.ctx h2 { display:none; }
   .ctx-item { padding:7px 0; border-bottom:1px solid var(--line); font-size:12.5px; }
   .ctx-item b { color:var(--blues); margin-right:6px; }
   .ctx-sec { font-size:12px; color:var(--muted); margin:12px 0 4px; letter-spacing:1px; }
@@ -532,10 +537,10 @@ CHAT_PAGE = """<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">
 <div class="err" id="err"></div>
 </div>
 
-<div class="panel" id="ctxPanel">
-<h2>项目上下文</h2>
+<details class="ctx" id="ctxPanel" open>
+<summary>项目上下文</summary>
 <div id="ctxBody" style="font-size:13px"><em>加载中…</em></div>
-</div>
+</details>
 </div>
 <script>
 var currentConv = null;

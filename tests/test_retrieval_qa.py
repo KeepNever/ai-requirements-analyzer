@@ -305,3 +305,57 @@ def test_zero_hit_no_history_still_insufficient(store):
     """零命中且无历史 → 仍为证据不足（回落机制不放过编造）。"""
     r = retrieval.answer_question("测试项目A", store, "能否帮我总结一下", mock=True)
     assert r["sufficient"] is False and r["cited_dids"] == []
+
+
+def test_stopwords_filtered_in_search():
+    """停用词过滤：问句功能词不参与命中（「对方的需求是什么」过滤后剩有效词）。"""
+    q = retrieval._tokens("对方的需求是什么？") - retrieval.STOPWORDS
+    assert "需求" in q and "对方" not in q and "什么" not in q
+
+
+def test_zero_hit_full_fallback_on_small_material(store, monkeypatch):
+    """词汇鸿沟兜底：小材料零命中时回落全量段落，模型自行定位（不轻易判证据不足）。"""
+    refs = store
+    captured = {}
+
+    def fake_chat(messages, **kw):
+        captured["messages"] = messages
+        return json.dumps({"answer": "客户的需求是实时看板（D003）和 ERP 接入（D004）。",
+                           "cited_dids": ["D003", "D004"], "sufficient": True})
+
+    monkeypatch.setattr("pipeline.llm_client.chat", fake_chat)
+    # 「对方的需求是什么」字面对 MATERIAL 零命中（材料无「需求」字样……实际含，
+    # 用真正不存在的字面词构造零命中）
+    r = retrieval.answer_question("测试项目A", refs, "甲方的要求有哪些方面", mock=False,
+                                  conversation_id=None)
+    last_user = [m for m in captured["messages"] if m["role"] == "user"][-1]["content"]
+    assert "已提供全部材料段落" in last_user            # 全量回落标注
+    assert "D001" in last_user and "D004" in last_user  # 全量段落进入材料块
+    assert r["sufficient"] is True
+
+
+def test_stopwords_filtered_in_search():
+    """停用词过滤：问句功能词不参与命中（「对方的需求是什么」过滤后剩有效词）。"""
+    q = retrieval._tokens("对方的需求是什么？") - retrieval.STOPWORDS
+    assert "需求" in q and "对方" not in q and "什么" not in q
+
+
+def test_zero_hit_full_fallback_on_small_material(store, monkeypatch):
+    """词汇鸿沟兜底：小材料零命中时回落全量段落，模型自行定位（不轻易判证据不足）。"""
+    refs = store
+    captured = {}
+
+    def fake_chat(messages, **kw):
+        captured["messages"] = messages
+        return json.dumps({"answer": "客户的需求是实时看板（D003）和 ERP 接入（D004）。",
+                           "cited_dids": ["D003", "D004"], "sufficient": True})
+
+    monkeypatch.setattr("pipeline.llm_client.chat", fake_chat)
+    # 「对方的需求是什么」字面对 MATERIAL 零命中（材料无「需求」字样……实际含，
+    # 用真正不存在的字面词构造零命中）
+    r = retrieval.answer_question("测试项目A", refs, "甲方的要求有哪些方面", mock=False,
+                                  conversation_id=None)
+    last_user = [m for m in captured["messages"] if m["role"] == "user"][-1]["content"]
+    assert "已提供全部材料段落" in last_user            # 全量回落标注
+    assert "D001" in last_user and "D004" in last_user  # 全量段落进入材料块
+    assert r["sufficient"] is True
