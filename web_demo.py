@@ -24,6 +24,23 @@ sys.path.insert(0, str(PROJECT_ROOT / "src"))
 from pipeline import cleaner  # noqa: E402
 from pipeline import workflow as wf  # noqa: E402
 import storage  # noqa: E402
+import retrieval  # noqa: E402
+
+
+def _safe_pid(pid) -> str:
+    """项目 ID 安全校验（防路径穿越）。"""
+    if not pid or storage.UNSAFE_ID_RE.search(str(pid)):
+        raise ValueError(f"非法项目 ID：{pid!r}")
+    return str(pid)
+
+
+def _project_version_refs(pid: str) -> list:
+    """取项目全部文档的当前版本组合（多材料引用式问答的定位依据）。"""
+    tree = storage.get_project_tree(pid)
+    if not tree:
+        return []
+    return [{"document_id": d["document_id"], "version_id": d["current_version_id"]}
+            for d in tree["documents"] if d.get("current_version_id")]
 
 UPLOAD_DIR = PROJECT_ROOT / "test_data" / "web_uploads"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
@@ -121,7 +138,7 @@ HOME_PAGE = """<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">
 <body><div class="wrap">
 <div class="tag">产 品 工 作 台</div>
 <h1>AI 客户需求分析助手</h1>
-<div class="sub topnav"><a href="/">工作台</a><a href="/library">资料库</a><a href="/dashboard">评测 Dashboard</a></div>
+<div class="sub topnav"><a href="/">工作台</a><a href="/library">资料库</a><a href="/chat">AI 问答</a><a href="/dashboard">评测 Dashboard</a></div>
 
 <div class="panel">
 <h2>① 输入原始材料</h2>
@@ -470,6 +487,105 @@ function viewVersion(docId, vid){
 </script>
 </body></html>"""
 
+CHAT_PAGE = """<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 问答 · 客户材料分析工作台</title><style>__CSS__</style></head>
+<body><div class="wrap">
+<p><a class="back" href="/">← 返回工作台</a>　<a class="back" href="/library">资料库</a>　<a class="back" href="/dashboard">评测 Dashboard</a></p>
+<div class="tag">引 用 式 问 答</div>
+<h1>对项目材料提问</h1>
+<div class="sub">答案只依据材料段落生成，每条结论带 D 编号引用回链；材料不足以回答时明确提示，不编造。</div>
+
+<div class="panel">
+<div class="row" style="margin-top:0">
+  <span style="font-size:13px;color:var(--muted)">项目：</span>
+  <select id="proj" style="border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:13px;background:#fff"></select>
+  <span style="font-size:13px;color:var(--muted)">模式：</span>
+  <select id="mode" style="border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:13px;background:#fff">
+    <option value="mock">离线演示（mock，不调用 API）</option>
+    <option value="real" selected>真实问答（调用 DeepSeek，约 0.01 元/问）</option>
+  </select>
+</div>
+<div class="row">
+  <textarea id="q" style="min-height:70px" placeholder="例如：客户对看板的核心要求是什么？预算和时间节点？"></textarea>
+</div>
+<div class="row">
+  <button id="btn" onclick="ask()">提问</button>
+  <span id="convTag" style="font-size:12px;color:var(--muted)"></span>
+</div>
+<div class="err" id="err"></div>
+</div>
+
+<div class="panel" id="ansPanel" style="display:none">
+<h2>回答</h2>
+<div id="ansBadge"></div>
+<div id="ansText" style="font-size:14px;margin:10px 0"></div>
+<div id="ansInvalid" style="font-size:12.5px;color:var(--red)"></div>
+<h3>引用来源（脱敏展示，可回链资料库）</h3>
+<div id="ansCites"></div>
+<div class="hint" id="hitsInfo"></div>
+</div>
+
+<div class="panel">
+<h2>会话记录</h2>
+<div class="list" id="convs"><em>加载中…</em></div>
+</div>
+</div>
+<script>
+var currentConv = null;
+function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
+function loadProjects(){
+  fetch('/api/projects').then(r=>r.json()).then(function(ps){
+    document.getElementById('proj').innerHTML = ps.map(function(p){
+      return '<option value="'+esc(p[0])+'">'+esc(p[1].name)+'</option>'; }).join('');
+  });
+}
+function loadConvs(){
+  var pid = document.getElementById('proj').value;
+  fetch('/api/conversations/'+encodeURIComponent(pid)).then(r=>r.json()).then(function(cs){
+    document.getElementById('convs').innerHTML = cs.length ? cs.map(function(c){
+      return '<a href="javascript:void(0)" onclick="reopen(\\''+esc(c.conversation_id)+'\\')">'
+        + '<span>'+esc(c.conversation_id)+'</span><span style="color:var(--muted);font-size:12px">'+esc(c.created_at)+'</span></a>';
+    }).join('') : '<em>暂无会话</em>';
+  });
+}
+function reopen(cid){ currentConv = cid; document.getElementById('convTag').textContent = '当前会话：'+cid; }
+function ask(){
+  var q = document.getElementById('q').value.trim();
+  if (!q) { document.getElementById('err').style.display='block'; document.getElementById('err').textContent='请输入问题'; return; }
+  document.getElementById('err').style.display='none';
+  var b = document.getElementById('btn'); b.disabled = true; b.textContent = '思考中…';
+  fetch('/api/ask', { method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ project_id: document.getElementById('proj').value, question: q,
+      mock: document.getElementById('mode').value === 'mock', conversation_id: currentConv }) })
+  .then(r=>r.json()).then(function(d){
+    b.disabled = false; b.textContent = '提问';
+    if (d.error) { document.getElementById('err').style.display='block'; document.getElementById('err').textContent=d.error; return; }
+    currentConv = d.conversation_id;
+    document.getElementById('convTag').textContent = '当前会话：'+d.conversation_id;
+    var p = document.getElementById('ansPanel'); p.style.display='block';
+    document.getElementById('ansBadge').innerHTML = d.sufficient
+      ? '<span class="pill p-ok">有依据</span>' : '<span class="pill p-bad">证据不足</span>';
+    document.getElementById('ansText').textContent = d.answer;
+    document.getElementById('ansInvalid').textContent = d.invalid_dids.length
+      ? '⚠ 已剔除无效引用（模型试图引用不存在的段落）：'+d.invalid_dids.join('、') : '';
+    document.getElementById('ansCites').innerHTML = (d.frontend_citations||[]).map(function(c){
+      return (c.source_excerpts||[]).map(function(e){
+        return '<div class="seg" style="border:1px solid var(--line);border-radius:8px;margin:6px 0">'
+          + '<span class="did">'+esc(e.source_paragraph_id)+'</span>' + esc(e.text) + '</div>';
+      }).join('');
+    }).join('') || '<em>无引用（证据不足）</em>';
+    document.getElementById('hitsInfo').textContent = '检索命中 '+d.hits.length+' 个段落：'
+      + d.hits.map(function(h){ return h.did+'('+h.score+')'; }).join('、');
+    loadConvs();
+  }).catch(function(e){ b.disabled=false; b.textContent='提问'; showApiErr(e); });
+  function showApiErr(e){ document.getElementById('err').style.display='block'; document.getElementById('err').textContent='请求失败：'+e; }
+}
+document.getElementById('proj').addEventListener('change', function(){ currentConv=null; loadConvs(); });
+loadProjects(); loadConvs();
+</script>
+</body></html>"""
+
 DS_COLORS = {"MAIN": "#2f54eb", "DEV": "#7a5cd6", "HOLD": "#16855c", "FINAL": "#b26a00"}
 
 TIER_PILL = {"高": "p-high", "中": "p-mid", "低": "p-low"}
@@ -706,6 +822,11 @@ class Handler(BaseHTTPRequestHandler):
                 self._json({"error": "项目不存在"}, 404)
                 return
             self._json(tree)
+        elif path == "/chat":
+            self._send(render(CHAT_PAGE, css=PAGE_CSS))
+        elif path.startswith("/api/conversations/"):
+            pid = path.split("/api/conversations/", 1)[1]
+            self._json(retrieval.list_conversations(pid))
         elif path.startswith("/api/version/"):
             _, rest = path.split("/api/version/", 1)
             pid, doc_id, vid = rest.split("/", 2)
@@ -748,6 +869,32 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         path = unquote(urlparse(self.path).path)
+        if path == "/api/ask":
+            length = int(self.headers.get("Content-Length", 0))
+            try:
+                payload = json.loads(self.rfile.read(length).decode("utf-8"))
+                question = (payload.get("question") or "").strip()
+                if not question:
+                    self._json({"error": "问题为空"}, 400)
+                    return
+                pid = _safe_pid(payload.get("project_id"))
+                version_refs = _project_version_refs(pid)
+                if not version_refs:
+                    self._json({"error": "项目无可用文档版本"}, 400)
+                    return
+                r = retrieval.answer_question(
+                    pid, version_refs, question,
+                    mock=bool(payload.get("mock")),
+                    conversation_id=payload.get("conversation_id"))
+                fe = storage.citations_for_frontend(
+                    {"citations": r["citations"]}, pid)
+                self._json({"answer": r["answer"], "sufficient": r["sufficient"],
+                            "cited_dids": r["cited_dids"], "invalid_dids": r["invalid_dids"],
+                            "hits": r["hits"], "frontend_citations": fe["citations"],
+                            "conversation_id": r["conversation_id"]})
+            except Exception as e:  # noqa: BLE001
+                self._json({"error": f"{type(e).__name__}: {e}"}, 500)
+            return
         if path == "/api/clean":
             length = int(self.headers.get("Content-Length", 0))
             try:
