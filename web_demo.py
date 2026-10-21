@@ -23,6 +23,7 @@ sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
 from pipeline import cleaner  # noqa: E402
 from pipeline import workflow as wf  # noqa: E402
+import storage  # noqa: E402
 
 UPLOAD_DIR = PROJECT_ROOT / "test_data" / "web_uploads"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
@@ -120,7 +121,7 @@ HOME_PAGE = """<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">
 <body><div class="wrap">
 <div class="tag">产 品 工 作 台</div>
 <h1>AI 客户需求分析助手</h1>
-<div class="sub topnav"><a href="/">工作台</a><a href="/dashboard">评测 Dashboard</a></div>
+<div class="sub topnav"><a href="/">工作台</a><a href="/library">资料库</a><a href="/dashboard">评测 Dashboard</a></div>
 
 <div class="panel">
 <h2>① 输入原始材料</h2>
@@ -383,6 +384,92 @@ window.addEventListener('resize', function() { g1.resize(); g2.resize(); g3.resi
 </script>
 </body></html>"""
 
+LIBRARY_PAGE = """<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>资料库 · AI 客户需求分析助手</title><style>__CSS__</style></head>
+<body><div class="wrap">
+<p><a class="back" href="/">← 返回工作台</a>　<a class="back" href="/dashboard">评测 Dashboard</a></p>
+<div class="tag">资 料 库</div>
+<h1>项目资料库</h1>
+<div class="sub">项目 → 文档 → 版本 → 分析运行，全部历史可追溯、不可覆盖</div>
+<div class="panel">
+<div id="tree"><em>加载中…</em></div>
+</div>
+<div class="panel" id="detail" style="display:none">
+<h2 id="detailTitle"></h2>
+<div id="detailBody"></div>
+</div>
+</div>
+<script>
+function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
+fetch('/api/projects').then(r=>r.json()).then(function(projects){
+  if (!projects.length) { document.getElementById('tree').innerHTML = '<em>资料库为空</em>'; return; }
+  document.getElementById('tree').innerHTML = projects.map(function(p){
+    return '<a class="list-link" href="/library/'+encodeURIComponent(p[0])+'" style="display:flex;justify-content:space-between;padding:10px 12px;border-bottom:1px solid var(--line);color:var(--text);text-decoration:none;font-size:14px;border-radius:6px" onmouseover="this.style.background=\\'var(--panel2)\\'" onmouseout="this.style.background=\\'\\'">'
+      + '<span>'+esc(p[1].name)+'</span><span style="color:var(--muted);font-size:12px">'+esc(p[0])+'</span></a>';
+  }).join('');
+});
+</script>
+</body></html>"""
+
+LIBRARY_PROJECT_PAGE = """<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>__TITLE__ · 资料库</title><style>__CSS__</style></head>
+<body><div class="wrap">
+<p><a class="back" href="/library">← 返回资料库</a>　<a class="back" href="/">工作台</a>　<a class="back" href="/dashboard">评测 Dashboard</a></p>
+<div class="tag">项 目 资 料</div>
+<h1>__TITLE__</h1>
+<div class="sub">创建于 __CREATED__</div>
+<div class="panel"><h2>文档与版本</h2><div id="docs"><em>加载中…</em></div></div>
+<div class="panel"><h2>分析运行记录</h2><div id="runs"><em>加载中…</em></div></div>
+<div class="panel" id="viewer" style="display:none">
+<h2 id="viewerTitle"></h2>
+<div id="viewerBody"></div>
+</div>
+</div>
+<script>
+var PID = __PID__;
+function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
+fetch('/api/project/'+encodeURIComponent(PID)).then(r=>r.json()).then(function(t){
+  document.getElementById('docs').innerHTML = t.documents.length ? t.documents.map(function(d){
+    var vs = d.versions.map(function(v){
+      return '<div style="padding:8px 12px;border-bottom:1px solid var(--line);font-size:13px">'
+        + '<b style="color:var(--blues)">'+esc(v.version_id)+'</b>'
+        + '　清洗器 '+esc(v.cleaner_version)
+        + '　'+esc(v.created_at)
+        + '　<button class="ghost" style="padding:3px 12px;font-size:12px" onclick="viewVersion(\\''+esc(d.document_id)+'\\',\\''+esc(v.version_id)+'\\')">查看原文 / 清洗对照</button></div>';
+    }).join('');
+    return '<div style="margin-bottom:14px"><b>'+esc(d.file_name)+'</b>'
+      + '<span style="color:var(--muted);font-size:12px">　当前 '+esc(d.current_version_id)+'　'+esc(d.document_id)+'</span>'
+      + '<div style="border:1px solid var(--line);border-radius:8px;margin-top:6px">'+vs+'</div></div>';
+  }).join('') : '<em>无文档</em>';
+  document.getElementById('runs').innerHTML = t.runs.length ? t.runs.map(function(r){
+    var badge = r.status==='done' ? '<span class="pill p-ok">done</span>' : '<span class="pill p-mid">'+esc(r.status)+'</span>';
+    var links = '　<a class="back" href="/pipeline/'+encodeURIComponent(r.project_id)+'">流水线</a>'
+      + (r.report_exists ? '　<a class="back" href="/report/'+encodeURIComponent(r.project_id)+'">报告</a>' : '');
+    return '<div style="padding:8px 0;border-bottom:1px solid var(--line);font-size:13px">'
+      + '<b style="color:var(--blues)">'+esc(r.run_id)+'</b> '+badge
+      + '　Prompt '+esc(r.prompt_version||'unknown')
+      + '　'+esc(r.created_at) + links + '</div>';
+  }).join('') : '<em>无运行记录</em>';
+});
+function viewVersion(docId, vid){
+  fetch('/api/version/'+encodeURIComponent(PID)+'/'+encodeURIComponent(docId)+'/'+encodeURIComponent(vid))
+  .then(r=>r.json()).then(function(d){
+    var v = document.getElementById('viewer');
+    v.style.display = 'block';
+    document.getElementById('viewerTitle').textContent = docId + ' · ' + vid + ' 原文 / 清洗对照';
+    document.getElementById('viewerBody').innerHTML = '<table><tr><th style="width:60px">原始段</th><th style="width:60px">清洗段</th><th>脱敏后文本（进 LLM 与展示）</th></tr>'
+      + d.segments.map(function(s){
+        var merged = (s.merged_from||[]).map(function(m){ return '<div style="color:var(--muted);font-size:11px">← 合并自 '+esc(m.pid)+'</div>'; }).join('');
+        return '<tr><td>'+esc(s.pid)+merged+'</td><td><b style="color:var(--blues)">'+esc(s.did)+'</b></td><td>'+esc(s.clean_text)+'</td></tr>';
+      }).join('') + '</table>';
+    v.scrollIntoView({behavior:'smooth'});
+  });
+}
+</script>
+</body></html>"""
+
 DS_COLORS = {"MAIN": "#2f54eb", "DEV": "#7a5cd6", "HOLD": "#16855c", "FINAL": "#b26a00"}
 
 TIER_PILL = {"高": "p-high", "中": "p-mid", "低": "p-low"}
@@ -599,6 +686,34 @@ class Handler(BaseHTTPRequestHandler):
         elif path == "/dashboard":
             self._send(render(DASHBOARD_PAGE, css=PAGE_CSS,
                               data=json.dumps(load_snapshots(), ensure_ascii=False)))
+        elif path == "/library":
+            self._send(render(LIBRARY_PAGE, css=PAGE_CSS))
+        elif path.startswith("/library/"):
+            pid = path.split("/library/", 1)[1]
+            tree = storage.get_project_tree(pid)
+            if tree is None:
+                self._send("<h1>项目不存在</h1><p><a href='/library'>返回资料库</a></p>", 404)
+                return
+            self._send(render(LIBRARY_PROJECT_PAGE, css=PAGE_CSS, title=html.escape(pid),
+                              created=html.escape(tree["project"].get("created_at", "")),
+                              pid=json.dumps(pid, ensure_ascii=False)))
+        elif path == "/api/projects":
+            self._json(storage.list_projects())
+        elif path.startswith("/api/project/"):
+            pid = path.split("/api/project/", 1)[1]
+            tree = storage.get_project_tree(pid)
+            if tree is None:
+                self._json({"error": "项目不存在"}, 404)
+                return
+            self._json(tree)
+        elif path.startswith("/api/version/"):
+            _, rest = path.split("/api/version/", 1)
+            pid, doc_id, vid = rest.split("/", 2)
+            vdir = storage._documents_dir(pid) / doc_id / "versions" / vid
+            if not (vdir / "clean.json").exists():
+                self._json({"error": "版本不存在"}, 404)
+                return
+            self._json(json.loads((vdir / "clean.json").read_text(encoding="utf-8")))
         elif path.startswith("/api/case/"):
             name = path.split("/api/case/", 1)[1]
             got = load_case(name)

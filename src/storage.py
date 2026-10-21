@@ -126,6 +126,34 @@ def list_projects() -> list:
     return list(_read_json(idx).items()) if idx.exists() else []
 
 
+def get_project_tree(project_id: str):
+    """资料库视图：项目元数据 + 文档树（含版本）+ 分析运行列表。"""
+    pdir = _resolve_under_base("projects", project_id)
+    if not (pdir / "doc.json").exists():
+        return None
+    tree = {"project": _read_json(pdir / "doc.json"), "documents": [], "runs": []}
+    docs_dir = pdir / "documents"
+    if docs_dir.exists():
+        for doc_dir in sorted(docs_dir.iterdir()):
+            doc_file = doc_dir / "doc.json"
+            if not doc_file.exists():
+                continue
+            doc = _read_json(doc_file)
+            doc["versions"] = [_read_json(v)
+                               for v in sorted(doc_dir.glob("versions/*/version.json"))]
+            tree["documents"].append(doc)
+    runs_dir = pdir / "analysis_runs"
+    if runs_dir.exists():
+        for rdir in sorted(runs_dir.iterdir()):
+            mf = rdir / "meta.json"
+            if mf.exists():
+                run = _read_json(mf)
+                run["report_exists"] = (rdir / "report.md").exists()
+                tree["runs"].append(run)
+    tree["runs"].reverse()   # 最近在前
+    return tree
+
+
 # ---------- Document 与版本 ----------
 
 def _documents_dir(project_id: str) -> Path:
