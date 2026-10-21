@@ -85,12 +85,30 @@ def _mock_answer(question: str, hits: list) -> dict:
             "cited_dids": dids, "sufficient": True}
 
 
+def _load_history(project_id: str, conversation_id: str, max_turns: int = 5) -> list:
+    """读取会话历史（最近 max_turns 轮），构造多轮 LLM messages（user/assistant 交替）。"""
+    msg_file = storage._resolve_under_base(
+        "projects", project_id, "conversations", conversation_id) / "messages.json"
+    if not msg_file.exists():
+        return []
+    msgs = json.loads(msg_file.read_text(encoding="utf-8")).get("messages", [])
+    # 取最近 max_turns 轮（一轮 = user + assistant）
+    recent = msgs[-max_turns * 2:]
+    history = []
+    for m in recent:
+        if m.get("role") == "user":
+            history.append({"role": "user", "content": m["content"]})
+        elif m.get("role") == "assistant" and m.get("answer"):
+            history.append({"role": "assistant", "content": m["answer"]})
+    return history
+
+
 def answer_question(project_id: str, version_refs: list, question: str,
                     mock: bool = False, conversation_id: str | None = None) -> dict:
     """引用式问答主流程：检索 → LLM（或 mock）→ EVD-01 校验 → 证据组装 → 会话落盘。
 
     version_refs: [{document_id, version_id}, ...]（完整组合定位）。
-    conversation_id 传入则多轮追加到同一会话，缺省新建。
+    conversation_id 传入则多轮对话：历史轮次作为上下文发给模型，新消息追加到同一会话。
     返回 {answer, sufficient, cited_dids, invalid_dids, hits, citations, conversation_id}。
     citations 为后端证据版（含 raw excerpt）；前端一律过 citations_for_frontend。
     """
@@ -107,15 +125,20 @@ def answer_question(project_id: str, version_refs: list, question: str,
     hits = keyword_search(question, index)
     provided_hit_dids = {h["did"] for h in hits}
 
-    # 3. 生成答案（真实 LLM 或 mock）
+    # 3. 生成答案（真实 LLM 或 mock）；多轮时带历史上下文
     if mock:
         raw = _mock_answer(question, hits)
         usage = None
     else:
         material_block = "\n\n".join(f"{h['did']} {h['text']}" for h in hits) or "（无命中段落）"
         from pipeline import llm_client, config
-        messages = [{"role": "system", "content": QA_SYSTEM},
-                    {"role": "user", "content": f"【材料段落】\n{material_block}\n\n【问题】{question}"}]
+        history = _load_history(project_id, conversation_id) if conversation_id else []
+        # 历史轮只带问题与答案（不带旧材料块，控 token）；当前轮带检索材料
+        messages = [{"role": "system", "content": QA_SYSTEM}] + history + [
+            {"role": "user",
+             "content": f"【材料段落】\n{material_block}\n\n【问题】{question}\n\n"
+                        "（注：若问题中的代词指代此前轮次的内容，请结合对话历史理解；"
+                        "回答仍须以本次材料段落为引用依据）"}]
         text = llm_client.chat(messages, json_mode=True, node="QA")
         usage = llm_client.usage_summary()
         raw = json.loads(text)

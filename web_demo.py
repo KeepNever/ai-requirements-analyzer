@@ -492,100 +492,138 @@ CHAT_PAGE = """<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">
 <title>AI 问答 · 客户材料分析工作台</title><style>__CSS__</style></head>
 <body><div class="wrap">
 <p><a class="back" href="/">← 返回工作台</a>　<a class="back" href="/library">资料库</a>　<a class="back" href="/dashboard">评测 Dashboard</a></p>
-<div class="tag">引 用 式 问 答</div>
+<div class="tag">引 用 式 问 答 · 多 轮 对 话</div>
 <h1>对项目材料提问</h1>
-<div class="sub">答案只依据材料段落生成，每条结论带 D 编号引用回链；材料不足以回答时明确提示，不编造。</div>
+<div class="sub">支持多轮追问（代词与上下文自动衔接），答案只依据材料段落，每条结论带 D 编号引用回链；依据不足时明确提示，不编造。</div>
 
 <div class="panel">
 <div class="row" style="margin-top:0">
   <span style="font-size:13px;color:var(--muted)">项目：</span>
-  <select id="proj" style="border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:13px;background:#fff"></select>
+  <select id="proj" onchange="resetConv()" style="border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:13px;background:#fff"></select>
   <span style="font-size:13px;color:var(--muted)">模式：</span>
   <select id="mode" style="border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:13px;background:#fff">
     <option value="mock">离线演示（mock，不调用 API）</option>
-    <option value="real" selected>真实问答（调用 DeepSeek，约 0.01 元/问）</option>
+    <option value="real" selected>真实问答（调用 DeepSeek）</option>
   </select>
+  <span style="font-size:13px;color:var(--muted)">历史会话：</span>
+  <select id="convSel" onchange="reopen(this.value)" style="border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:13px;background:#fff;max-width:260px">
+    <option value="">新会话</option>
+  </select>
+  <button class="ghost" style="padding:6px 14px;font-size:12px" onclick="resetConv()">开新会话</button>
 </div>
-<div class="row">
-  <textarea id="q" style="min-height:70px" placeholder="例如：客户对看板的核心要求是什么？预算和时间节点？"></textarea>
-</div>
-<div class="row">
-  <button id="btn" onclick="ask()">提问</button>
-  <span id="convTag" style="font-size:12px;color:var(--muted)"></span>
-</div>
-<div class="err" id="err"></div>
-</div>
-
-<div class="panel" id="ansPanel" style="display:none">
-<h2>回答</h2>
-<div id="ansBadge"></div>
-<div id="ansText" style="font-size:14px;margin:10px 0"></div>
-<div id="ansInvalid" style="font-size:12.5px;color:var(--red)"></div>
-<h3>引用来源（脱敏展示，可回链资料库）</h3>
-<div id="ansCites"></div>
-<div class="hint" id="hitsInfo"></div>
 </div>
 
 <div class="panel">
-<h2>会话记录</h2>
-<div class="list" id="convs"><em>加载中…</em></div>
+<div id="chatlog" style="min-height:120px;max-height:480px;overflow-y:auto"></div>
+<div id="empty" style="color:var(--muted);font-size:13px;padding:20px;text-align:center">输入第一个问题开始对话。追问时可以直接说「那预算呢？」，上下文自动衔接。</div>
+<div class="row" style="border-top:1px solid var(--line);padding-top:12px">
+  <textarea id="q" style="flex:1;min-height:60px" placeholder="输入问题，Enter 发送（Shift+Enter 换行）"></textarea>
+  <button id="btn" onclick="ask()">发送</button>
+</div>
+<div class="err" id="err"></div>
 </div>
 </div>
 <script>
 var currentConv = null;
+var busy = false;
 function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
 function loadProjects(){
   fetch('/api/projects').then(r=>r.json()).then(function(ps){
     document.getElementById('proj').innerHTML = ps.map(function(p){
       return '<option value="'+esc(p[0])+'">'+esc(p[1].name)+'</option>'; }).join('');
+    loadConvList();
   });
 }
-function loadConvs(){
+function loadConvList(){
   var pid = document.getElementById('proj').value;
   fetch('/api/conversations/'+encodeURIComponent(pid)).then(r=>r.json()).then(function(cs){
-    document.getElementById('convs').innerHTML = cs.length ? cs.map(function(c){
-      return '<a href="javascript:void(0)" onclick="reopen(\\''+esc(c.conversation_id)+'\\')">'
-        + '<span>'+esc(c.conversation_id)+'</span><span style="color:var(--muted);font-size:12px">'+esc(c.created_at)+'</span></a>';
-    }).join('') : '<em>暂无会话</em>';
+    var sel = document.getElementById('convSel');
+    sel.innerHTML = '<option value="">新会话</option>' + cs.map(function(c){
+      return '<option value="'+esc(c.conversation_id)+'"'+(c.conversation_id===currentConv?' selected':'')+'>'
+        + esc(c.conversation_id)+'</option>'; }).join('');
   });
 }
-function reopen(cid){ currentConv = cid; document.getElementById('convTag').textContent = '当前会话：'+cid; }
+function resetConv(){ currentConv = null; document.getElementById('chatlog').innerHTML=''; document.getElementById('empty').style.display='block'; loadConvList(); }
+function reopen(cid){
+  currentConv = cid;
+  fetch('/api/conversation/'+encodeURIComponent(document.getElementById('proj').value)+'/'+encodeURIComponent(cid))
+  .then(r=>r.json()).then(function(d){
+    var log = document.getElementById('chatlog');
+    log.innerHTML = '';
+    document.getElementById('empty').style.display = 'none';
+    (d.messages||[]).forEach(function(m){
+      if (m.role === 'user') appendBubble('user', esc(m.content), '');
+      else appendBubble('assistant', esc(m.answer), m);
+    });
+    log.scrollTop = log.scrollHeight;
+  });
+}
+function badge(sufficient){
+  return sufficient ? '<span class="pill p-ok">有依据</span>' : '<span class="pill p-bad">证据不足</span>';
+}
+function citesHtml(citations){
+  return (citations||[]).map(function(c){
+    return (c.source_excerpts||[]).map(function(e){
+      return '<div style="border:1px solid var(--line);border-radius:8px;padding:6px 10px;margin:5px 0;font-size:12.5px">'
+        + '<span class="did" style="color:var(--blues);font-weight:700;margin-right:6px">'+esc(e.source_paragraph_id)+'</span>'
+        + esc(e.text) + '</div>';
+    }).join('');
+  }).join('') || '<div style="color:var(--muted);font-size:12.5px">无引用（证据不足）</div>';
+}
+function appendBubble(role, text, meta){
+  var log = document.getElementById('chatlog');
+  document.getElementById('empty').style.display = 'none';
+  var div = document.createElement('div');
+  if (role === 'user') {
+    div.style.cssText = 'text-align:right;margin:10px 0';
+    div.innerHTML = '<span style="display:inline-block;background:var(--blue);color:#fff;border-radius:12px;padding:7px 14px;font-size:13.5px;max-width:75%;text-align:left">'+text+'</span>';
+  } else {
+    var extra = meta ? '<div style="margin-top:6px">'+badge(meta.sufficient)
+      + (meta.invalid_dids && meta.invalid_dids.length ? ' <span style="font-size:12px;color:var(--red)">⚠ 已剔除无效引用：'+esc(meta.invalid_dids.join('、'))+'</span>' : '') + '</div>'
+      + '<div style="margin-top:8px"><b style="font-size:12.5px;color:var(--muted)">引用来源</b>' + citesHtml(meta.citations) + '</div>'
+      + '<div style="font-size:11.5px;color:var(--muted);margin-top:4px">检索命中 ' + (meta.hits||[]).length + ' 段</div>' : '';
+    div.style.cssText = 'margin:10px 0';
+    div.innerHTML = '<span style="display:inline-block;background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:9px 14px;font-size:13.5px;max-width:85%;text-align:left;white-space:pre-wrap">'+text+'</span>' + extra;
+  }
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+}
 function ask(){
+  if (busy) return;
   var q = document.getElementById('q').value.trim();
-  if (!q) { document.getElementById('err').style.display='block'; document.getElementById('err').textContent='请输入问题'; return; }
+  if (!q) { var e=document.getElementById('err'); e.style.display='block'; e.textContent='请输入问题'; return; }
   document.getElementById('err').style.display='none';
+  busy = true;
   var b = document.getElementById('btn'); b.disabled = true; b.textContent = '思考中…';
+  appendBubble('user', esc(q), null);
+  document.getElementById('q').value = '';
+  var log = document.getElementById('chatlog');
+  var wait = document.createElement('div');
+  wait.id = 'waiting'; wait.style.cssText = 'color:var(--muted);font-size:13px;margin:8px 0';
+  wait.textContent = '检索材料段落并生成引用式回答…';
+  log.appendChild(wait); log.scrollTop = log.scrollHeight;
   fetch('/api/ask', { method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({ project_id: document.getElementById('proj').value, question: q,
       mock: document.getElementById('mode').value === 'mock', conversation_id: currentConv }) })
   .then(r=>r.json()).then(function(d){
-    b.disabled = false; b.textContent = '提问';
-    if (d.error) { document.getElementById('err').style.display='block'; document.getElementById('err').textContent=d.error; return; }
+    document.getElementById('waiting').remove();
+    busy = false; b.disabled = false; b.textContent = '发送';
+    if (d.error) { appendBubble('assistant', '⚠ ' + esc(d.error), null); return; }
     currentConv = d.conversation_id;
-    document.getElementById('convTag').textContent = '当前会话：'+d.conversation_id;
-    var p = document.getElementById('ansPanel'); p.style.display='block';
-    document.getElementById('ansBadge').innerHTML = d.sufficient
-      ? '<span class="pill p-ok">有依据</span>' : '<span class="pill p-bad">证据不足</span>';
-    document.getElementById('ansText').textContent = d.answer;
-    document.getElementById('ansInvalid').textContent = d.invalid_dids.length
-      ? '⚠ 已剔除无效引用（模型试图引用不存在的段落）：'+d.invalid_dids.join('、') : '';
-    document.getElementById('ansCites').innerHTML = (d.frontend_citations||[]).map(function(c){
-      return (c.source_excerpts||[]).map(function(e){
-        return '<div class="seg" style="border:1px solid var(--line);border-radius:8px;margin:6px 0">'
-          + '<span class="did">'+esc(e.source_paragraph_id)+'</span>' + esc(e.text) + '</div>';
-      }).join('');
-    }).join('') || '<em>无引用（证据不足）</em>';
-    document.getElementById('hitsInfo').textContent = '检索命中 '+d.hits.length+' 个段落：'
-      + d.hits.map(function(h){ return h.did+'('+h.score+')'; }).join('、');
-    loadConvs();
-  }).catch(function(e){ b.disabled=false; b.textContent='提问'; showApiErr(e); });
-  function showApiErr(e){ document.getElementById('err').style.display='block'; document.getElementById('err').textContent='请求失败：'+e; }
+    appendBubble('assistant', esc(d.answer), d);
+    loadConvList();
+  }).catch(function(e){
+    document.getElementById('waiting').remove();
+    busy = false; b.disabled = false; b.textContent = '发送';
+    appendBubble('assistant', '⚠ 请求失败：' + esc(String(e)), null);
+  });
 }
-document.getElementById('proj').addEventListener('change', function(){ currentConv=null; loadConvs(); });
-loadProjects(); loadConvs();
+document.getElementById('q').addEventListener('keydown', function(ev){
+  if (ev.key === 'Enter' && !ev.shiftKey) { ev.preventDefault(); ask(); }
+});
+loadProjects();
 </script>
 </body></html>"""
-
 DS_COLORS = {"MAIN": "#2f54eb", "DEV": "#7a5cd6", "HOLD": "#16855c", "FINAL": "#b26a00"}
 
 TIER_PILL = {"高": "p-high", "中": "p-mid", "低": "p-low"}
@@ -827,6 +865,15 @@ class Handler(BaseHTTPRequestHandler):
         elif path.startswith("/api/conversations/"):
             pid = path.split("/api/conversations/", 1)[1]
             self._json(retrieval.list_conversations(pid))
+        elif path.startswith("/api/conversation/"):
+            _, rest = path.split("/api/conversation/", 1)
+            pid, cid = rest.split("/", 1)
+            msg_file = storage._resolve_under_base(
+                "projects", pid, "conversations", cid) / "messages.json"
+            if not msg_file.exists():
+                self._json({"error": "会话不存在"}, 404)
+                return
+            self._json(json.loads(msg_file.read_text(encoding="utf-8")))
         elif path.startswith("/api/version/"):
             _, rest = path.split("/api/version/", 1)
             pid, doc_id, vid = rest.split("/", 2)

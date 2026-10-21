@@ -163,3 +163,87 @@ def test_conversations_appended_not_overwritten(store):
     assert r3["conversation_id"] != r1["conversation_id"]
     convs = retrieval.list_conversations("测试项目A")
     assert len(convs) == 2
+
+
+def test_multi_turn_context_sent_to_llm(store, monkeypatch):
+    """多轮对话：历史轮次作为上下文进入 LLM messages（审查约束：真多轮而非假留痕）。"""
+    refs = store
+    captured = {}
+
+    def fake_chat(messages, **kw):
+        captured["messages"] = messages
+        return json.dumps({"answer": "预算二十万（D006）。", "cited_dids": ["D006"], "sufficient": True})
+
+    monkeypatch.setattr("pipeline.llm_client.chat", fake_chat)
+    # 第一轮
+    retrieval.answer_question("测试项目A", refs, "看板的核心要求是什么？", mock=True)
+    # 第二轮：带 conversation_id，问题含指代
+    r2 = retrieval.answer_question("测试项目A", refs, "那预算和时间呢？", mock=False,
+                                   conversation_id=_last_conv_id("测试项目A"))
+    msgs = captured["messages"]
+    roles = [m["role"] for m in msgs]
+    assert roles.count("user") == 2 and roles.count("assistant") == 1   # system + 2 user + 1 assistant
+    assert any("看板的核心要求" in m.get("content", "") for m in msgs if m["role"] == "user")
+    assert any("预算和时间" in m.get("content", "") for m in msgs if m["role"] == "user")
+    assert r2["conversation_id"] == _last_conv_id("测试项目A")
+
+
+def test_multi_turn_without_history_first_round(store, monkeypatch):
+    """首轮问答不带历史（无 conversation_id 时 LLM messages 只有 system+user）。"""
+    refs = store
+    captured = {}
+
+    def fake_chat(messages, **kw):
+        captured["messages"] = messages
+        return json.dumps({"answer": "无依据回答", "cited_dids": [], "sufficient": False})
+
+    monkeypatch.setattr("pipeline.llm_client.chat", fake_chat)
+    retrieval.answer_question("测试项目A", refs, "看板？", mock=False)
+    msgs = captured["messages"]
+    assert len(msgs) == 2 and msgs[0]["role"] == "system" and msgs[1]["role"] == "user"
+
+
+def _last_conv_id(project_id):
+    return retrieval.list_conversations(project_id)[0]["conversation_id"]
+
+
+def test_multi_turn_context_sent_to_llm(store, monkeypatch):
+    """多轮对话：历史轮次作为上下文进入 LLM messages（审查约束：真多轮而非假留痕）。"""
+    refs = store
+    captured = {}
+
+    def fake_chat(messages, **kw):
+        captured["messages"] = messages
+        return json.dumps({"answer": "预算二十万（D006）。", "cited_dids": ["D006"], "sufficient": True})
+
+    monkeypatch.setattr("pipeline.llm_client.chat", fake_chat)
+    # 第一轮
+    retrieval.answer_question("测试项目A", refs, "看板的核心要求是什么？", mock=True)
+    # 第二轮：带 conversation_id，问题含指代
+    r2 = retrieval.answer_question("测试项目A", refs, "那预算和时间呢？", mock=False,
+                                   conversation_id=_last_conv_id("测试项目A"))
+    msgs = captured["messages"]
+    roles = [m["role"] for m in msgs]
+    assert roles.count("user") == 2 and roles.count("assistant") == 1   # system + 2 user + 1 assistant
+    assert any("看板的核心要求" in m.get("content", "") for m in msgs if m["role"] == "user")
+    assert any("预算和时间" in m.get("content", "") for m in msgs if m["role"] == "user")
+    assert r2["conversation_id"] == _last_conv_id("测试项目A")
+
+
+def test_multi_turn_without_history_first_round(store, monkeypatch):
+    """首轮问答不带历史（无 conversation_id 时 LLM messages 只有 system+user）。"""
+    refs = store
+    captured = {}
+
+    def fake_chat(messages, **kw):
+        captured["messages"] = messages
+        return json.dumps({"answer": "无依据回答", "cited_dids": [], "sufficient": False})
+
+    monkeypatch.setattr("pipeline.llm_client.chat", fake_chat)
+    retrieval.answer_question("测试项目A", refs, "看板？", mock=False)
+    msgs = captured["messages"]
+    assert len(msgs) == 2 and msgs[0]["role"] == "system" and msgs[1]["role"] == "user"
+
+
+def _last_conv_id(project_id):
+    return retrieval.list_conversations(project_id)[0]["conversation_id"]
