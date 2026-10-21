@@ -247,3 +247,61 @@ def test_multi_turn_without_history_first_round(store, monkeypatch):
 
 def _last_conv_id(project_id):
     return retrieval.list_conversations(project_id)[0]["conversation_id"]
+
+
+def test_zero_hit_fallback_to_history_material(store, monkeypatch):
+    """审查后实测缺陷修复：总结类追问零命中时，材料回落到历史轮引用过的段落。"""
+    refs = store
+    captured = {}
+
+    def fake_chat(messages, **kw):
+        captured["messages"] = messages
+        return json.dumps({"answer": "总结：看板当天可见（D003）。", "cited_dids": ["D003"], "sufficient": True})
+
+    monkeypatch.setattr("pipeline.llm_client.chat", fake_chat)
+    # 第一轮：正常命中
+    r1 = retrieval.answer_question("测试项目A", refs, "看板的核心要求是什么？", mock=True)
+    assert r1["hits"]
+    # 第二轮：总结类问题零命中 → 应回落历史段落而非给空材料
+    r2 = retrieval.answer_question("测试项目A", refs, "能否帮我总结一下", mock=False,
+                                   conversation_id=r1["conversation_id"])
+    user_msgs = [m for m in captured["messages"] if m["role"] == "user"]
+    last = user_msgs[-1]["content"]
+    assert "此前对话中引用过的内容" in last            # 回落标注存在
+    assert "D003" in last                              # 历史段落进入材料块
+    assert r2["cited_dids"] == ["D003"] and r2["sufficient"] is True
+
+
+def test_zero_hit_no_history_still_insufficient(store):
+    """零命中且无历史 → 仍为证据不足（回落机制不放过编造）。"""
+    r = retrieval.answer_question("测试项目A", store, "能否帮我总结一下", mock=True)
+    assert r["sufficient"] is False and r["cited_dids"] == []
+
+
+def test_zero_hit_fallback_to_history_material(store, monkeypatch):
+    """审查后实测缺陷修复：总结类追问零命中时，材料回落到历史轮引用过的段落。"""
+    refs = store
+    captured = {}
+
+    def fake_chat(messages, **kw):
+        captured["messages"] = messages
+        return json.dumps({"answer": "总结：看板当天可见（D003）。", "cited_dids": ["D003"], "sufficient": True})
+
+    monkeypatch.setattr("pipeline.llm_client.chat", fake_chat)
+    # 第一轮：正常命中
+    r1 = retrieval.answer_question("测试项目A", refs, "看板的核心要求是什么？", mock=True)
+    assert r1["hits"]
+    # 第二轮：总结类问题零命中 → 应回落历史段落而非给空材料
+    r2 = retrieval.answer_question("测试项目A", refs, "能否帮我总结一下", mock=False,
+                                   conversation_id=r1["conversation_id"])
+    user_msgs = [m for m in captured["messages"] if m["role"] == "user"]
+    last = user_msgs[-1]["content"]
+    assert "此前对话中引用过的内容" in last            # 回落标注存在
+    assert "D003" in last                              # 历史段落进入材料块
+    assert r2["cited_dids"] == ["D003"] and r2["sufficient"] is True
+
+
+def test_zero_hit_no_history_still_insufficient(store):
+    """零命中且无历史 → 仍为证据不足（回落机制不放过编造）。"""
+    r = retrieval.answer_question("测试项目A", store, "能否帮我总结一下", mock=True)
+    assert r["sufficient"] is False and r["cited_dids"] == []

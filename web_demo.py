@@ -130,6 +130,14 @@ PAGE_CSS = """
   ul.plain li { margin:3px 0; }
   .topnav a { margin-right:16px; color:var(--blues); text-decoration:none; font-size:14px; font-weight:600; }
   @media (max-width:700px){ .grid2{grid-template-columns:1fr} .stat{grid-template-columns:1fr 1fr} }
+  .qa-grid { display:grid; grid-template-columns:minmax(0,1fr) 320px; gap:14px; align-items:start; }
+  .ctx-item { padding:7px 0; border-bottom:1px solid var(--line); font-size:12.5px; }
+  .ctx-item b { color:var(--blues); margin-right:6px; }
+  .ctx-sec { font-size:12px; color:var(--muted); margin:12px 0 4px; letter-spacing:1px; }
+  .list-link { display:flex; justify-content:space-between; padding:9px 12px; border-bottom:1px solid var(--line);
+    color:var(--text); text-decoration:none; font-size:14px; border-radius:6px; }
+  .list-link:hover { background:var(--panel2); }
+  @media (max-width:900px){ .qa-grid { grid-template-columns:1fr; } }
 """
 
 HOME_PAGE = """<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">
@@ -499,7 +507,7 @@ CHAT_PAGE = """<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">
 <div class="panel">
 <div class="row" style="margin-top:0">
   <span style="font-size:13px;color:var(--muted)">项目：</span>
-  <select id="proj" onchange="resetConv()" style="border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:13px;background:#fff"></select>
+  <select id="proj" onchange="resetConv(); loadContext();" style="border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:13px;background:#fff"></select>
   <span style="font-size:13px;color:var(--muted)">模式：</span>
   <select id="mode" style="border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:13px;background:#fff">
     <option value="mock">离线演示（mock，不调用 API）</option>
@@ -513,6 +521,7 @@ CHAT_PAGE = """<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">
 </div>
 </div>
 
+<div class="qa-grid">
 <div class="panel">
 <div id="chatlog" style="min-height:120px;max-height:480px;overflow-y:auto"></div>
 <div id="empty" style="color:var(--muted);font-size:13px;padding:20px;text-align:center">输入第一个问题开始对话。追问时可以直接说「那预算呢？」，上下文自动衔接。</div>
@@ -522,11 +531,37 @@ CHAT_PAGE = """<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">
 </div>
 <div class="err" id="err"></div>
 </div>
+
+<div class="panel" id="ctxPanel">
+<h2>项目上下文</h2>
+<div id="ctxBody" style="font-size:13px"><em>加载中…</em></div>
+</div>
 </div>
 <script>
 var currentConv = null;
 var busy = false;
 function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
+function loadContext(){
+  var pid = document.getElementById('proj').value;
+  fetch('/api/project-context/'+encodeURIComponent(pid)).then(r=>r.json()).then(function(c){
+    var b = document.getElementById('ctxBody');
+    if (c.error) { b.innerHTML = '<em>'+esc(c.error)+'</em>'; return; }
+    b.innerHTML =
+      '<div class="ctx-sec">文 档</div>'
+      + (c.documents||[]).map(function(d){
+          return '<div class="ctx-item"><b>'+esc(d.current_version_id)+'</b>'+esc(d.file_name)+'</div>'; }).join('')
+      + '<div class="ctx-sec">显 性 需 求（AI 提取）</div>'
+      + (c.explicit_needs||[]).slice(0,6).map(function(e){
+          return '<div class="ctx-item"><b>'+esc(e.id)+'</b>'+esc(e.content).slice(0,60)+'</div>'; }).join('')
+      + '<div class="ctx-sec">最 近 运 行</div>'
+      + (c.recent_runs||[]).map(function(r){
+          return '<div class="ctx-item"><b>'+esc(r.run_id.slice(0,18))+'</b>'+esc(r.status)+'</div>'; }).join('')
+      + '<div class="ctx-sec">快 捷 入 口</div>'
+      + '<div class="ctx-item"><a class="back" href="/library/'+encodeURIComponent(pid)+'">→ 资料库（版本历史）</a></div>'
+      + '<div class="ctx-item"><a class="back" href="/report/'+encodeURIComponent(pid)+'">→ 分析报告</a></div>'
+      + '<div class="ctx-item"><a class="back" href="/pipeline/'+encodeURIComponent(pid)+'">→ 分析流水线</a></div>';
+  });
+}
 function loadProjects(){
   fetch('/api/projects').then(r=>r.json()).then(function(ps){
     document.getElementById('proj').innerHTML = ps.map(function(p){
@@ -621,7 +656,7 @@ function ask(){
 document.getElementById('q').addEventListener('keydown', function(ev){
   if (ev.key === 'Enter' && !ev.shiftKey) { ev.preventDefault(); ask(); }
 });
-loadProjects();
+loadProjects(); loadContext();
 </script>
 </body></html>"""
 DS_COLORS = {"MAIN": "#2f54eb", "DEV": "#7a5cd6", "HOLD": "#16855c", "FINAL": "#b26a00"}
@@ -874,6 +909,24 @@ class Handler(BaseHTTPRequestHandler):
                 self._json({"error": "会话不存在"}, 404)
                 return
             self._json(json.loads(msg_file.read_text(encoding="utf-8")))
+        elif path.startswith("/api/project-context/"):
+            pid = path.split("/api/project-context/", 1)[1]
+            tree = storage.get_project_tree(pid)
+            if tree is None:
+                self._json({"error": "项目不存在"}, 404)
+                return
+            needs, runs = [], []
+            # tree["runs"] 已按最近在前排序；取最近一条含 analysis.json 的运行
+            for r in tree["runs"]:
+                ana = storage._resolve_under_base(pid, "analysis_runs", r["run_id"], "analysis.json")
+                if ana.exists():
+                    a = json.loads(ana.read_text(encoding="utf-8"))
+                    needs = (a.get("node1", {}) or {}).get("explicit_needs", [])
+                    break
+            for r in tree["runs"][:3]:
+                runs.append({"run_id": r["run_id"], "status": r.get("status")})
+            self._json({"documents": tree["documents"], "explicit_needs": needs,
+                        "recent_runs": runs})
         elif path.startswith("/api/version/"):
             _, rest = path.split("/api/version/", 1)
             pid, doc_id, vid = rest.split("/", 2)

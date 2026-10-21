@@ -103,12 +103,49 @@ def _load_history(project_id: str, conversation_id: str, max_turns: int = 5) -> 
     return history
 
 
+def _load_history_material(project_id: str, conversation_id: str) -> list:
+    """零命中回落（审查约束：总结/追问类问题不依赖当轮检索）——
+    从会话历史各轮 assistant 消息的 hits 收集此前用过的段落（clean_text）。
+    返回 [{did, text}]，顺序 = 历史出现顺序，去重。"""
+    msg_file = storage._resolve_under_base(
+        "projects", project_id, "conversations", conversation_id) / "messages.json"
+    if not msg_file.exists():
+        return []
+    msgs = json.loads(msg_file.read_text(encoding="utf-8")).get("messages", [])
+    seen, out = set(), []
+    for m in msgs:
+        if m.get("role") != "assistant":
+            continue
+        for h in m.get("hits", []):
+            if h.get("did") and h["did"] not in seen:
+                seen.add(h["did"])
+                seg = _segment_text(project_id, h["did"], m)
+                if seg:
+                    out.append({"did": h["did"], "text": seg})
+    return out
+
+
+def _segment_text(project_id: str, did: str, assistant_msg: dict) -> str | None:
+    """按 assistant 消息的 version_refs 定位段落 clean_text（历史轮引用过的段落）。"""
+    for ref in assistant_msg.get("version_refs", []) or []:
+        try:
+            pmap, segments = storage._load_version_data(
+                project_id, ref["document_id"], ref["version_id"])
+        except ValueError:
+            continue
+        for s in segments:
+            if s["did"] == did:
+                return s["clean_text"]
+    return None
+
+
 def answer_question(project_id: str, version_refs: list, question: str,
                     mock: bool = False, conversation_id: str | None = None) -> dict:
     """引用式问答主流程：检索 → LLM（或 mock）→ EVD-01 校验 → 证据组装 → 会话落盘。
 
     version_refs: [{document_id, version_id}, ...]（完整组合定位）。
     conversation_id 传入则多轮对话：历史轮次作为上下文发给模型，新消息追加到同一会话。
+    零命中回落：总结/追问类问题检索零命中时，材料块回落到本会话历史轮引用过的段落。
     返回 {answer, sufficient, cited_dids, invalid_dids, hits, citations, conversation_id}。
     citations 为后端证据版（含 raw excerpt）；前端一律过 citations_for_frontend。
     """
@@ -121,32 +158,44 @@ def answer_question(project_id: str, version_refs: list, question: str,
         index.extend(idx)
         provided_dids |= {c["did"] for c in idx}
 
-    # 2. 检索
+    # 2. 检索；零命中且有多轮会话时回落到历史引用过的段落
     hits = keyword_search(question, index)
-    provided_hit_dids = {h["did"] for h in hits}
+    fallback_material = []
+    if not hits and conversation_id:
+        fallback_material = _load_history_material(project_id, conversation_id)
 
     # 3. 生成答案（真实 LLM 或 mock）；多轮时带历史上下文
+    material_source = hits if hits else fallback_material
     if mock:
         raw = _mock_answer(question, hits)
         usage = None
     else:
-        material_block = "\n\n".join(f"{h['did']} {h['text']}" for h in hits) or "（无命中段落）"
+        if hits:
+            material_block = "\n\n".join(f"{h['did']} {h['text']}" for h in hits)
+            material_note = ""
+        elif fallback_material:
+            material_block = "\n\n".join(f"{m['did']} {m['text']}" for m in fallback_material)
+            material_note = "（本次检索零命中，材料段落来自此前对话中引用过的内容——总结类问题请结合对话历史归纳）"
+        else:
+            material_block = "（无命中段落，且无历史引用）"
+            material_note = ""
         from pipeline import llm_client, config
         history = _load_history(project_id, conversation_id) if conversation_id else []
         # 历史轮只带问题与答案（不带旧材料块，控 token）；当前轮带检索材料
         messages = [{"role": "system", "content": QA_SYSTEM}] + history + [
             {"role": "user",
-             "content": f"【材料段落】\n{material_block}\n\n【问题】{question}\n\n"
+             "content": f"【材料段落】\n{material_block}\n{material_note}\n\n【问题】{question}\n\n"
                         "（注：若问题中的代词指代此前轮次的内容，请结合对话历史理解；"
-                        "回答仍须以本次材料段落为引用依据）"}]
+                        "回答须以材料段落或对话历史中已出现的 D 编号为引用依据）"}]
         text = llm_client.chat(messages, json_mode=True, node="QA")
         usage = llm_client.usage_summary()
         raw = json.loads(text)
 
-    # 4. EVD-01 引用真实性校验（审查约束：引用必须真实存在于提供段落）
+    # 4. EVD-01 引用真实性校验：可引用范围 = 当轮命中 + 历史回落段落（审查约束）
+    provided_hit_dids = {h["did"] for h in hits} | {m["did"] for m in fallback_material}
     cited, invalid = _validate_cited_dids(raw.get("cited_dids", []), provided_hit_dids)
-    sufficient = bool(raw.get("sufficient")) and bool(cited) if hits else False
-    if hits and not cited:
+    sufficient = bool(raw.get("sufficient")) and bool(cited) if material_source else False
+    if material_source and not cited:
         sufficient = False   # 声称有依据但引用全无效 → 降级为依据不足
 
     # 5. 证据组装（逐段原文，复用 storage 的 excerpt 逻辑）
@@ -188,7 +237,7 @@ def answer_question(project_id: str, version_refs: list, question: str,
     messages["messages"].append({
         "role": "assistant", "answer": result["answer"], "sufficient": sufficient,
         "cited_dids": cited, "invalid_dids": invalid,
-        "hits": result["hits"], "ts": storage.now_iso(),
+        "hits": result["hits"], "version_refs": version_refs, "ts": storage.now_iso(),
         "prompt_version": result["prompt_version"]})
     storage._write_json(msg_file, messages)
     if not (conv_dir / "meta.json").exists():
