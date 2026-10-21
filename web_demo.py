@@ -918,7 +918,7 @@ class Handler(BaseHTTPRequestHandler):
             needs, runs = [], []
             # tree["runs"] 已按最近在前排序；取最近一条含 analysis.json 的运行
             for r in tree["runs"]:
-                ana = storage._resolve_under_base(pid, "analysis_runs", r["run_id"], "analysis.json")
+                ana = storage._resolve_under_base("projects", pid, "analysis_runs", r["run_id"], "analysis.json")
                 if ana.exists():
                     a = json.loads(ana.read_text(encoding="utf-8"))
                     needs = (a.get("node1", {}) or {}).get("explicit_needs", [])
