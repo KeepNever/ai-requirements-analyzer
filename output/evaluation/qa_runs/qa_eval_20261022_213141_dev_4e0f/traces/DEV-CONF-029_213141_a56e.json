@@ -1,0 +1,27 @@
+{
+  "tag": "DEV-CONF-029",
+  "question": "系统什么时候能上线？",
+  "mock": true,
+  "prompt_version": "v1.7.1-qa-mock",
+  "hits_full": [
+    {
+      "did": "D001",
+      "pids": [
+        "P1"
+      ],
+      "text": "【销售顾问】跟客户确认过了，系统最快 3 月底就能上线。",
+      "score": 0.429
+    }
+  ],
+  "fallback_note": "（小材料模式：已提供全部材料段落，检索命中排序在前）",
+  "fallback_used": false,
+  "elapsed": {
+    "search": 0.001,
+    "llm": 0.0
+  },
+  "usage": null,
+  "cited": [
+    "D001"
+  ],
+  "invalid": []
+}

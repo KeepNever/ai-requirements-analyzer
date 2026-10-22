@@ -1,0 +1,45 @@
+{
+  "tag": "DEV-CONF-030",
+  "question": "店管家的接口现在能用吗？",
+  "mock": true,
+  "prompt_version": "v1.7.1-qa-mock",
+  "hits_full": [
+    {
+      "did": "D002",
+      "pids": [
+        "P2"
+      ],
+      "text": "【技术负责人】3 月底不可能，店管家的接口开发周期至少要到 6 月，这是他们原话。",
+      "score": 0.5
+    },
+    {
+      "did": "D003",
+      "pids": [
+        "P3"
+      ],
+      "text": "【王总】上周店管家还跟我说接口是现成的，随时能对接。",
+      "score": 0.3
+    },
+    {
+      "did": "D004",
+      "pids": [
+        "P4"
+      ],
+      "text": "【王总】这周他们又改口了，说接口还在开发，暂时没有，让我们等通知。",
+      "score": 0.1
+    }
+  ],
+  "fallback_note": "（小材料模式：已提供全部材料段落，检索命中排序在前）",
+  "fallback_used": false,
+  "elapsed": {
+    "search": 0.001,
+    "llm": 0.001
+  },
+  "usage": null,
+  "cited": [
+    "D002",
+    "D003",
+    "D004"
+  ],
+  "invalid": []
+}

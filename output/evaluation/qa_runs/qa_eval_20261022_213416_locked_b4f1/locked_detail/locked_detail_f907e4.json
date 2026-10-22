@@ -1,0 +1,588 @@
+[
+  {
+    "question_id": "LOCKED-MULT-018",
+    "category": "multi_segment_summary",
+    "evidence_sufficiency": "answerable",
+    "sufficient": true,
+    "refuse_judgement_ok": true,
+    "cited_dids": [
+      "D002",
+      "D003",
+      "D004",
+      "D009"
+    ],
+    "invalid_dids": [],
+    "recall": 1.0,
+    "all_evidence_hit": true,
+    "citation_hit_rate": 0.75,
+    "expected_dids": [
+      "D001",
+      "D002",
+      "D003",
+      "D004"
+    ],
+    "multi_turn": false,
+    "conversation_id": "conv20261022_e8d9a9",
+    "turn_results": [
+      {
+        "turn": 1,
+        "question": "王厂长的工单和台账现状是什么？",
+        "answer": "王厂长有 5 家店，其中 3 家使用「店管家」连锁管理系统，2 家老店仍用 Excel 工单台账（D002）。「店管家」虽有导出功能，但导出格式与 Excel 老店台账对不上，每次需手工对齐（D004）。王厂长每周一需汇总上周各店营收、工单量、客单价发到管理群，手工处理约小半天（D003）。此外，「店管家」提供开放接口文档，可让供应商发一份（D009）。",
+        "sufficient": true,
+        "cited_dids": [
+          "D002",
+          "D003",
+          "D004",
+          "D009"
+        ],
+        "invalid_dids": [],
+        "provided_dids": [
+          "D001",
+          "D002",
+          "D003",
+          "D004",
+          "D005",
+          "D006",
+          "D007",
+          "D008",
+          "D009",
+          "D010",
+          "D011",
+          "D012",
+          "D013"
+        ],
+        "hits": [
+          {
+            "did": "D001",
+            "score": 0.417
+          },
+          {
+            "did": "D002",
+            "score": 0.333
+          },
+          {
+            "did": "D003",
+            "score": 0.25
+          },
+          {
+            "did": "D004",
+            "score": 0.167
+          },
+          {
+            "did": "D006",
+            "score": 0.167
+          },
+          {
+            "did": "D007",
+            "score": 0.167
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "question_id": "LOCKED-MULT-019",
+    "category": "multi_segment_summary",
+    "evidence_sufficiency": "answerable",
+    "sufficient": false,
+    "refuse_judgement_ok": false,
+    "cited_dids": [
+      "D001",
+      "D002",
+      "D006",
+      "D007",
+      "D011",
+      "D012"
+    ],
+    "invalid_dids": [],
+    "recall": 1.0,
+    "all_evidence_hit": true,
+    "citation_hit_rate": 1.0,
+    "expected_dids": [
+      "D006",
+      "D007",
+      "D011"
+    ],
+    "multi_turn": false,
+    "conversation_id": "conv20261022_67be24",
+    "turn_results": [
+      {
+        "turn": 1,
+        "question": "家长侧的诉求有哪些？",
+        "answer": "家长侧诉求主要有：1）希望及时了解孩子上课情况，家长问起时前台答不上来（D001）；2）希望有小程序能查孩子的课时余额和作业，这是家长问得最多的（D006）；3）小程序诉求被多次提出，家长会上多位家长当场询问（D007）；4）有家长因孩子连续三周缺课未被发现而要求退费，反映对缺课知情与跟进的需求（D002）；5）对面机构已有家长小程序，家长多次追问为何本机构没有（D011）。需注意：陈校长在D012中表示小程序不着急、优先做缺课提醒和续班率，与D006/D007/D011反映的家长小程序诉求在优先级上存在不一致，获得客户进一步确认前不选择任何一方。",
+        "sufficient": false,
+        "cited_dids": [
+          "D001",
+          "D002",
+          "D006",
+          "D007",
+          "D011",
+          "D012"
+        ],
+        "invalid_dids": [],
+        "provided_dids": [
+          "D001",
+          "D002",
+          "D003",
+          "D004",
+          "D005",
+          "D006",
+          "D007",
+          "D008",
+          "D009",
+          "D010",
+          "D011",
+          "D012"
+        ],
+        "hits": [
+          {
+            "did": "D001",
+            "score": 0.143
+          },
+          {
+            "did": "D002",
+            "score": 0.143
+          },
+          {
+            "did": "D006",
+            "score": 0.143
+          },
+          {
+            "did": "D007",
+            "score": 0.143
+          },
+          {
+            "did": "D010",
+            "score": 0.143
+          },
+          {
+            "did": "D011",
+            "score": 0.143
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "question_id": "LOCKED-INSU-020",
+    "category": "insufficient",
+    "evidence_sufficiency": "insufficient",
+    "sufficient": false,
+    "refuse_judgement_ok": true,
+    "cited_dids": [
+      "D002",
+      "D004",
+      "D009",
+      "D011"
+    ],
+    "invalid_dids": [],
+    "recall": null,
+    "all_evidence_hit": null,
+    "citation_hit_rate": null,
+    "expected_dids": [],
+    "multi_turn": false,
+    "conversation_id": "conv20261022_22a664",
+    "turn_results": [
+      {
+        "turn": 1,
+        "question": "「店管家」系统的年费是多少钱？",
+        "answer": "材料中未提及「店管家」系统的年费信息。现有材料只说明：5 家店中 3 家使用「店管家」连锁管理系统（D002），该系统有导出功能但格式与 Excel 老店台账不一致（D004），且有开放接口文档可提供（D009）。整体预算方面，王厂长提到预算为 3 到 5 万，先解决最痛的问题（D011），但未说明其中是否包含「店管家」年费。要回答年费金额，还需客户提供「店管家」的报价单或合同信息。",
+        "sufficient": false,
+        "cited_dids": [
+          "D002",
+          "D004",
+          "D009",
+          "D011"
+        ],
+        "invalid_dids": [],
+        "provided_dids": [
+          "D001",
+          "D002",
+          "D003",
+          "D004",
+          "D005",
+          "D006",
+          "D007",
+          "D008",
+          "D009",
+          "D010",
+          "D011",
+          "D012",
+          "D013"
+        ],
+        "hits": [
+          {
+            "did": "D002",
+            "score": 0.333
+          },
+          {
+            "did": "D004",
+            "score": 0.222
+          },
+          {
+            "did": "D009",
+            "score": 0.222
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "question_id": "LOCKED-INSU-021",
+    "category": "insufficient",
+    "evidence_sufficiency": "insufficient",
+    "sufficient": false,
+    "refuse_judgement_ok": true,
+    "cited_dids": [
+      "D001",
+      "D007"
+    ],
+    "invalid_dids": [],
+    "recall": null,
+    "all_evidence_hit": null,
+    "citation_hit_rate": null,
+    "expected_dids": [],
+    "multi_turn": false,
+    "conversation_id": "conv20261022_0e1acc",
+    "turn_results": [
+      {
+        "turn": 1,
+        "question": "陈总的公司有多少名员工？",
+        "answer": "材料中未提及该公司员工人数，无法回答。现有信息仅涉及组织范围（30 个省区、各区助理、运营、财务、供应链等角色）与业务需求，缺少员工规模数据。",
+        "sufficient": false,
+        "cited_dids": [
+          "D001",
+          "D007"
+        ],
+        "invalid_dids": [],
+        "provided_dids": [
+          "D001",
+          "D002",
+          "D003",
+          "D004",
+          "D005",
+          "D006",
+          "D007",
+          "D008",
+          "D009",
+          "D010",
+          "D011",
+          "D012",
+          "D013",
+          "D014"
+        ],
+        "hits": [
+          {
+            "did": "D011",
+            "score": 0.222
+          },
+          {
+            "did": "D001",
+            "score": 0.111
+          },
+          {
+            "did": "D002",
+            "score": 0.111
+          },
+          {
+            "did": "D005",
+            "score": 0.111
+          },
+          {
+            "did": "D006",
+            "score": 0.111
+          },
+          {
+            "did": "D007",
+            "score": 0.111
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "question_id": "LOCKED-MULT-022",
+    "category": "multi_document",
+    "evidence_sufficiency": "answerable",
+    "sufficient": false,
+    "refuse_judgement_ok": false,
+    "cited_dids": [
+      "D007",
+      "D008",
+      "D005",
+      "D004"
+    ],
+    "invalid_dids": [],
+    "recall": 1.0,
+    "all_evidence_hit": true,
+    "citation_hit_rate": 1.0,
+    "expected_dids": [
+      "D005",
+      "D008"
+    ],
+    "multi_turn": false,
+    "conversation_id": "conv20261022_bd3847",
+    "turn_results": [
+      {
+        "turn": 1,
+        "question": "两家客户（华宇精工与这家经销企业）对通知或提醒的方式分别有什么要求？",
+        "answer": "华宇精工：良品率掉到95以下必须马上通知王总，不能等第二天（D007）；预警最好走企业微信，全厂办公都在企微上（D008）。经销企业：运营也要求提醒功能，库存周转天数超标要提醒采购，目前靠人盯（D005）；财务侧费用超预算要有提醒，现在是事后才知道超了（D004）。材料未说明经销企业提醒的具体渠道（如企微、短信等），也未说明华宇除企微外的其他通知方式，此部分信息不足。",
+        "sufficient": false,
+        "cited_dids": [
+          "D007",
+          "D008",
+          "D005",
+          "D004"
+        ],
+        "invalid_dids": [],
+        "provided_dids": [
+          "D001",
+          "D002",
+          "D003",
+          "D004",
+          "D005",
+          "D006",
+          "D007",
+          "D008",
+          "D009",
+          "D010",
+          "D011",
+          "D012",
+          "D013",
+          "D014"
+        ],
+        "hits": [
+          {
+            "did": "D012",
+            "score": 0.074
+          },
+          {
+            "did": "D001",
+            "score": 0.037
+          },
+          {
+            "did": "D007",
+            "score": 0.037
+          },
+          {
+            "did": "D008",
+            "score": 0.037
+          },
+          {
+            "did": "D010",
+            "score": 0.037
+          },
+          {
+            "did": "D004",
+            "score": 0.037
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "question_id": "LOCKED-MULT-023",
+    "category": "multi_document",
+    "evidence_sufficiency": "answerable",
+    "sufficient": false,
+    "refuse_judgement_ok": false,
+    "cited_dids": [
+      "D012",
+      "D009"
+    ],
+    "invalid_dids": [],
+    "recall": 1.0,
+    "all_evidence_hit": true,
+    "citation_hit_rate": 1.0,
+    "expected_dids": [
+      "D009",
+      "D012"
+    ],
+    "multi_turn": false,
+    "conversation_id": "conv20261022_321bc2",
+    "turn_results": [
+      {
+        "turn": 1,
+        "question": "两家客户的上线时间要求分别是什么？",
+        "answer": "材料中出现了两个不同的上线时间口径，存在不一致：一方面王总提出「时间上最好赶三季度，三季度我们产线改造完，新产线一上就必须用起来」（D012）；另一方面陈总明确「3 月底必须上线」，理由是二季度要办全国经销商大会并展示经营数据（D009）。两者在时间节点上互相冲突，且材料未说明二者是否指同一客户或同一项目范围。在获得客户进一步确认前，不选择任何一方作为最终上线时间。",
+        "sufficient": false,
+        "cited_dids": [
+          "D012",
+          "D009"
+        ],
+        "invalid_dids": [],
+        "provided_dids": [
+          "D001",
+          "D002",
+          "D003",
+          "D004",
+          "D005",
+          "D006",
+          "D007",
+          "D008",
+          "D009",
+          "D010",
+          "D011",
+          "D012",
+          "D013",
+          "D014"
+        ],
+        "hits": [
+          {
+            "did": "D012",
+            "score": 0.143
+          },
+          {
+            "did": "D003",
+            "score": 0.071
+          },
+          {
+            "did": "D010",
+            "score": 0.071
+          },
+          {
+            "did": "D012",
+            "score": 0.071
+          },
+          {
+            "did": "D009",
+            "score": 0.071
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "question_id": "LOCKED-MULT-024",
+    "category": "multi_document",
+    "evidence_sufficiency": "answerable",
+    "sufficient": true,
+    "refuse_judgement_ok": true,
+    "cited_dids": [
+      "D013"
+    ],
+    "invalid_dids": [],
+    "recall": 1.0,
+    "all_evidence_hit": true,
+    "citation_hit_rate": 1.0,
+    "expected_dids": [
+      "D013"
+    ],
+    "multi_turn": false,
+    "conversation_id": "conv20261022_8f4ee3",
+    "turn_results": [
+      {
+        "turn": 1,
+        "question": "两家客户中，哪家提到了被否掉的方案或竞品？具体是什么？",
+        "answer": "提到被否掉方案/竞品的是陈总（运营总监）一方：陈总说之前看过一家 BI，服务器在国外，直接被他们 IT 毙掉了，并要求重点讲部署方式（D013）。另一家客户（王总、李工等）的材料中未提及被否掉的方案或竞品。",
+        "sufficient": true,
+        "cited_dids": [
+          "D013"
+        ],
+        "invalid_dids": [],
+        "provided_dids": [
+          "D001",
+          "D002",
+          "D003",
+          "D004",
+          "D005",
+          "D006",
+          "D007",
+          "D008",
+          "D009",
+          "D010",
+          "D011",
+          "D012",
+          "D013",
+          "D014"
+        ],
+        "hits": [
+          {
+            "did": "D014",
+            "score": 0.05
+          },
+          {
+            "did": "D012",
+            "score": 0.05
+          },
+          {
+            "did": "D014",
+            "score": 0.05
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "question_id": "LOCKED-MULT-025",
+    "category": "multi_document",
+    "evidence_sufficiency": "answerable",
+    "sufficient": false,
+    "refuse_judgement_ok": false,
+    "cited_dids": [
+      "D011",
+      "D008"
+    ],
+    "invalid_dids": [],
+    "recall": 1.0,
+    "all_evidence_hit": true,
+    "citation_hit_rate": 1.0,
+    "expected_dids": [
+      "D008",
+      "D011"
+    ],
+    "multi_turn": false,
+    "conversation_id": "conv20261022_3f2dc3",
+    "turn_results": [
+      {
+        "turn": 1,
+        "question": "两家客户的预算情况分别如何？",
+        "answer": "材料显示两家客户预算口径不同：生产/信息化侧（王总、李工）今年信息化专项还剩约二十万，需评估是否够用（D011）；财务侧孙经理表示有一笔独立的数字化预算，不用与运营一起审批（D008）。但材料未说明该独立预算的具体金额，也未明确二十万是否覆盖看板、接口等全部范围，因此无法给出两家客户的完整预算对比。",
+        "sufficient": false,
+        "cited_dids": [
+          "D011",
+          "D008"
+        ],
+        "invalid_dids": [],
+        "provided_dids": [
+          "D001",
+          "D002",
+          "D003",
+          "D004",
+          "D005",
+          "D006",
+          "D007",
+          "D008",
+          "D009",
+          "D010",
+          "D011",
+          "D012",
+          "D013",
+          "D014"
+        ],
+        "hits": [
+          {
+            "did": "D011",
+            "score": 0.091
+          },
+          {
+            "did": "D001",
+            "score": 0.091
+          },
+          {
+            "did": "D004",
+            "score": 0.091
+          },
+          {
+            "did": "D008",
+            "score": 0.091
+          },
+          {
+            "did": "D012",
+            "score": 0.091
+          }
+        ]
+      }
+    ]
+  }
+]

@@ -1,0 +1,27 @@
+{
+  "tag": "DEV-MULT-027_t2",
+  "question": "那入冬备货的困境呢？",
+  "mock": true,
+  "prompt_version": "v1.7.1-qa-mock",
+  "hits_full": [
+    {
+      "did": "D006",
+      "pids": [
+        "P6"
+      ],
+      "text": "【7月10日·王厂长】每年 11 月入冬，电瓶和防冻液卖爆，去年 12 月断货两次，眼看着单子流失。",
+      "score": 0.125
+    }
+  ],
+  "fallback_note": "（小材料模式：已提供全部材料段落，检索命中排序在前）",
+  "fallback_used": false,
+  "elapsed": {
+    "search": 0.001,
+    "llm": 0.001
+  },
+  "usage": null,
+  "cited": [
+    "D006"
+  ],
+  "invalid": []
+}

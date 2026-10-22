@@ -1,0 +1,219 @@
+{
+  "tag": "DEV-CONF-028",
+  "question": "这个项目的预算到底是多少？",
+  "mock": false,
+  "prompt_version": "v1.7.1-qa",
+  "hits_full": [
+    {
+      "did": "D001",
+      "pids": [
+        "P1"
+      ],
+      "text": "【王总】这次产线改造的预算是 20 万，我们内部已经过了。",
+      "score": 0.222
+    },
+    {
+      "did": "D002",
+      "pids": [
+        "P2"
+      ],
+      "text": "【李工】财务那边我特意问过，批下来的预算是 15 万，单子我看过。",
+      "score": 0.222
+    }
+  ],
+  "fallback_note": "（小材料模式：已提供全部材料段落，检索命中排序在前）",
+  "fallback_used": false,
+  "elapsed": {
+    "search": 0.002,
+    "llm": 1.174
+  },
+  "usage": {
+    "调用次数": 22,
+    "输入token": 15954,
+    "输出token": 2450,
+    "估算成本元": 0.021,
+    "明细": [
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 761,
+        "completion_tokens": 128,
+        "cost_cny": 0.001025,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 759,
+        "completion_tokens": 39,
+        "cost_cny": 0.000844,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 758,
+        "completion_tokens": 146,
+        "cost_cny": 0.001058,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 760,
+        "completion_tokens": 87,
+        "cost_cny": 0.000941,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 754,
+        "completion_tokens": 115,
+        "cost_cny": 0.000992,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 758,
+        "completion_tokens": 137,
+        "cost_cny": 0.00104,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 716,
+        "completion_tokens": 116,
+        "cost_cny": 0.000956,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 710,
+        "completion_tokens": 101,
+        "cost_cny": 0.000919,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 713,
+        "completion_tokens": 114,
+        "cost_cny": 0.000949,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 716,
+        "completion_tokens": 119,
+        "cost_cny": 0.000962,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 752,
+        "completion_tokens": 59,
+        "cost_cny": 0.000877,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 753,
+        "completion_tokens": 113,
+        "cost_cny": 0.000987,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 757,
+        "completion_tokens": 192,
+        "cost_cny": 0.00115,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 654,
+        "completion_tokens": 46,
+        "cost_cny": 0.000752,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 650,
+        "completion_tokens": 47,
+        "cost_cny": 0.00075,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 655,
+        "completion_tokens": 141,
+        "cost_cny": 0.000944,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 711,
+        "completion_tokens": 178,
+        "cost_cny": 0.001076,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 757,
+        "completion_tokens": 98,
+        "cost_cny": 0.000961,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 839,
+        "completion_tokens": 83,
+        "cost_cny": 0.001013,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 754,
+        "completion_tokens": 140,
+        "cost_cny": 0.001042,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 875,
+        "completion_tokens": 125,
+        "cost_cny": 0.001134,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 392,
+        "completion_tokens": 126,
+        "cost_cny": 0.000649,
+        "node": "QA"
+      }
+    ]
+  },
+  "cited": [
+    "D001",
+    "D002",
+    "D003",
+    "D004"
+  ],
+  "invalid": [],
+  "llm_messages": [
+    {
+      "role": "system",
+      "content": "你是客户材料分析助手。只依据【材料段落】回答用户问题，输出 JSON：\n{\"answer\": \"答案文本，300 字以内\", \"cited_dids\": [\"D001\", ...], \"sufficient\": true 或 false}\n规则：\n1. cited_dids 只能引用【材料段落】中真实出现的 D 编号，每条结论都要有编号支撑；\n2. 材料不足以回答时 sufficient=false，answer 说明已有信息与还缺什么，不编造；\n3. 材料与问题完全无关时 sufficient=false 且 cited_dids 为空；\n4. 【矛盾识别】若不同材料段落对同一事实给出互相矛盾的说法（数字、时间、结论或口径不一致），\n   必须在 answer 中明确指出「存在不一致」：分别说明冲突各方的说法及其 D 编号\n   （冲突双方的编号都要进 cited_dids），并说明在获得客户进一步确认前不选择任何一方；\n   此时 sufficient=false（矛盾未确认前不能作为可靠结论）。"
+    },
+    {
+      "role": "user",
+      "content": "【材料段落】\nD001 【王总】这次产线改造的预算是 20 万，我们内部已经过了。\n\nD002 【李工】财务那边我特意问过，批下来的预算是 15 万，单子我看过。\n\nD003 【王总】先不管多少，看板和预警这两件事必须先做。\n\nD004 【李工】设备数据在 MES 里，接口要等厂家配合。\n（小材料模式：已提供全部材料段落，检索命中排序在前）\n\n【问题】这个项目的预算到底是多少？\n\n（注：若问题中的代词指代此前轮次的内容，请结合对话历史理解；回答须以材料段落或对话历史中已出现的 D 编号为引用依据）"
+    }
+  ],
+  "raw": {
+    "answer": "存在不一致：王总称产线改造预算为 20 万且内部已通过（D001）；李工称财务批下来的预算是 15 万，并称看过单子（D002）。两处数字口径冲突，在获得客户进一步确认前不选择任何一方。另 D003 表示先不纠结金额、优先做看板和预警，D004 仅涉及数据接口，均未提供可裁决预算的依据。",
+    "cited_dids": [
+      "D001",
+      "D002",
+      "D003",
+      "D004"
+    ],
+    "sufficient": false
+  }
+}

@@ -1,0 +1,172 @@
+{
+  "tag": "DEV-SING-015",
+  "question": "流失一个学员的损失是多少？",
+  "mock": false,
+  "prompt_version": "v1.7.1-qa",
+  "hits_full": [
+    {
+      "did": "D002",
+      "pids": [
+        "P2"
+      ],
+      "text": "【陈校长】上周有个家长，孩子连着三周没来上课我们都没发现，人家直接要退费了。流失一个学员损失三千多，太亏了。",
+      "score": 0.6
+    },
+    {
+      "did": "D008",
+      "pids": [
+        "P8"
+      ],
+      "text": "【李主管】我们用的是自研的学员管理系统，数据都在里面，当时外包开发留了接口文档。",
+      "score": 0.1
+    },
+    {
+      "did": "D012",
+      "pids": [
+        "P12"
+      ],
+      "text": "【陈校长】小程序那个不着急，主要是先把缺课提醒和续班率的事弄好，别再流失孩子比什么都强。",
+      "score": 0.1
+    }
+  ],
+  "fallback_note": "（小材料模式：已提供全部材料段落，检索命中排序在前）",
+  "fallback_used": false,
+  "elapsed": {
+    "search": 0.003,
+    "llm": 1.097
+  },
+  "usage": {
+    "调用次数": 15,
+    "输入token": 10971,
+    "输出token": 1559,
+    "估算成本元": 0.0142,
+    "明细": [
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 761,
+        "completion_tokens": 128,
+        "cost_cny": 0.001025,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 759,
+        "completion_tokens": 39,
+        "cost_cny": 0.000844,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 758,
+        "completion_tokens": 146,
+        "cost_cny": 0.001058,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 760,
+        "completion_tokens": 87,
+        "cost_cny": 0.000941,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 754,
+        "completion_tokens": 115,
+        "cost_cny": 0.000992,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 758,
+        "completion_tokens": 137,
+        "cost_cny": 0.00104,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 716,
+        "completion_tokens": 116,
+        "cost_cny": 0.000956,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 710,
+        "completion_tokens": 101,
+        "cost_cny": 0.000919,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 713,
+        "completion_tokens": 114,
+        "cost_cny": 0.000949,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 716,
+        "completion_tokens": 119,
+        "cost_cny": 0.000962,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 752,
+        "completion_tokens": 59,
+        "cost_cny": 0.000877,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 753,
+        "completion_tokens": 113,
+        "cost_cny": 0.000987,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 757,
+        "completion_tokens": 192,
+        "cost_cny": 0.00115,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 654,
+        "completion_tokens": 46,
+        "cost_cny": 0.000752,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 650,
+        "completion_tokens": 47,
+        "cost_cny": 0.00075,
+        "node": "QA"
+      }
+    ]
+  },
+  "cited": [
+    "D002"
+  ],
+  "invalid": [],
+  "llm_messages": [
+    {
+      "role": "system",
+      "content": "你是客户材料分析助手。只依据【材料段落】回答用户问题，输出 JSON：\n{\"answer\": \"答案文本，300 字以内\", \"cited_dids\": [\"D001\", ...], \"sufficient\": true 或 false}\n规则：\n1. cited_dids 只能引用【材料段落】中真实出现的 D 编号，每条结论都要有编号支撑；\n2. 材料不足以回答时 sufficient=false，answer 说明已有信息与还缺什么，不编造；\n3. 材料与问题完全无关时 sufficient=false 且 cited_dids 为空；\n4. 【矛盾识别】若不同材料段落对同一事实给出互相矛盾的说法（数字、时间、结论或口径不一致），\n   必须在 answer 中明确指出「存在不一致」：分别说明冲突各方的说法及其 D 编号\n   （冲突双方的编号都要进 cited_dids），并说明在获得客户进一步确认前不选择任何一方；\n   此时 sufficient=false（矛盾未确认前不能作为可靠结论）。"
+    },
+    {
+      "role": "user",
+      "content": "【材料段落】\nD002 【陈校长】上周有个家长，孩子连着三周没来上课我们都没发现，人家直接要退费了。流失一个学员损失三千多，太亏了。\n\nD008 【李主管】我们用的是自研的学员管理系统，数据都在里面，当时外包开发留了接口文档。\n\nD012 【陈校长】小程序那个不着急，主要是先把缺课提醒和续班率的事弄好，别再流失孩子比什么都强。\n\nD001 【陈校长】家长一直在反映，孩子上课情况我们都是事后才知道，家长问起来我们前台都答不上来。\n\nD003 【陈校长】我想要系统能自动发现连续两次没来上课的孩子，马上提醒校区顾问去跟进，别等人来退费才知道。\n\nD004 【陈校长】这个事挺急的，暑期班六月一号开始招生，六月底前必须用上，招生季就是续费高峰，错过要再等半年。\n\nD005 【李主管】还要能看到每个校区的续班率对比，现在都是教务月底手工拉表格，五个校区算下来要两天。\n\nD006 【李主管】家长那边最好有个小程序能查孩子的课时余额和作业，家长问得最多的就是这个。\n\nD007 【陈校长】小程序这事家长提了不止一次了，上次家长会好几个家长当场就问了。\n\nD009 【陈校长】预算这块说实话不多，今年就批了三万，超了得重新打报告，流程要三个月。\n\nD010 【陈校长】提醒最好走企业微信，顾问都用企微跟家长联系的。\n\nD011 【李主管】对面那家机构做了个家长小程序，我们家长问了好几次为什么我们没有。\n（小材料模式：已提供全部材料段落，检索命中排序在前）\n\n【问题】流失一个学员的损失是多少？\n\n（注：若问题中的代词指代此前轮次的内容，请结合对话历史理解；回答须以材料段落或对话历史中已出现的 D 编号为引用依据）"
+    }
+  ],
+  "raw": {
+    "answer": "流失一个学员的损失是三千多元。陈校长在反映家长退费问题时明确提到「流失一个学员损失三千多」。",
+    "cited_dids": [
+      "D002"
+    ],
+    "sufficient": true
+  }
+}

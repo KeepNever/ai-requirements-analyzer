@@ -75,7 +75,11 @@ QA_SYSTEM = """你是客户材料分析助手。只依据【材料段落】回�
 规则：
 1. cited_dids 只能引用【材料段落】中真实出现的 D 编号，每条结论都要有编号支撑；
 2. 材料不足以回答时 sufficient=false，answer 说明已有信息与还缺什么，不编造；
-3. 材料与问题完全无关时 sufficient=false 且 cited_dids 为空。"""
+3. 材料与问题完全无关时 sufficient=false 且 cited_dids 为空；
+4. 【矛盾识别】若不同材料段落对同一事实给出互相矛盾的说法（数字、时间、结论或口径不一致），
+   必须在 answer 中明确指出「存在不一致」：分别说明冲突各方的说法及其 D 编号
+   （冲突双方的编号都要进 cited_dids），并说明在获得客户进一步确认前不选择任何一方；
+   此时 sufficient=false（矛盾未确认前不能作为可靠结论）。"""
 
 
 def _validate_cited_dids(cited: list, provided_dids: set) -> tuple[list, list]:

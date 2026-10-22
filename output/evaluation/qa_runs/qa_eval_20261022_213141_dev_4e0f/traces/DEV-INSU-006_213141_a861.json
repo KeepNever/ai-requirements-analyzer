@@ -1,0 +1,27 @@
+{
+  "tag": "DEV-INSU-006",
+  "question": "客户上一期用的是什么方案？效果如何？",
+  "mock": true,
+  "prompt_version": "v1.7.1-qa-mock",
+  "hits_full": [
+    {
+      "did": "D014",
+      "pids": [
+        "P14"
+      ],
+      "text": "【主持】好，那今天先到这，我们回去出初步方案。",
+      "score": 0.083
+    }
+  ],
+  "fallback_note": "（小材料模式：已提供全部材料段落，检索命中排序在前）",
+  "fallback_used": false,
+  "elapsed": {
+    "search": 0.001,
+    "llm": 0.001
+  },
+  "usage": null,
+  "cited": [
+    "D014"
+  ],
+  "invalid": []
+}

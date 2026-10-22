@@ -1,0 +1,220 @@
+{
+  "tag": "DEV-CONF-029",
+  "question": "系统什么时候能上线？",
+  "mock": false,
+  "prompt_version": "v1.7.1-qa",
+  "hits_full": [
+    {
+      "did": "D001",
+      "pids": [
+        "P1"
+      ],
+      "text": "【销售顾问】跟客户确认过了，系统最快 3 月底就能上线。",
+      "score": 0.429
+    }
+  ],
+  "fallback_note": "（小材料模式：已提供全部材料段落，检索命中排序在前）",
+  "fallback_used": false,
+  "elapsed": {
+    "search": 0.001,
+    "llm": 1.31
+  },
+  "usage": {
+    "调用次数": 23,
+    "输入token": 16371,
+    "输出token": 2601,
+    "估算成本元": 0.0217,
+    "明细": [
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 761,
+        "completion_tokens": 128,
+        "cost_cny": 0.001025,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 759,
+        "completion_tokens": 39,
+        "cost_cny": 0.000844,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 758,
+        "completion_tokens": 146,
+        "cost_cny": 0.001058,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 760,
+        "completion_tokens": 87,
+        "cost_cny": 0.000941,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 754,
+        "completion_tokens": 115,
+        "cost_cny": 0.000992,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 758,
+        "completion_tokens": 137,
+        "cost_cny": 0.00104,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 716,
+        "completion_tokens": 116,
+        "cost_cny": 0.000956,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 710,
+        "completion_tokens": 101,
+        "cost_cny": 0.000919,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 713,
+        "completion_tokens": 114,
+        "cost_cny": 0.000949,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 716,
+        "completion_tokens": 119,
+        "cost_cny": 0.000962,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 752,
+        "completion_tokens": 59,
+        "cost_cny": 0.000877,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 753,
+        "completion_tokens": 113,
+        "cost_cny": 0.000987,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 757,
+        "completion_tokens": 192,
+        "cost_cny": 0.00115,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 654,
+        "completion_tokens": 46,
+        "cost_cny": 0.000752,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 650,
+        "completion_tokens": 47,
+        "cost_cny": 0.00075,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 655,
+        "completion_tokens": 141,
+        "cost_cny": 0.000944,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 711,
+        "completion_tokens": 178,
+        "cost_cny": 0.001076,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 757,
+        "completion_tokens": 98,
+        "cost_cny": 0.000961,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 839,
+        "completion_tokens": 83,
+        "cost_cny": 0.001013,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 754,
+        "completion_tokens": 140,
+        "cost_cny": 0.001042,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 875,
+        "completion_tokens": 125,
+        "cost_cny": 0.001134,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 392,
+        "completion_tokens": 126,
+        "cost_cny": 0.000649,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 417,
+        "completion_tokens": 151,
+        "cost_cny": 0.000725,
+        "node": "QA"
+      }
+    ]
+  },
+  "cited": [
+    "D001",
+    "D002",
+    "D003",
+    "D004",
+    "D005"
+  ],
+  "invalid": [],
+  "llm_messages": [
+    {
+      "role": "system",
+      "content": "你是客户材料分析助手。只依据【材料段落】回答用户问题，输出 JSON：\n{\"answer\": \"答案文本，300 字以内\", \"cited_dids\": [\"D001\", ...], \"sufficient\": true 或 false}\n规则：\n1. cited_dids 只能引用【材料段落】中真实出现的 D 编号，每条结论都要有编号支撑；\n2. 材料不足以回答时 sufficient=false，answer 说明已有信息与还缺什么，不编造；\n3. 材料与问题完全无关时 sufficient=false 且 cited_dids 为空；\n4. 【矛盾识别】若不同材料段落对同一事实给出互相矛盾的说法（数字、时间、结论或口径不一致），\n   必须在 answer 中明确指出「存在不一致」：分别说明冲突各方的说法及其 D 编号\n   （冲突双方的编号都要进 cited_dids），并说明在获得客户进一步确认前不选择任何一方；\n   此时 sufficient=false（矛盾未确认前不能作为可靠结论）。"
+    },
+    {
+      "role": "user",
+      "content": "【材料段落】\nD001 【销售顾问】跟客户确认过了，系统最快 3 月底就能上线。\n\nD002 【技术负责人】3 月底不可能，店管家的接口开发周期至少要到 6 月，这是他们原话。\n\nD003 【王总】上周店管家还跟我说接口是现成的，随时能对接。\n\nD004 【王总】这周他们又改口了，说接口还在开发，暂时没有，让我们等通知。\n\nD005 【王总】反正六月份我们旺季必须用上，你们看着排。\n（小材料模式：已提供全部材料段落，检索命中排序在前）\n\n【问题】系统什么时候能上线？\n\n（注：若问题中的代词指代此前轮次的内容，请结合对话历史理解；回答须以材料段落或对话历史中已出现的 D 编号为引用依据）"
+    }
+  ],
+  "raw": {
+    "answer": "存在不一致：销售顾问称系统最快 3 月底上线（D001）；技术负责人称店管家接口开发至少要到 6 月（D002）；王总转述店管家说法前后矛盾——上周称接口现成、随时可对接（D003），本周改口称接口仍在开发、暂无、需等通知（D004）。此外王总要求 6 月旺季必须用上（D005），属需求时限而非上线承诺。在获得客户进一步确认前，不选择任何一方，无法给出可靠上线时间。",
+    "cited_dids": [
+      "D001",
+      "D002",
+      "D003",
+      "D004",
+      "D005"
+    ],
+    "sufficient": false
+  }
+}
