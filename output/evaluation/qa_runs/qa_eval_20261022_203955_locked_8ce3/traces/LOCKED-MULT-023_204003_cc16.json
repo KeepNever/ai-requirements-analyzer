@@ -1,0 +1,127 @@
+{
+  "tag": "LOCKED-MULT-023",
+  "question": "两家客户的上线时间要求分别是什么？",
+  "mock": false,
+  "prompt_version": "v1.7.1-qa",
+  "hits_full": [
+    {
+      "did": "D012",
+      "pids": [
+        "P12"
+      ],
+      "text": "【孙经理】另外数据安全我们要求很高，客户是医院，信息绝对不能出问题。",
+      "score": 0.143
+    },
+    {
+      "did": "D003",
+      "pids": [
+        "P3"
+      ],
+      "text": "【王总】所以我的想法很简单，车间要有块实时看板，良品率、停机时长这些东西当天就能看到，别等一周。",
+      "score": 0.071
+    },
+    {
+      "did": "D010",
+      "pids": [
+        "P10"
+      ],
+      "text": "【王总】还有个要求，看板不能只有我办公室能看到，几个车间主任都得能看，不然等于没用。",
+      "score": 0.071
+    },
+    {
+      "did": "D012",
+      "pids": [
+        "P12"
+      ],
+      "text": "【王总】时间上最好赶三季度，三季度我们产线改造完，新产线一上就必须用起来。",
+      "score": 0.071
+    },
+    {
+      "did": "D009",
+      "pids": [
+        "P9"
+      ],
+      "text": "【陈总】丑话说前面：3 月底必须上线。二季度我们办全国经销商大会，到时候要给经销商展示我们的经营数据，这个不能掉链子。",
+      "score": 0.071
+    }
+  ],
+  "fallback_note": "",
+  "fallback_used": false,
+  "elapsed": {
+    "search": 0.005,
+    "llm": 1.258
+  },
+  "usage": {
+    "调用次数": 6,
+    "输入token": 2199,
+    "输出token": 755,
+    "估算成本元": 0.0037,
+    "明细": [
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 412,
+        "completion_tokens": 162,
+        "cost_cny": 0.000742,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 357,
+        "completion_tokens": 154,
+        "cost_cny": 0.00067,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 302,
+        "completion_tokens": 104,
+        "cost_cny": 0.000514,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 383,
+        "completion_tokens": 113,
+        "cost_cny": 0.000614,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 393,
+        "completion_tokens": 143,
+        "cost_cny": 0.000684,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 352,
+        "completion_tokens": 79,
+        "cost_cny": 0.000514,
+        "node": "QA"
+      }
+    ]
+  },
+  "cited": [
+    "D012",
+    "D009"
+  ],
+  "invalid": [],
+  "llm_messages": [
+    {
+      "role": "system",
+      "content": "你是客户材料分析助手。只依据【材料段落】回答用户问题，输出 JSON：\n{\"answer\": \"答案文本，300 字以内\", \"cited_dids\": [\"D001\", ...], \"sufficient\": true 或 false}\n规则：\n1. cited_dids 只能引用【材料段落】中真实出现的 D 编号，每条结论都要有编号支撑；\n2. 材料不足以回答时 sufficient=false，answer 说明已有信息与还缺什么，不编造；\n3. 材料与问题完全无关时 sufficient=false 且 cited_dids 为空。"
+    },
+    {
+      "role": "user",
+      "content": "【材料段落】\nD012 【孙经理】另外数据安全我们要求很高，客户是医院，信息绝对不能出问题。\n\nD003 【王总】所以我的想法很简单，车间要有块实时看板，良品率、停机时长这些东西当天就能看到，别等一周。\n\nD010 【王总】还有个要求，看板不能只有我办公室能看到，几个车间主任都得能看，不然等于没用。\n\nD012 【王总】时间上最好赶三季度，三季度我们产线改造完，新产线一上就必须用起来。\n\nD009 【陈总】丑话说前面：3 月底必须上线。二季度我们办全国经销商大会，到时候要给经销商展示我们的经营数据，这个不能掉链子。\n\n\n【问题】两家客户的上线时间要求分别是什么？\n\n（注：若问题中的代词指代此前轮次的内容，请结合对话历史理解；回答须以材料段落或对话历史中已出现的 D 编号为引用依据）"
+    }
+  ],
+  "raw": {
+    "answer": "王总要求最好赶在三季度上线，因为三季度产线改造完成，新产线一上就必须用起来（D012）。陈总要求3月底必须上线，因为二季度要办全国经销商大会，需要向经销商展示经营数据（D009）。",
+    "cited_dids": [
+      "D012",
+      "D009"
+    ],
+    "sufficient": true
+  }
+}

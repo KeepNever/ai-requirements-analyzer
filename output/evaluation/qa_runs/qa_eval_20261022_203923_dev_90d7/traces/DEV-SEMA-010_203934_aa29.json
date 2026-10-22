@@ -1,0 +1,139 @@
+{
+  "tag": "DEV-SEMA-010",
+  "question": "客户在数据安全和部署方式上有什么要求或顾虑？",
+  "mock": false,
+  "prompt_version": "v1.7.1-qa",
+  "hits_full": [
+    {
+      "did": "D012",
+      "pids": [
+        "P12"
+      ],
+      "text": "【孙经理】另外数据安全我们要求很高，客户是医院，信息绝对不能出问题。",
+      "score": 0.263
+    },
+    {
+      "did": "D013",
+      "pids": [
+        "P13"
+      ],
+      "text": "【陈总】之前看过一家 BI，服务器在国外，直接被我们 IT 毙掉了。你们部署方式一会儿重点讲。",
+      "score": 0.158
+    },
+    {
+      "did": "D009",
+      "pids": [
+        "P9"
+      ],
+      "text": "【陈总】丑话说前面：3 月底必须上线。二季度我们办全国经销商大会，到时候要给经销商展示我们的经营数据，这个不能掉链子。",
+      "score": 0.053
+    }
+  ],
+  "fallback_note": "",
+  "fallback_used": false,
+  "elapsed": {
+    "search": 0.002,
+    "llm": 1.323
+  },
+  "usage": {
+    "调用次数": 10,
+    "输入token": 3191,
+    "输出token": 761,
+    "估算成本元": 0.0048,
+    "明细": [
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 361,
+        "completion_tokens": 94,
+        "cost_cny": 0.000553,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 395,
+        "completion_tokens": 38,
+        "cost_cny": 0.000475,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 232,
+        "completion_tokens": 50,
+        "cost_cny": 0.000335,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 388,
+        "completion_tokens": 43,
+        "cost_cny": 0.000478,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 328,
+        "completion_tokens": 110,
+        "cost_cny": 0.000552,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 222,
+        "completion_tokens": 65,
+        "cost_cny": 0.000355,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 313,
+        "completion_tokens": 90,
+        "cost_cny": 0.000497,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 352,
+        "completion_tokens": 115,
+        "cost_cny": 0.000587,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 306,
+        "completion_tokens": 56,
+        "cost_cny": 0.000421,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 294,
+        "completion_tokens": 100,
+        "cost_cny": 0.000498,
+        "node": "QA"
+      }
+    ]
+  },
+  "cited": [
+    "D012",
+    "D013"
+  ],
+  "invalid": [],
+  "llm_messages": [
+    {
+      "role": "system",
+      "content": "你是客户材料分析助手。只依据【材料段落】回答用户问题，输出 JSON：\n{\"answer\": \"答案文本，300 字以内\", \"cited_dids\": [\"D001\", ...], \"sufficient\": true 或 false}\n规则：\n1. cited_dids 只能引用【材料段落】中真实出现的 D 编号，每条结论都要有编号支撑；\n2. 材料不足以回答时 sufficient=false，answer 说明已有信息与还缺什么，不编造；\n3. 材料与问题完全无关时 sufficient=false 且 cited_dids 为空。"
+    },
+    {
+      "role": "user",
+      "content": "【材料段落】\nD012 【孙经理】另外数据安全我们要求很高，客户是医院，信息绝对不能出问题。\n\nD013 【陈总】之前看过一家 BI，服务器在国外，直接被我们 IT 毙掉了。你们部署方式一会儿重点讲。\n\nD009 【陈总】丑话说前面：3 月底必须上线。二季度我们办全国经销商大会，到时候要给经销商展示我们的经营数据，这个不能掉链子。\n\n\n【问题】客户在数据安全和部署方式上有什么要求或顾虑？\n\n（注：若问题中的代词指代此前轮次的内容，请结合对话历史理解；回答须以材料段落或对话历史中已出现的 D 编号为引用依据）"
+    }
+  ],
+  "raw": {
+    "answer": "客户对数据安全要求很高，因客户是医院，信息绝对不能出问题（D012）。在部署方式上，客户曾因某BI厂商服务器在国外而直接将其否决，因此要求重点说明部署方式（D013）。材料未明确客户要求的具体部署形态（如本地化、私有云等），仅能确认对境外服务器部署存在明确顾虑。",
+    "cited_dids": [
+      "D012",
+      "D013"
+    ],
+    "sufficient": true
+  }
+}

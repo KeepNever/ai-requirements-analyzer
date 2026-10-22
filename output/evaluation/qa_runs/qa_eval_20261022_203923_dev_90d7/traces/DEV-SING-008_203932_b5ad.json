@@ -1,0 +1,143 @@
+{
+  "tag": "DEV-SING-008",
+  "question": "财务经理最大的痛点是什么？",
+  "mock": false,
+  "prompt_version": "v1.7.1-qa",
+  "hits_full": [
+    {
+      "did": "D003",
+      "pids": [
+        "P3"
+      ],
+      "text": "【孙经理-财务经理】运营的事我不反对，但财务现在最大的痛点是费用没数。各区市场费用花到哪了，月底全靠各区自报，对账对不上。",
+      "score": 0.8
+    },
+    {
+      "did": "D006",
+      "pids": [
+        "P6"
+      ],
+      "text": "【孙经理】说明一点：财务这套费用表是全公司都要用的，不光财务部，各区负责人都要看自己那块的费用。",
+      "score": 0.2
+    },
+    {
+      "did": "D008",
+      "pids": [
+        "P8"
+      ],
+      "text": "【孙经理】预算方面财务这边有一笔独立的数字化预算，不用跟运营那边一起审批。",
+      "score": 0.2
+    },
+    {
+      "did": "D004",
+      "pids": [
+        "P4"
+      ],
+      "text": "【孙经理】我需要费用报表按区域、按品类能逐层钻取，费用超预算要有提醒，现在都是事后才知道超了。",
+      "score": 0.1
+    },
+    {
+      "did": "D012",
+      "pids": [
+        "P12"
+      ],
+      "text": "【孙经理】另外数据安全我们要求很高，客户是医院，信息绝对不能出问题。",
+      "score": 0.1
+    }
+  ],
+  "fallback_note": "",
+  "fallback_used": false,
+  "elapsed": {
+    "search": 0.004,
+    "llm": 1.152
+  },
+  "usage": {
+    "调用次数": 8,
+    "输入token": 2591,
+    "输出token": 605,
+    "估算成本元": 0.0038,
+    "明细": [
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 361,
+        "completion_tokens": 94,
+        "cost_cny": 0.000553,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 395,
+        "completion_tokens": 38,
+        "cost_cny": 0.000475,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 232,
+        "completion_tokens": 50,
+        "cost_cny": 0.000335,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 388,
+        "completion_tokens": 43,
+        "cost_cny": 0.000478,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 328,
+        "completion_tokens": 110,
+        "cost_cny": 0.000552,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 222,
+        "completion_tokens": 65,
+        "cost_cny": 0.000355,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 313,
+        "completion_tokens": 90,
+        "cost_cny": 0.000497,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 352,
+        "completion_tokens": 115,
+        "cost_cny": 0.000587,
+        "node": "QA"
+      }
+    ]
+  },
+  "cited": [
+    "D003",
+    "D004",
+    "D012"
+  ],
+  "invalid": [],
+  "llm_messages": [
+    {
+      "role": "system",
+      "content": "你是客户材料分析助手。只依据【材料段落】回答用户问题，输出 JSON：\n{\"answer\": \"答案文本，300 字以内\", \"cited_dids\": [\"D001\", ...], \"sufficient\": true 或 false}\n规则：\n1. cited_dids 只能引用【材料段落】中真实出现的 D 编号，每条结论都要有编号支撑；\n2. 材料不足以回答时 sufficient=false，answer 说明已有信息与还缺什么，不编造；\n3. 材料与问题完全无关时 sufficient=false 且 cited_dids 为空。"
+    },
+    {
+      "role": "user",
+      "content": "【材料段落】\nD003 【孙经理-财务经理】运营的事我不反对，但财务现在最大的痛点是费用没数。各区市场费用花到哪了，月底全靠各区自报，对账对不上。\n\nD006 【孙经理】说明一点：财务这套费用表是全公司都要用的，不光财务部，各区负责人都要看自己那块的费用。\n\nD008 【孙经理】预算方面财务这边有一笔独立的数字化预算，不用跟运营那边一起审批。\n\nD004 【孙经理】我需要费用报表按区域、按品类能逐层钻取，费用超预算要有提醒，现在都是事后才知道超了。\n\nD012 【孙经理】另外数据安全我们要求很高，客户是医院，信息绝对不能出问题。\n\n\n【问题】财务经理最大的痛点是什么？\n\n（注：若问题中的代词指代此前轮次的内容，请结合对话历史理解；回答须以材料段落或对话历史中已出现的 D 编号为引用依据）"
+    }
+  ],
+  "raw": {
+    "answer": "财务经理孙经理最大的痛点是费用没数：各区市场费用花到哪了不清楚，月底全靠各区自报，对账对不上（D003）。此外还有两个相关诉求：费用报表需按区域、按品类逐层钻取，费用超预算要能提醒，目前都是事后才知道超了（D004）；数据安全要求很高，客户是医院，信息绝对不能出问题（D012）。",
+    "cited_dids": [
+      "D003",
+      "D004",
+      "D012"
+    ],
+    "sufficient": true
+  }
+}

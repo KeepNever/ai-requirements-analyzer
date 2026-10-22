@@ -1,0 +1,72 @@
+{
+  "tag": "DEV-SEMA-003",
+  "question": "老板为什么急着要赶在三季度前上线？",
+  "mock": false,
+  "prompt_version": "v1.7.1-qa",
+  "hits_full": [
+    {
+      "did": "D012",
+      "pids": [
+        "P12"
+      ],
+      "text": "【王总】时间上最好赶三季度，三季度我们产线改造完，新产线一上就必须用起来。",
+      "score": 0.143
+    }
+  ],
+  "fallback_note": "",
+  "fallback_used": false,
+  "elapsed": {
+    "search": 0.001,
+    "llm": 1.081
+  },
+  "usage": {
+    "调用次数": 3,
+    "输入token": 988,
+    "输出token": 182,
+    "估算成本元": 0.0014,
+    "明细": [
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 361,
+        "completion_tokens": 94,
+        "cost_cny": 0.000553,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 395,
+        "completion_tokens": 38,
+        "cost_cny": 0.000475,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 232,
+        "completion_tokens": 50,
+        "cost_cny": 0.000335,
+        "node": "QA"
+      }
+    ]
+  },
+  "cited": [
+    "D012"
+  ],
+  "invalid": [],
+  "llm_messages": [
+    {
+      "role": "system",
+      "content": "你是客户材料分析助手。只依据【材料段落】回答用户问题，输出 JSON：\n{\"answer\": \"答案文本，300 字以内\", \"cited_dids\": [\"D001\", ...], \"sufficient\": true 或 false}\n规则：\n1. cited_dids 只能引用【材料段落】中真实出现的 D 编号，每条结论都要有编号支撑；\n2. 材料不足以回答时 sufficient=false，answer 说明已有信息与还缺什么，不编造；\n3. 材料与问题完全无关时 sufficient=false 且 cited_dids 为空。"
+    },
+    {
+      "role": "user",
+      "content": "【材料段落】\nD012 【王总】时间上最好赶三季度，三季度我们产线改造完，新产线一上就必须用起来。\n\n\n【问题】老板为什么急着要赶在三季度前上线？\n\n（注：若问题中的代词指代此前轮次的内容，请结合对话历史理解；回答须以材料段落或对话历史中已出现的 D 编号为引用依据）"
+    }
+  ],
+  "raw": {
+    "answer": "王总要求赶在三季度，是因为三季度产线改造完成，新产线一上线就必须立即投入使用，因此需要在此之前完成上线准备。",
+    "cited_dids": [
+      "D012"
+    ],
+    "sufficient": true
+  }
+}

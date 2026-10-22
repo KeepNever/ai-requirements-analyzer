@@ -1,0 +1,116 @@
+{
+  "tag": "LOCKED-MULT-024",
+  "question": "两家客户中，哪家提到了被否掉的方案或竞品？具体是什么？",
+  "mock": false,
+  "prompt_version": "v1.7.1-qa",
+  "hits_full": [
+    {
+      "did": "D014",
+      "pids": [
+        "P14"
+      ],
+      "text": "【主持】好，那今天先到这，我们回去出初步方案。",
+      "score": 0.05
+    },
+    {
+      "did": "D012",
+      "pids": [
+        "P12"
+      ],
+      "text": "【孙经理】另外数据安全我们要求很高，客户是医院，信息绝对不能出问题。",
+      "score": 0.05
+    },
+    {
+      "did": "D014",
+      "pids": [
+        "P14"
+      ],
+      "text": "【主持】好，那下周三之前我们出方案，今天先到这。",
+      "score": 0.05
+    }
+  ],
+  "fallback_note": "",
+  "fallback_used": false,
+  "elapsed": {
+    "search": 0.006,
+    "llm": 1.159
+  },
+  "usage": {
+    "调用次数": 7,
+    "输入token": 2470,
+    "输出token": 840,
+    "估算成本元": 0.0042,
+    "明细": [
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 412,
+        "completion_tokens": 162,
+        "cost_cny": 0.000742,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 357,
+        "completion_tokens": 154,
+        "cost_cny": 0.00067,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 302,
+        "completion_tokens": 104,
+        "cost_cny": 0.000514,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 383,
+        "completion_tokens": 113,
+        "cost_cny": 0.000614,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 393,
+        "completion_tokens": 143,
+        "cost_cny": 0.000684,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 352,
+        "completion_tokens": 79,
+        "cost_cny": 0.000514,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 271,
+        "completion_tokens": 85,
+        "cost_cny": 0.000445,
+        "node": "QA"
+      }
+    ]
+  },
+  "cited": [
+    "D012"
+  ],
+  "invalid": [],
+  "llm_messages": [
+    {
+      "role": "system",
+      "content": "你是客户材料分析助手。只依据【材料段落】回答用户问题，输出 JSON：\n{\"answer\": \"答案文本，300 字以内\", \"cited_dids\": [\"D001\", ...], \"sufficient\": true 或 false}\n规则：\n1. cited_dids 只能引用【材料段落】中真实出现的 D 编号，每条结论都要有编号支撑；\n2. 材料不足以回答时 sufficient=false，answer 说明已有信息与还缺什么，不编造；\n3. 材料与问题完全无关时 sufficient=false 且 cited_dids 为空。"
+    },
+    {
+      "role": "user",
+      "content": "【材料段落】\nD014 【主持】好，那今天先到这，我们回去出初步方案。\n\nD012 【孙经理】另外数据安全我们要求很高，客户是医院，信息绝对不能出问题。\n\nD014 【主持】好，那下周三之前我们出方案，今天先到这。\n\n\n【问题】两家客户中，哪家提到了被否掉的方案或竞品？具体是什么？\n\n（注：若问题中的代词指代此前轮次的内容，请结合对话历史理解；回答须以材料段落或对话历史中已出现的 D 编号为引用依据）"
+    }
+  ],
+  "raw": {
+    "answer": "材料中未提及任何被否掉的方案或竞品，也未出现两家客户的具体名称或对比信息。仅有的客户相关表述是孙经理提到客户为医院、对数据安全要求很高（D012）。因此无法判断哪家客户提到过被否方案或竞品，缺少相关对话内容。",
+    "cited_dids": [
+      "D012"
+    ],
+    "sufficient": false
+  }
+}

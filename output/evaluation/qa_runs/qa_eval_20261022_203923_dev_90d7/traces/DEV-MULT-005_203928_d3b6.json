@@ -1,0 +1,114 @@
+{
+  "tag": "DEV-MULT-005",
+  "question": "客户目前的数据现状是怎样的？",
+  "mock": false,
+  "prompt_version": "v1.7.1-qa",
+  "hits_full": [
+    {
+      "did": "D001",
+      "pids": [
+        "P1"
+      ],
+      "text": "【会议主持】各位下午好，今天主要聊聊华宇在数据和报表这块的想法，王总您先说说现状吧。",
+      "score": 0.182
+    },
+    {
+      "did": "D004",
+      "pids": [
+        "P4"
+      ],
+      "text": "【李工-IT主管】我补一句技术现状：数据主要在 ERP 里，设备那边的加工数据一部分在 MES，一部分还在老系统里，比较杂。",
+      "score": 0.182
+    },
+    {
+      "did": "D005",
+      "pids": [
+        "P5"
+      ],
+      "text": "【王总】对，所以你们得能把 ERP 和设备的数据都接进来，接不进来什么看板都是空的。",
+      "score": 0.182
+    },
+    {
+      "did": "D013",
+      "pids": [
+        "P13"
+      ],
+      "text": "【李工】我个人有点担心设备那边，数据格式很老，接口不一定好接，这个你们实施前要来现场看过才知道。",
+      "score": 0.091
+    }
+  ],
+  "fallback_note": "",
+  "fallback_used": false,
+  "elapsed": {
+    "search": 0.001,
+    "llm": 1.072
+  },
+  "usage": {
+    "调用次数": 5,
+    "输入token": 1704,
+    "输出token": 335,
+    "估算成本元": 0.0024,
+    "明细": [
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 361,
+        "completion_tokens": 94,
+        "cost_cny": 0.000553,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 395,
+        "completion_tokens": 38,
+        "cost_cny": 0.000475,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 232,
+        "completion_tokens": 50,
+        "cost_cny": 0.000335,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 388,
+        "completion_tokens": 43,
+        "cost_cny": 0.000478,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 328,
+        "completion_tokens": 110,
+        "cost_cny": 0.000552,
+        "node": "QA"
+      }
+    ]
+  },
+  "cited": [
+    "D004",
+    "D005",
+    "D013"
+  ],
+  "invalid": [],
+  "llm_messages": [
+    {
+      "role": "system",
+      "content": "你是客户材料分析助手。只依据【材料段落】回答用户问题，输出 JSON：\n{\"answer\": \"答案文本，300 字以内\", \"cited_dids\": [\"D001\", ...], \"sufficient\": true 或 false}\n规则：\n1. cited_dids 只能引用【材料段落】中真实出现的 D 编号，每条结论都要有编号支撑；\n2. 材料不足以回答时 sufficient=false，answer 说明已有信息与还缺什么，不编造；\n3. 材料与问题完全无关时 sufficient=false 且 cited_dids 为空。"
+    },
+    {
+      "role": "user",
+      "content": "【材料段落】\nD001 【会议主持】各位下午好，今天主要聊聊华宇在数据和报表这块的想法，王总您先说说现状吧。\n\nD004 【李工-IT主管】我补一句技术现状：数据主要在 ERP 里，设备那边的加工数据一部分在 MES，一部分还在老系统里，比较杂。\n\nD005 【王总】对，所以你们得能把 ERP 和设备的数据都接进来，接不进来什么看板都是空的。\n\nD013 【李工】我个人有点担心设备那边，数据格式很老，接口不一定好接，这个你们实施前要来现场看过才知道。\n\n\n【问题】客户目前的数据现状是怎样的？\n\n（注：若问题中的代词指代此前轮次的内容，请结合对话历史理解；回答须以材料段落或对话历史中已出现的 D 编号为引用依据）"
+    }
+  ],
+  "raw": {
+    "answer": "客户数据主要分布在 ERP 与设备侧：ERP 承载主体数据，设备加工数据一部分在 MES，一部分仍在老系统中，整体比较杂（D004）。王总强调必须把 ERP 和设备数据都接入，否则看板无意义（D005）。李工还提示设备数据格式较老、接口不一定好接，需实施前到现场确认（D013）。",
+    "cited_dids": [
+      "D004",
+      "D005",
+      "D013"
+    ],
+    "sufficient": true
+  }
+}

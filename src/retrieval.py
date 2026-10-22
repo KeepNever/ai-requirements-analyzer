@@ -150,15 +150,23 @@ def _segment_text(project_id: str, did: str, assistant_msg: dict) -> str | None:
 
 
 def answer_question(project_id: str, version_refs: list, question: str,
-                    mock: bool = False, conversation_id: str | None = None) -> dict:
+                    mock: bool = False, conversation_id: str | None = None,
+                    eval_trace: bool = False, trace_dir: str | None = None,
+                    trace_tag: str | None = None) -> dict:
     """引用式问答主流程：检索 → LLM（或 mock）→ EVD-01 校验 → 证据组装 → 会话落盘。
 
     version_refs: [{document_id, version_id}, ...]（完整组合定位）。
     conversation_id 传入则多轮对话：历史轮次作为上下文发给模型，新消息追加到同一会话。
     零命中回落：总结/追问类问题检索零命中时，材料块回落到本会话历史轮引用过的段落。
-    返回 {answer, sufficient, cited_dids, invalid_dids, hits, citations, conversation_id}。
+    eval_trace（评测专用，默认 False）：True 时收集评测 trace（LLM messages / 校验前
+    raw / 检索候选全文 / 分段耗时 / 回落路径 / usage），写入 trace_dir 独立文件；
+    生产会话记录（conversations/）不混入 trace 内容，行为零变化。
+    返回 {answer, sufficient, cited_dids, invalid_dids, hits, citations,
+    conversation_id, provided_dids}。
     citations 为后端证据版（含 raw excerpt）；前端一律过 citations_for_frontend。
     """
+    import time as _time
+    t_search0 = _time.time()
     # 1. 加载版本索引
     index, provided_dids = [], set()
     for ref in version_refs:
@@ -174,6 +182,7 @@ def answer_question(project_id: str, version_refs: list, question: str,
     #    ② 大材料 + 多轮会话 → 历史引用过的段落（省 token）
     #    ③ 大材料无会话 → 证据不足
     hits = keyword_search(question, index)
+    elapsed_search = _time.time() - t_search0
     fallback_material, fallback_note = [], ""
     if not hits and len(index) <= FULL_FALLBACK_MAX_SEGMENTS:
         fallback_material = [{"did": c["did"], "text": c["text"]} for c in index]
@@ -184,6 +193,7 @@ def answer_question(project_id: str, version_refs: list, question: str,
 
     # 3. 生成答案（真实 LLM 或 mock）；多轮时带历史上下文
     material_source = hits if hits else fallback_material
+    t_llm0 = _time.time()
     if mock:
         raw = _mock_answer(question, hits)
         usage = None
@@ -238,9 +248,31 @@ def answer_question(project_id: str, version_refs: list, question: str,
               "answer": raw.get("answer", ""), "sufficient": sufficient,
               "cited_dids": cited, "invalid_dids": invalid,
               "hits": [{"did": h["did"], "score": h["score"]} for h in hits],
+              "provided_dids": sorted(provided_hit_dids),   # 实际提供给 LLM 的证据集（评测召回用）
               "citations": citations,
               "mock": mock,
               "prompt_version": "v1.7.1-qa-mock" if mock else "v1.7.1-qa"}
+
+    # 5.5 评测 trace（eval_trace=True 时才收集；独立于生产会话记录，四审 §9.4）
+    if eval_trace:
+        elapsed_llm = _time.time() - t_llm0
+        trace = {"tag": trace_tag, "question": question,
+                 "mock": mock, "prompt_version": result["prompt_version"],
+                 "hits_full": hits, "fallback_note": fallback_note,
+                 "fallback_used": not hits and bool(fallback_material),
+                 "elapsed": {"search": round(elapsed_search, 3),
+                             "llm": round(elapsed_llm, 3)},
+                 "usage": usage,
+                 "cited": cited, "invalid": invalid}
+        if not mock:
+            trace["llm_messages"] = messages     # 含材料块与历史轮（不含凭证）
+            trace["raw"] = raw                   # EVD-01 校验前的模型原始输出
+        if trace_dir:
+            tdir = Path(trace_dir)
+            tdir.mkdir(parents=True, exist_ok=True)
+            name = f"{trace_tag or 'trace'}_{_time.strftime('%H%M%S')}_{uuid.uuid4().hex[:4]}.json"
+            storage._write_json(tdir / name, trace)
+        result["trace"] = trace
 
     # 6. 会话落盘（append 不覆盖；传 conversation_id 则多轮追加同一会话）
     conv_id = conversation_id or f"conv{time.strftime('%Y%m%d')}_{uuid.uuid4().hex[:6]}"

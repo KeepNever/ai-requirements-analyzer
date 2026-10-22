@@ -1,0 +1,206 @@
+{
+  "tag": "DEV-MULT-027_t2",
+  "question": "那入冬备货的困境呢？",
+  "mock": false,
+  "prompt_version": "v1.7.1-qa",
+  "hits_full": [
+    {
+      "did": "D006",
+      "pids": [
+        "P6"
+      ],
+      "text": "【7月10日·王厂长】每年 11 月入冬，电瓶和防冻液卖爆，去年 12 月断货两次，眼看着单子流失。",
+      "score": 0.125
+    }
+  ],
+  "fallback_note": "",
+  "fallback_used": false,
+  "elapsed": {
+    "search": 0.001,
+    "llm": 1.061
+  },
+  "usage": {
+    "调用次数": 21,
+    "输入token": 6846,
+    "输出token": 1496,
+    "估算成本元": 0.0099,
+    "明细": [
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 361,
+        "completion_tokens": 94,
+        "cost_cny": 0.000553,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 395,
+        "completion_tokens": 38,
+        "cost_cny": 0.000475,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 232,
+        "completion_tokens": 50,
+        "cost_cny": 0.000335,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 388,
+        "completion_tokens": 43,
+        "cost_cny": 0.000478,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 328,
+        "completion_tokens": 110,
+        "cost_cny": 0.000552,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 222,
+        "completion_tokens": 65,
+        "cost_cny": 0.000355,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 313,
+        "completion_tokens": 90,
+        "cost_cny": 0.000497,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 352,
+        "completion_tokens": 115,
+        "cost_cny": 0.000587,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 306,
+        "completion_tokens": 56,
+        "cost_cny": 0.000421,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 294,
+        "completion_tokens": 100,
+        "cost_cny": 0.000498,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 298,
+        "completion_tokens": 34,
+        "cost_cny": 0.000369,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 324,
+        "completion_tokens": 84,
+        "cost_cny": 0.000496,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 247,
+        "completion_tokens": 90,
+        "cost_cny": 0.00043,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 233,
+        "completion_tokens": 41,
+        "cost_cny": 0.000318,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 297,
+        "completion_tokens": 44,
+        "cost_cny": 0.000388,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 299,
+        "completion_tokens": 94,
+        "cost_cny": 0.000491,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 255,
+        "completion_tokens": 46,
+        "cost_cny": 0.00035,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 357,
+        "completion_tokens": 75,
+        "cost_cny": 0.000511,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 732,
+        "completion_tokens": 66,
+        "cost_cny": 0.000871,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 302,
+        "completion_tokens": 78,
+        "cost_cny": 0.000462,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 311,
+        "completion_tokens": 83,
+        "cost_cny": 0.000481,
+        "node": "QA"
+      }
+    ]
+  },
+  "cited": [
+    "D006"
+  ],
+  "invalid": [],
+  "llm_messages": [
+    {
+      "role": "system",
+      "content": "你是客户材料分析助手。只依据【材料段落】回答用户问题，输出 JSON：\n{\"answer\": \"答案文本，300 字以内\", \"cited_dids\": [\"D001\", ...], \"sufficient\": true 或 false}\n规则：\n1. cited_dids 只能引用【材料段落】中真实出现的 D 编号，每条结论都要有编号支撑；\n2. 材料不足以回答时 sufficient=false，answer 说明已有信息与还缺什么，不编造；\n3. 材料与问题完全无关时 sufficient=false 且 cited_dids 为空。"
+    },
+    {
+      "role": "user",
+      "content": "工单和台账的现状是什么？"
+    },
+    {
+      "role": "assistant",
+      "content": "现状：5家店中3家使用「店管家」连锁管理系统，2家老店仍用Excel工单台账；王厂长每周一需手工汇总上周各店营收、工单量、客单价发到管理群，耗时小半天。"
+    },
+    {
+      "role": "user",
+      "content": "【材料段落】\nD006 【7月10日·王厂长】每年 11 月入冬，电瓶和防冻液卖爆，去年 12 月断货两次，眼看着单子流失。\n\n\n【问题】那入冬备货的困境呢？\n\n（注：若问题中的代词指代此前轮次的内容，请结合对话历史理解；回答须以材料段落或对话历史中已出现的 D 编号为引用依据）"
+    }
+  ],
+  "raw": {
+    "answer": "材料仅提到：每年11月入冬电瓶和防冻液销量激增，去年12月出现两次断货，导致订单流失（D006）。但未说明具体备货量、库存周转、供应商补货周期等细节，无法完整回答入冬备货困境的全貌。",
+    "cited_dids": [
+      "D006"
+    ],
+    "sufficient": false
+  }
+}

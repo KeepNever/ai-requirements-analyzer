@@ -1,0 +1,93 @@
+{
+  "tag": "DEV-INSU-006",
+  "question": "客户上一期用的是什么方案？效果如何？",
+  "mock": false,
+  "prompt_version": "v1.7.1-qa",
+  "hits_full": [
+    {
+      "did": "D014",
+      "pids": [
+        "P14"
+      ],
+      "text": "【主持】好，那今天先到这，我们回去出初步方案。",
+      "score": 0.083
+    }
+  ],
+  "fallback_note": "",
+  "fallback_used": false,
+  "elapsed": {
+    "search": 0.002,
+    "llm": 1.139
+  },
+  "usage": {
+    "调用次数": 6,
+    "输入token": 1926,
+    "输出token": 400,
+    "估算成本元": 0.0027,
+    "明细": [
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 361,
+        "completion_tokens": 94,
+        "cost_cny": 0.000553,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 395,
+        "completion_tokens": 38,
+        "cost_cny": 0.000475,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 232,
+        "completion_tokens": 50,
+        "cost_cny": 0.000335,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 388,
+        "completion_tokens": 43,
+        "cost_cny": 0.000478,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 328,
+        "completion_tokens": 110,
+        "cost_cny": 0.000552,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 222,
+        "completion_tokens": 65,
+        "cost_cny": 0.000355,
+        "node": "QA"
+      }
+    ]
+  },
+  "cited": [
+    "D014"
+  ],
+  "invalid": [],
+  "llm_messages": [
+    {
+      "role": "system",
+      "content": "你是客户材料分析助手。只依据【材料段落】回答用户问题，输出 JSON：\n{\"answer\": \"答案文本，300 字以内\", \"cited_dids\": [\"D001\", ...], \"sufficient\": true 或 false}\n规则：\n1. cited_dids 只能引用【材料段落】中真实出现的 D 编号，每条结论都要有编号支撑；\n2. 材料不足以回答时 sufficient=false，answer 说明已有信息与还缺什么，不编造；\n3. 材料与问题完全无关时 sufficient=false 且 cited_dids 为空。"
+    },
+    {
+      "role": "user",
+      "content": "【材料段落】\nD014 【主持】好，那今天先到这，我们回去出初步方案。\n\n\n【问题】客户上一期用的是什么方案？效果如何？\n\n（注：若问题中的代词指代此前轮次的内容，请结合对话历史理解；回答须以材料段落或对话历史中已出现的 D 编号为引用依据）"
+    }
+  ],
+  "raw": {
+    "answer": "材料中未提供客户上一期所用方案及其效果的信息。D014 仅为会议结束语，提到“回去出初步方案”，说明当前方案尚在初步阶段，无法据此判断历史方案内容或效果。",
+    "cited_dids": [
+      "D014"
+    ],
+    "sufficient": false
+  }
+}

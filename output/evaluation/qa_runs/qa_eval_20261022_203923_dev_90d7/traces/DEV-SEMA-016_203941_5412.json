@@ -1,0 +1,181 @@
+{
+  "tag": "DEV-SEMA-016",
+  "question": "为什么六月底前必须上线对这家客户这么重要？",
+  "mock": false,
+  "prompt_version": "v1.7.1-qa",
+  "hits_full": [
+    {
+      "did": "D004",
+      "pids": [
+        "P4"
+      ],
+      "text": "【陈校长】这个事挺急的，暑期班六月一号开始招生，六月底前必须用上，招生季就是续费高峰，错过要再等半年。",
+      "score": 0.278
+    },
+    {
+      "did": "D005",
+      "pids": [
+        "P5"
+      ],
+      "text": "【李主管】还要能看到每个校区的续班率对比，现在都是教务月底手工拉表格，五个校区算下来要两天。",
+      "score": 0.056
+    },
+    {
+      "did": "D011",
+      "pids": [
+        "P11"
+      ],
+      "text": "【李主管】对面那家机构做了个家长小程序，我们家长问了好几次为什么我们没有。",
+      "score": 0.056
+    }
+  ],
+  "fallback_note": "",
+  "fallback_used": false,
+  "elapsed": {
+    "search": 0.001,
+    "llm": 1.112
+  },
+  "usage": {
+    "调用次数": 16,
+    "输入token": 4889,
+    "输出token": 1148,
+    "估算成本元": 0.0072,
+    "明细": [
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 361,
+        "completion_tokens": 94,
+        "cost_cny": 0.000553,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 395,
+        "completion_tokens": 38,
+        "cost_cny": 0.000475,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 232,
+        "completion_tokens": 50,
+        "cost_cny": 0.000335,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 388,
+        "completion_tokens": 43,
+        "cost_cny": 0.000478,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 328,
+        "completion_tokens": 110,
+        "cost_cny": 0.000552,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 222,
+        "completion_tokens": 65,
+        "cost_cny": 0.000355,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 313,
+        "completion_tokens": 90,
+        "cost_cny": 0.000497,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 352,
+        "completion_tokens": 115,
+        "cost_cny": 0.000587,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 306,
+        "completion_tokens": 56,
+        "cost_cny": 0.000421,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 294,
+        "completion_tokens": 100,
+        "cost_cny": 0.000498,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 298,
+        "completion_tokens": 34,
+        "cost_cny": 0.000369,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 324,
+        "completion_tokens": 84,
+        "cost_cny": 0.000496,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 247,
+        "completion_tokens": 90,
+        "cost_cny": 0.00043,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 233,
+        "completion_tokens": 41,
+        "cost_cny": 0.000318,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 297,
+        "completion_tokens": 44,
+        "cost_cny": 0.000388,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 299,
+        "completion_tokens": 94,
+        "cost_cny": 0.000491,
+        "node": "QA"
+      }
+    ]
+  },
+  "cited": [
+    "D004",
+    "D005"
+  ],
+  "invalid": [],
+  "llm_messages": [
+    {
+      "role": "system",
+      "content": "你是客户材料分析助手。只依据【材料段落】回答用户问题，输出 JSON：\n{\"answer\": \"答案文本，300 字以内\", \"cited_dids\": [\"D001\", ...], \"sufficient\": true 或 false}\n规则：\n1. cited_dids 只能引用【材料段落】中真实出现的 D 编号，每条结论都要有编号支撑；\n2. 材料不足以回答时 sufficient=false，answer 说明已有信息与还缺什么，不编造；\n3. 材料与问题完全无关时 sufficient=false 且 cited_dids 为空。"
+    },
+    {
+      "role": "user",
+      "content": "【材料段落】\nD004 【陈校长】这个事挺急的，暑期班六月一号开始招生，六月底前必须用上，招生季就是续费高峰，错过要再等半年。\n\nD005 【李主管】还要能看到每个校区的续班率对比，现在都是教务月底手工拉表格，五个校区算下来要两天。\n\nD011 【李主管】对面那家机构做了个家长小程序，我们家长问了好几次为什么我们没有。\n\n\n【问题】为什么六月底前必须上线对这家客户这么重要？\n\n（注：若问题中的代词指代此前轮次的内容，请结合对话历史理解；回答须以材料段落或对话历史中已出现的 D 编号为引用依据）"
+    }
+  ],
+  "raw": {
+    "answer": "六月底前必须上线，是因为暑期班六月一号开始招生，而招生季正是续费高峰，错过就要再等半年，时间窗口很紧。此外，李主管提到目前续班率对比靠教务月底手工拉表，五个校区要算两天，也说明系统需在月底前投入使用以支撑续费统计。",
+    "cited_dids": [
+      "D004",
+      "D005"
+    ],
+    "sufficient": true
+  }
+}

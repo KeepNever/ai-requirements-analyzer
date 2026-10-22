@@ -1,0 +1,141 @@
+{
+  "tag": "LOCKED-MULT-025",
+  "question": "两家客户的预算情况分别如何？",
+  "mock": false,
+  "prompt_version": "v1.7.1-qa",
+  "hits_full": [
+    {
+      "did": "D011",
+      "pids": [
+        "P11"
+      ],
+      "text": "【李工】预算方面，今年信息化专项还剩二十万左右，够不够你们评估一下。",
+      "score": 0.091
+    },
+    {
+      "did": "D001",
+      "pids": [
+        "P1"
+      ],
+      "text": "【陈总-运营总监】我先说运营的情况。30 个省区的销售业绩，现在是每个区的助理每周五花半天报 Excel，总部再汇总，慢，而且格式五花八门老出错。",
+      "score": 0.091
+    },
+    {
+      "did": "D004",
+      "pids": [
+        "P4"
+      ],
+      "text": "【孙经理】我需要费用报表按区域、按品类能逐层钻取，费用超预算要有提醒，现在都是事后才知道超了。",
+      "score": 0.091
+    },
+    {
+      "did": "D008",
+      "pids": [
+        "P8"
+      ],
+      "text": "【孙经理】预算方面财务这边有一笔独立的数字化预算，不用跟运营那边一起审批。",
+      "score": 0.091
+    },
+    {
+      "did": "D012",
+      "pids": [
+        "P12"
+      ],
+      "text": "【孙经理】另外数据安全我们要求很高，客户是医院，信息绝对不能出问题。",
+      "score": 0.091
+    }
+  ],
+  "fallback_note": "",
+  "fallback_used": false,
+  "elapsed": {
+    "search": 0.006,
+    "llm": 1.231
+  },
+  "usage": {
+    "调用次数": 8,
+    "输入token": 2817,
+    "输出token": 947,
+    "估算成本元": 0.0047,
+    "明细": [
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 412,
+        "completion_tokens": 162,
+        "cost_cny": 0.000742,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 357,
+        "completion_tokens": 154,
+        "cost_cny": 0.00067,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 302,
+        "completion_tokens": 104,
+        "cost_cny": 0.000514,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 383,
+        "completion_tokens": 113,
+        "cost_cny": 0.000614,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 393,
+        "completion_tokens": 143,
+        "cost_cny": 0.000684,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 352,
+        "completion_tokens": 79,
+        "cost_cny": 0.000514,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 271,
+        "completion_tokens": 85,
+        "cost_cny": 0.000445,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 347,
+        "completion_tokens": 107,
+        "cost_cny": 0.000565,
+        "node": "QA"
+      }
+    ]
+  },
+  "cited": [
+    "D011",
+    "D008"
+  ],
+  "invalid": [],
+  "llm_messages": [
+    {
+      "role": "system",
+      "content": "你是客户材料分析助手。只依据【材料段落】回答用户问题，输出 JSON：\n{\"answer\": \"答案文本，300 字以内\", \"cited_dids\": [\"D001\", ...], \"sufficient\": true 或 false}\n规则：\n1. cited_dids 只能引用【材料段落】中真实出现的 D 编号，每条结论都要有编号支撑；\n2. 材料不足以回答时 sufficient=false，answer 说明已有信息与还缺什么，不编造；\n3. 材料与问题完全无关时 sufficient=false 且 cited_dids 为空。"
+    },
+    {
+      "role": "user",
+      "content": "【材料段落】\nD011 【李工】预算方面，今年信息化专项还剩二十万左右，够不够你们评估一下。\n\nD001 【陈总-运营总监】我先说运营的情况。30 个省区的销售业绩，现在是每个区的助理每周五花半天报 Excel，总部再汇总，慢，而且格式五花八门老出错。\n\nD004 【孙经理】我需要费用报表按区域、按品类能逐层钻取，费用超预算要有提醒，现在都是事后才知道超了。\n\nD008 【孙经理】预算方面财务这边有一笔独立的数字化预算，不用跟运营那边一起审批。\n\nD012 【孙经理】另外数据安全我们要求很高，客户是医院，信息绝对不能出问题。\n\n\n【问题】两家客户的预算情况分别如何？\n\n（注：若问题中的代词指代此前轮次的内容，请结合对话历史理解；回答须以材料段落或对话历史中已出现的 D 编号为引用依据）"
+    }
+  ],
+  "raw": {
+    "answer": "材料中涉及两方预算：李工提到今年信息化专项还剩约二十万，需评估是否够用（D011）；孙经理表示财务另有一笔独立的数字化预算，不必与运营一起审批（D008）。但材料未说明这两笔预算分别属于哪家客户，也未给出具体金额（D008 未列数额），因此无法明确对应到两家客户各自的预算情况。",
+    "cited_dids": [
+      "D011",
+      "D008"
+    ],
+    "sufficient": false
+  }
+}

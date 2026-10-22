@@ -1,0 +1,111 @@
+{
+  "tag": "DEV-SEMA-004",
+  "question": "除了老板本人，还有哪些人需要能看到看板？",
+  "mock": false,
+  "prompt_version": "v1.7.1-qa",
+  "hits_full": [
+    {
+      "did": "D010",
+      "pids": [
+        "P10"
+      ],
+      "text": "【王总】还有个要求，看板不能只有我办公室能看到，几个车间主任都得能看，不然等于没用。",
+      "score": 0.267
+    },
+    {
+      "did": "D003",
+      "pids": [
+        "P3"
+      ],
+      "text": "【王总】所以我的想法很简单，车间要有块实时看板，良品率、停机时长这些东西当天就能看到，别等一周。",
+      "score": 0.2
+    },
+    {
+      "did": "D005",
+      "pids": [
+        "P5"
+      ],
+      "text": "【王总】对，所以你们得能把 ERP 和设备的数据都接进来，接不进来什么看板都是空的。",
+      "score": 0.067
+    },
+    {
+      "did": "D007",
+      "pids": [
+        "P7"
+      ],
+      "text": "【王总】还有一个，良品率一旦掉到 95 以下必须马上通知我，不能等第二天。现在是让文员每天早上导 Excel 发工作群，人力花了还不及时。",
+      "score": 0.067
+    },
+    {
+      "did": "D009",
+      "pids": [
+        "P9"
+      ],
+      "text": "【王总】哦对了，质量部的刘经理之前也提过，想做到批次追溯——查某个问题批次是哪条产线、哪个班次生产的。这个以后再说也行，先把看板弄起来。",
+      "score": 0.067
+    }
+  ],
+  "fallback_note": "",
+  "fallback_used": false,
+  "elapsed": {
+    "search": 0.002,
+    "llm": 0.97
+  },
+  "usage": {
+    "调用次数": 4,
+    "输入token": 1376,
+    "输出token": 225,
+    "估算成本元": 0.0018,
+    "明细": [
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 361,
+        "completion_tokens": 94,
+        "cost_cny": 0.000553,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 395,
+        "completion_tokens": 38,
+        "cost_cny": 0.000475,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 232,
+        "completion_tokens": 50,
+        "cost_cny": 0.000335,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 388,
+        "completion_tokens": 43,
+        "cost_cny": 0.000478,
+        "node": "QA"
+      }
+    ]
+  },
+  "cited": [
+    "D010"
+  ],
+  "invalid": [],
+  "llm_messages": [
+    {
+      "role": "system",
+      "content": "你是客户材料分析助手。只依据【材料段落】回答用户问题，输出 JSON：\n{\"answer\": \"答案文本，300 字以内\", \"cited_dids\": [\"D001\", ...], \"sufficient\": true 或 false}\n规则：\n1. cited_dids 只能引用【材料段落】中真实出现的 D 编号，每条结论都要有编号支撑；\n2. 材料不足以回答时 sufficient=false，answer 说明已有信息与还缺什么，不编造；\n3. 材料与问题完全无关时 sufficient=false 且 cited_dids 为空。"
+    },
+    {
+      "role": "user",
+      "content": "【材料段落】\nD010 【王总】还有个要求，看板不能只有我办公室能看到，几个车间主任都得能看，不然等于没用。\n\nD003 【王总】所以我的想法很简单，车间要有块实时看板，良品率、停机时长这些东西当天就能看到，别等一周。\n\nD005 【王总】对，所以你们得能把 ERP 和设备的数据都接进来，接不进来什么看板都是空的。\n\nD007 【王总】还有一个，良品率一旦掉到 95 以下必须马上通知我，不能等第二天。现在是让文员每天早上导 Excel 发工作群，人力花了还不及时。\n\nD009 【王总】哦对了，质量部的刘经理之前也提过，想做到批次追溯——查某个问题批次是哪条产线、哪个班次生产的。这个以后再说也行，先把看板弄起来。\n\n\n【问题】除了老板本人，还有哪些人需要能看到看板？\n\n（注：若问题中的代词指代此前轮次的内容，请结合对话历史理解；回答须以材料段落或对话历史中已出现的 D 编号为引用依据）"
+    }
+  ],
+  "raw": {
+    "answer": "王总明确要求看板不能只在他办公室看到，几个车间主任也都必须能看到，否则等于没用。",
+    "cited_dids": [
+      "D010"
+    ],
+    "sufficient": true
+  }
+}
