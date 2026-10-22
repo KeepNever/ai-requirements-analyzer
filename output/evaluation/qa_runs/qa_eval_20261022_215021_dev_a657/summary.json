@@ -1,0 +1,44 @@
+{
+  "split": "DEV",
+  "run_ts": "20261022_215021",
+  "mock": false,
+  "total_questions": 23,
+  "refuse_judgement_accuracy": 0.826,
+  "citation_valid_rate": 1.0,
+  "retrieval_recall_mean": 1.0,
+  "citation_hit_rate_mean": 0.977,
+  "all_evidence_hit_rate": 1.0,
+  "multi_turn_count": 2,
+  "by_category": {
+    "conflicting": {
+      "count": 5,
+      "refuse_judgement_ok": 4,
+      "invalid_free": 5
+    },
+    "insufficient": {
+      "count": 1,
+      "refuse_judgement_ok": 1,
+      "invalid_free": 1
+    },
+    "multi_segment_summary": {
+      "count": 1,
+      "refuse_judgement_ok": 1,
+      "invalid_free": 1
+    },
+    "multi_turn": {
+      "count": 2,
+      "refuse_judgement_ok": 1,
+      "invalid_free": 2
+    },
+    "semantic_rewrite": {
+      "count": 6,
+      "refuse_judgement_ok": 5,
+      "invalid_free": 6
+    },
+    "single_fact": {
+      "count": 8,
+      "refuse_judgement_ok": 7,
+      "invalid_free": 8
+    }
+  }
+}

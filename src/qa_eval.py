@@ -98,6 +98,28 @@ def run_dataset(dataset_path: str, mock: bool = False) -> dict:
         expect_sufficient = suff == "answerable"
         refuse_ok = last["sufficient"] == expect_sufficient
 
+        # 矛盾识别四要求检查（仅 conflicting 题；曦五审「重点回归四项要求」）
+        conflict_checks = None
+        if suff == "conflicting":
+            multi_ev = [set(e.get("clean_paragraph_ids", [])) for e in last_turn.get("expected_citations", [])]
+            sides_cited = [bool(s & set(last["cited_dids"])) for s in multi_ev if s]
+            conflict_mentioned = any(k in last["answer"] for k in ("不一致", "矛盾", "冲突"))
+            conflict_checks = {
+                "both_sides_cited": all(sides_cited) and len(sides_cited) >= 2,
+                "conflict_mentioned": conflict_mentioned,
+                "not_arbitrary_pick": True,   # 不选边由人工复核判（自动仅检查双方编号在列）
+            }
+        # 矛盾识别四要求检查（仅 conflicting 题；曦五审「重点回归四项要求」）
+        conflict_checks = None
+        if suff == "conflicting":
+            multi_ev = [set(e.get("clean_paragraph_ids", [])) for e in last_turn.get("expected_citations", [])]
+            sides_cited = [bool(s & set(last["cited_dids"])) for s in multi_ev if s]
+            conflict_mentioned = any(k in last["answer"] for k in ("不一致", "矛盾", "冲突"))
+            conflict_checks = {
+                "both_sides_cited": all(sides_cited) and len(sides_cited) >= 2,
+                "conflict_mentioned": conflict_mentioned,
+                "not_arbitrary_pick": True,   # 不选边由人工复核判（自动仅检查双方编号在列）
+            }
         results.append({
             "question_id": item["question_id"], "category": item["category"],
             "evidence_sufficiency": suff,
@@ -105,6 +127,8 @@ def run_dataset(dataset_path: str, mock: bool = False) -> dict:
             "cited_dids": last["cited_dids"], "invalid_dids": last["invalid_dids"],
             "recall": recall, "all_evidence_hit": all_hit,
             "citation_hit_rate": cite_hit_rate,
+            "conflict_checks": conflict_checks,
+            "conflict_checks": conflict_checks,
             "expected_dids": sorted(expected_dids),
             "multi_turn": len(turns) > 1,
             "conversation_id": last.get("conversation_id") or conv_id,
