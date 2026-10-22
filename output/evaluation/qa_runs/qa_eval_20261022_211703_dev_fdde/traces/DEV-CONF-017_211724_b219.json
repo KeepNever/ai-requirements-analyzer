@@ -1,0 +1,184 @@
+{
+  "tag": "DEV-CONF-017",
+  "question": "看板的受众范围是怎么定的？",
+  "mock": false,
+  "prompt_version": "v1.7.1-qa",
+  "hits_full": [
+    {
+      "did": "D002",
+      "pids": [
+        "P2"
+      ],
+      "text": "【陈总】我要的是销售实时看板，当天回款、当天订单，我下午三点开会，会前就要看到早上的数。",
+      "score": 0.1
+    },
+    {
+      "did": "D007",
+      "pids": [
+        "P7"
+      ],
+      "text": "【陈总】那我的看板主要就是运营和我，顶多再加供应链的人。",
+      "score": 0.1
+    }
+  ],
+  "fallback_note": "（小材料模式：已提供全部材料段落，检索命中排序在前）",
+  "fallback_used": false,
+  "elapsed": {
+    "search": 0.002,
+    "llm": 1.087
+  },
+  "usage": {
+    "调用次数": 17,
+    "输入token": 10841,
+    "输出token": 1535,
+    "估算成本元": 0.014,
+    "明细": [
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 673,
+        "completion_tokens": 65,
+        "cost_cny": 0.000809,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 671,
+        "completion_tokens": 36,
+        "cost_cny": 0.000749,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 670,
+        "completion_tokens": 149,
+        "cost_cny": 0.000976,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 672,
+        "completion_tokens": 61,
+        "cost_cny": 0.0008,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 666,
+        "completion_tokens": 113,
+        "cost_cny": 0.000899,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 670,
+        "completion_tokens": 136,
+        "cost_cny": 0.00095,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 628,
+        "completion_tokens": 105,
+        "cost_cny": 0.000845,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 622,
+        "completion_tokens": 89,
+        "cost_cny": 0.000806,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 625,
+        "completion_tokens": 87,
+        "cost_cny": 0.000805,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 628,
+        "completion_tokens": 90,
+        "cost_cny": 0.000814,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 664,
+        "completion_tokens": 34,
+        "cost_cny": 0.000738,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 665,
+        "completion_tokens": 63,
+        "cost_cny": 0.000797,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 669,
+        "completion_tokens": 142,
+        "cost_cny": 0.000961,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 566,
+        "completion_tokens": 39,
+        "cost_cny": 0.000649,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 562,
+        "completion_tokens": 33,
+        "cost_cny": 0.000633,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 567,
+        "completion_tokens": 185,
+        "cost_cny": 0.000944,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 623,
+        "completion_tokens": 108,
+        "cost_cny": 0.000846,
+        "node": "QA"
+      }
+    ]
+  },
+  "cited": [
+    "D007",
+    "D006",
+    "D009",
+    "D011"
+  ],
+  "invalid": [],
+  "llm_messages": [
+    {
+      "role": "system",
+      "content": "你是客户材料分析助手。只依据【材料段落】回答用户问题，输出 JSON：\n{\"answer\": \"答案文本，300 字以内\", \"cited_dids\": [\"D001\", ...], \"sufficient\": true 或 false}\n规则：\n1. cited_dids 只能引用【材料段落】中真实出现的 D 编号，每条结论都要有编号支撑；\n2. 材料不足以回答时 sufficient=false，answer 说明已有信息与还缺什么，不编造；\n3. 材料与问题完全无关时 sufficient=false 且 cited_dids 为空。"
+    },
+    {
+      "role": "user",
+      "content": "【材料段落】\nD002 【陈总】我要的是销售实时看板，当天回款、当天订单，我下午三点开会，会前就要看到早上的数。\n\nD007 【陈总】那我的看板主要就是运营和我，顶多再加供应链的人。\n\nD001 【陈总-运营总监】我先说运营的情况。30 个省区的销售业绩，现在是每个区的助理每周五花半天报 Excel，总部再汇总，慢，而且格式五花八门老出错。\n\nD003 【孙经理-财务经理】运营的事我不反对，但财务现在最大的痛点是费用没数。各区市场费用花到哪了，月底全靠各区自报，对账对不上。\n\nD004 【孙经理】我需要费用报表按区域、按品类能逐层钻取，费用超预算要有提醒，现在都是事后才知道超了。\n\nD005 【陈总】对了这个提醒功能我们运营也要，库存周转天数超标的要提醒采购，现在也是靠人盯。\n\nD006 【孙经理】说明一点：财务这套费用表是全公司都要用的，不光财务部，各区负责人都要看自己那块的费用。\n\nD008 【孙经理】预算方面财务这边有一笔独立的数字化预算，不用跟运营那边一起审批。\n\nD009 【陈总】丑话说前面：3 月底必须上线。二季度我们办全国经销商大会，到时候要给经销商展示我们的经营数据，这个不能掉链子。\n\nD010 【销售顾问】确认一下，展示是指自己内部看，还是对外？\n\nD011 【陈总】对外，大屏就挂在我们公司前台，来访的经销商都看得到。\n\nD012 【孙经理】另外数据安全我们要求很高，客户是医院，信息绝对不能出问题。\n\nD013 【陈总】之前看过一家 BI，服务器在国外，直接被我们 IT 毙掉了。你们部署方式一会儿重点讲。\n\nD014 【主持】好，那下周三之前我们出方案，今天先到这。\n（小材料模式：已提供全部材料段落，检索命中排序在前）\n\n【问题】看板的受众范围是怎么定的？\n\n（注：若问题中的代词指代此前轮次的内容，请结合对话历史理解；回答须以材料段落或对话历史中已出现的 D 编号为引用依据）"
+    }
+  ],
+  "raw": {
+    "answer": "看板受众分两类：陈总的销售实时看板主要给运营和他本人，顶多再加供应链的人（D007）；财务的费用报表则是全公司都要用，不光财务部，各区负责人都要看自己那块的费用（D006）。此外，3月底上线后还要在前台大屏对外向经销商展示经营数据（D009、D011）。",
+    "cited_dids": [
+      "D007",
+      "D006",
+      "D009",
+      "D011"
+    ],
+    "sufficient": true
+  }
+}

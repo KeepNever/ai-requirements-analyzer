@@ -176,33 +176,35 @@ def answer_question(project_id: str, version_refs: list, question: str,
         index.extend(idx)
         provided_dids |= {c["did"] for c in idx}
 
-    # 2. 检索；零命中时按序回落（v1.3 修正：小材料永远给全量——历史段落 ⊆ 全量，
-    #    互斥回落会导致「历史只命中 1 段时其他历史编号全部被判无效」的假阳性）：
-    #    ① 小材料（≤40 段）→ 全量段落给模型自行定位（词汇鸿沟兜底）
-    #    ② 大材料 + 多轮会话 → 历史引用过的段落（省 token）
-    #    ③ 大材料无会话 → 证据不足
+    # 2. 检索；材料供给策略（v2.0.1，数据驱动：MULT-005 部分命中暴露词汇鸿沟残余）：
+    #    小材料（≤40 段）→ **全量段落供给**，检索命中排序在前——语义匹配交给模型
+    #    （LLM 的语义理解优于任何词面检索，40 段 ≈1600 token 成本可控）；
+    #    大材料 → 检索 top_k 供给；大材料零命中回落会话历史段落。
     hits = keyword_search(question, index)
     elapsed_search = _time.time() - t_search0
-    fallback_material, fallback_note = [], ""
-    if not hits and len(index) <= FULL_FALLBACK_MAX_SEGMENTS:
-        fallback_material = [{"did": c["did"], "text": c["text"]} for c in index]
-        fallback_note = "（本次检索零命中，已提供全部材料段落，请自行定位与问题相关的内容）"
-    elif not hits and conversation_id:
-        fallback_material = _load_history_material(project_id, conversation_id)
+    small_material = len(index) <= FULL_FALLBACK_MAX_SEGMENTS
+    material_pool = []            # 实际进入材料块的段落（= EVD 可引用范围）
+    fallback_note = ""
+    if small_material:
+        hit_dids = {h["did"] for h in hits}
+        material_pool = ([c for c in index if c["did"] in hit_dids]
+                         + [c for c in index if c["did"] not in hit_dids])
+        fallback_note = "（小材料模式：已提供全部材料段落，检索命中排序在前）"
+    elif hits:
+        material_pool = hits
+    elif conversation_id:
+        material_pool = _load_history_material(project_id, conversation_id)
         fallback_note = "（本次检索零命中，材料段落来自此前对话中引用过的内容）"
 
     # 3. 生成答案（真实 LLM 或 mock）；多轮时带历史上下文
-    material_source = hits if hits else fallback_material
+    material_source = material_pool
     t_llm0 = _time.time()
     if mock:
         raw = _mock_answer(question, hits)
         usage = None
     else:
-        if hits:
-            material_block = "\n\n".join(f"{h['did']} {h['text']}" for h in hits)
-            material_note = ""
-        elif fallback_material:
-            material_block = "\n\n".join(f"{m['did']} {m['text']}" for m in fallback_material)
+        if material_pool:
+            material_block = "\n\n".join(f"{m['did']} {m['text']}" for m in material_pool)
             material_note = fallback_note
         else:
             material_block = "（无命中段落，且无历史引用）"
@@ -219,8 +221,8 @@ def answer_question(project_id: str, version_refs: list, question: str,
         usage = llm_client.usage_summary()
         raw = json.loads(text)
 
-    # 4. EVD-01 引用真实性校验：可引用范围 = 当轮命中 + 历史回落段落（审查约束）
-    provided_hit_dids = {h["did"] for h in hits} | {m["did"] for m in fallback_material}
+    # 4. EVD-01 引用真实性校验：可引用范围 = 材料池（小材料=全量；大材料=命中/回落段落）
+    provided_hit_dids = {m["did"] for m in material_pool}
     cited, invalid = _validate_cited_dids(raw.get("cited_dids", []), provided_hit_dids)
     sufficient = bool(raw.get("sufficient")) and bool(cited) if material_source else False
     if material_source and not cited:
@@ -259,7 +261,7 @@ def answer_question(project_id: str, version_refs: list, question: str,
         trace = {"tag": trace_tag, "question": question,
                  "mock": mock, "prompt_version": result["prompt_version"],
                  "hits_full": hits, "fallback_note": fallback_note,
-                 "fallback_used": not hits and bool(fallback_material),
+                 "fallback_used": not hits and bool(material_pool),
                  "elapsed": {"search": round(elapsed_search, 3),
                              "llm": round(elapsed_llm, 3)},
                  "usage": usage,

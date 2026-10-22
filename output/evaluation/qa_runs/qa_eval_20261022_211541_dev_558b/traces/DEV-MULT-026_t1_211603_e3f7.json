@@ -1,0 +1,203 @@
+{
+  "tag": "DEV-MULT-026_t1",
+  "question": "良品率预警通过什么方式通知？",
+  "mock": false,
+  "prompt_version": "v1.7.1-qa",
+  "hits_full": [
+    {
+      "did": "D007",
+      "pids": [
+        "P7"
+      ],
+      "text": "【王总】还有一个，良品率一旦掉到 95 以下必须马上通知我，不能等第二天。现在是让文员每天早上导 Excel 发工作群，人力花了还不及时。",
+      "score": 0.273
+    },
+    {
+      "did": "D002",
+      "pids": [
+        "P2"
+      ],
+      "text": "【王总-生产副总】现在最头疼的就是良品率。每周才出一次质量报告，等报告出来，有问题那批货早下线了。上个月就因为发现问题晚，整批返工，光工时就赔进去一万多。",
+      "score": 0.182
+    },
+    {
+      "did": "D003",
+      "pids": [
+        "P3"
+      ],
+      "text": "【王总】所以我的想法很简单，车间要有块实时看板，良品率、停机时长这些东西当天就能看到，别等一周。",
+      "score": 0.182
+    },
+    {
+      "did": "D008",
+      "pids": [
+        "P8"
+      ],
+      "text": "【李工】预警的话最好走企业微信，我们全厂办公都在企微上。",
+      "score": 0.091
+    }
+  ],
+  "fallback_note": "（小材料模式：已提供全部材料段落，检索命中排序在前）",
+  "fallback_used": false,
+  "elapsed": {
+    "search": 0.001,
+    "llm": 0.956
+  },
+  "usage": {
+    "调用次数": 18,
+    "输入token": 11510,
+    "输出token": 1683,
+    "估算成本元": 0.015,
+    "明细": [
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 673,
+        "completion_tokens": 65,
+        "cost_cny": 0.000809,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 671,
+        "completion_tokens": 39,
+        "cost_cny": 0.000755,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 670,
+        "completion_tokens": 143,
+        "cost_cny": 0.000964,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 672,
+        "completion_tokens": 62,
+        "cost_cny": 0.000802,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 666,
+        "completion_tokens": 137,
+        "cost_cny": 0.000948,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 670,
+        "completion_tokens": 128,
+        "cost_cny": 0.000933,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 628,
+        "completion_tokens": 116,
+        "cost_cny": 0.000867,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 622,
+        "completion_tokens": 88,
+        "cost_cny": 0.000804,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 625,
+        "completion_tokens": 84,
+        "cost_cny": 0.000799,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 628,
+        "completion_tokens": 90,
+        "cost_cny": 0.000814,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 664,
+        "completion_tokens": 34,
+        "cost_cny": 0.000738,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 665,
+        "completion_tokens": 67,
+        "cost_cny": 0.000805,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 669,
+        "completion_tokens": 193,
+        "cost_cny": 0.001063,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 566,
+        "completion_tokens": 39,
+        "cost_cny": 0.000649,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 562,
+        "completion_tokens": 66,
+        "cost_cny": 0.0007,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 567,
+        "completion_tokens": 157,
+        "cost_cny": 0.000888,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 623,
+        "completion_tokens": 114,
+        "cost_cny": 0.000858,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 669,
+        "completion_tokens": 61,
+        "cost_cny": 0.000797,
+        "node": "QA"
+      }
+    ]
+  },
+  "cited": [
+    "D007",
+    "D008"
+  ],
+  "invalid": [],
+  "llm_messages": [
+    {
+      "role": "system",
+      "content": "你是客户材料分析助手。只依据【材料段落】回答用户问题，输出 JSON：\n{\"answer\": \"答案文本，300 字以内\", \"cited_dids\": [\"D001\", ...], \"sufficient\": true 或 false}\n规则：\n1. cited_dids 只能引用【材料段落】中真实出现的 D 编号，每条结论都要有编号支撑；\n2. 材料不足以回答时 sufficient=false，answer 说明已有信息与还缺什么，不编造；\n3. 材料与问题完全无关时 sufficient=false 且 cited_dids 为空。"
+    },
+    {
+      "role": "user",
+      "content": "【材料段落】\nD002 【王总-生产副总】现在最头疼的就是良品率。每周才出一次质量报告，等报告出来，有问题那批货早下线了。上个月就因为发现问题晚，整批返工，光工时就赔进去一万多。\n\nD003 【王总】所以我的想法很简单，车间要有块实时看板，良品率、停机时长这些东西当天就能看到，别等一周。\n\nD007 【王总】还有一个，良品率一旦掉到 95 以下必须马上通知我，不能等第二天。现在是让文员每天早上导 Excel 发工作群，人力花了还不及时。\n\nD008 【李工】预警的话最好走企业微信，我们全厂办公都在企微上。\n\nD001 【会议主持】各位下午好，今天主要聊聊华宇在数据和报表这块的想法，王总您先说说现状吧。\n\nD004 【李工-IT主管】我补一句技术现状：数据主要在 ERP 里，设备那边的加工数据一部分在 MES，一部分还在老系统里，比较杂。\n\nD005 【王总】对，所以你们得能把 ERP 和设备的数据都接进来，接不进来什么看板都是空的。\n\nD006 【李工】我们 ERP 是金蝶 K3，用了六年了，版本比较老。\n\nD009 【王总】哦对了，质量部的刘经理之前也提过，想做到批次追溯——查某个问题批次是哪条产线、哪个班次生产的。这个以后再说也行，先把看板弄起来。\n\nD010 【王总】还有个要求，看板不能只有我办公室能看到，几个车间主任都得能看，不然等于没用。\n\nD011 【李工】预算方面，今年信息化专项还剩二十万左右，够不够你们评估一下。\n\nD012 【王总】时间上最好赶三季度，三季度我们产线改造完，新产线一上就必须用起来。\n\nD013 【李工】我个人有点担心设备那边，数据格式很老，接口不一定好接，这个你们实施前要来现场看过才知道。\n\nD014 【主持】好，那今天先到这，我们回去出初步方案。\n（小材料模式：已提供全部材料段落，检索命中排序在前）\n\n【问题】良品率预警通过什么方式通知？\n\n（注：若问题中的代词指代此前轮次的内容，请结合对话历史理解；回答须以材料段落或对话历史中已出现的 D 编号为引用依据）"
+    }
+  ],
+  "raw": {
+    "answer": "王总要求良品率一旦掉到95以下必须马上通知他，不能等第二天；李工建议预警走企业微信，因为全厂办公都在企微上。",
+    "cited_dids": [
+      "D007",
+      "D008"
+    ],
+    "sufficient": true
+  }
+}

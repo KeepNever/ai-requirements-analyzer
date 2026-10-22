@@ -89,6 +89,10 @@ def run_dataset(dataset_path: str, mock: bool = False) -> dict:
         hit_expected = expected_dids & set(last["provided_dids"]) if expected_dids else set()
         recall = round(len(hit_expected) / len(expected_dids), 3) if expected_dids else None
         all_hit = (hit_expected == expected_dids) if expected_dids else None
+        # 引用命中率（v2.0.1 新增）：模型实际引用的 expected 证据占比——
+        # 小材料全量供给后「检索召回」恒为 1.0（证据可达性），此指标测端到端质量
+        cite_hit = expected_dids & set(last["cited_dids"]) if expected_dids else set()
+        cite_hit_rate = round(len(cite_hit) / len(expected_dids), 3) if expected_dids else None
         # 拒答准确率（四审 §9.3）：answerable ↔ true；insufficient/conflicting ↔ false
         suff = item["evidence_sufficiency"]
         expect_sufficient = suff == "answerable"
@@ -100,6 +104,7 @@ def run_dataset(dataset_path: str, mock: bool = False) -> dict:
             "sufficient": last["sufficient"], "refuse_judgement_ok": refuse_ok,
             "cited_dids": last["cited_dids"], "invalid_dids": last["invalid_dids"],
             "recall": recall, "all_evidence_hit": all_hit,
+            "citation_hit_rate": cite_hit_rate,
             "expected_dids": sorted(expected_dids),
             "multi_turn": len(turns) > 1,
             "conversation_id": last.get("conversation_id") or conv_id,
@@ -118,6 +123,9 @@ def run_dataset(dataset_path: str, mock: bool = False) -> dict:
             sum(1 for r in results if not r["invalid_dids"]) / n, 3) if n else None,
         "retrieval_recall_mean": round(
             sum(r["recall"] for r in with_expected) / len(with_expected), 3) if with_expected else None,
+        "citation_hit_rate_mean": round(
+            sum(r["citation_hit_rate"] for r in with_expected if r["citation_hit_rate"] is not None)
+            / max(1, sum(1 for r in with_expected if r["citation_hit_rate"] is not None)), 3),
         "all_evidence_hit_rate": round(
             sum(1 for r in with_expected if r["all_evidence_hit"]) / len(with_expected), 3) if with_expected else None,
         "multi_turn_count": sum(1 for r in results if r["multi_turn"]),

@@ -1,0 +1,144 @@
+{
+  "tag": "DEV-SING-011",
+  "question": "库存预警希望发到哪里？",
+  "mock": false,
+  "prompt_version": "v1.7.1-qa",
+  "hits_full": [
+    {
+      "did": "D003",
+      "pids": [
+        "P3"
+      ],
+      "text": "【7月9日·王厂长】每周一我要汇总上周各店营收、工单量、客单价发到管理群，手工弄小半天。",
+      "score": 0.111
+    },
+    {
+      "did": "D005",
+      "pids": [
+        "P5"
+      ],
+      "text": "【7月10日·李厂长】大件库存要盯：电瓶、轮胎、机油这些低于安全库存就得订货，现在全靠库管员记在脑子里。",
+      "score": 0.111
+    },
+    {
+      "did": "D013",
+      "pids": [
+        "P13"
+      ],
+      "text": "【7月22日·王厂长】预警发企业微信就行，库管员都在群里。",
+      "score": 0.111
+    }
+  ],
+  "fallback_note": "（小材料模式：已提供全部材料段落，检索命中排序在前）",
+  "fallback_used": false,
+  "elapsed": {
+    "search": 0.004,
+    "llm": 0.555
+  },
+  "usage": {
+    "调用次数": 11,
+    "输入token": 7189,
+    "输出token": 965,
+    "估算成本元": 0.0092,
+    "明细": [
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 673,
+        "completion_tokens": 65,
+        "cost_cny": 0.000809,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 671,
+        "completion_tokens": 36,
+        "cost_cny": 0.000749,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 670,
+        "completion_tokens": 149,
+        "cost_cny": 0.000976,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 672,
+        "completion_tokens": 61,
+        "cost_cny": 0.0008,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 666,
+        "completion_tokens": 113,
+        "cost_cny": 0.000899,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 670,
+        "completion_tokens": 136,
+        "cost_cny": 0.00095,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 628,
+        "completion_tokens": 105,
+        "cost_cny": 0.000845,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 622,
+        "completion_tokens": 89,
+        "cost_cny": 0.000806,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 625,
+        "completion_tokens": 87,
+        "cost_cny": 0.000805,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 628,
+        "completion_tokens": 90,
+        "cost_cny": 0.000814,
+        "node": "QA"
+      },
+      {
+        "model": "deepseek-chat",
+        "prompt_tokens": 664,
+        "completion_tokens": 34,
+        "cost_cny": 0.000738,
+        "node": "QA"
+      }
+    ]
+  },
+  "cited": [
+    "D013"
+  ],
+  "invalid": [],
+  "llm_messages": [
+    {
+      "role": "system",
+      "content": "你是客户材料分析助手。只依据【材料段落】回答用户问题，输出 JSON：\n{\"answer\": \"答案文本，300 字以内\", \"cited_dids\": [\"D001\", ...], \"sufficient\": true 或 false}\n规则：\n1. cited_dids 只能引用【材料段落】中真实出现的 D 编号，每条结论都要有编号支撑；\n2. 材料不足以回答时 sufficient=false，answer 说明已有信息与还缺什么，不编造；\n3. 材料与问题完全无关时 sufficient=false 且 cited_dids 为空。"
+    },
+    {
+      "role": "user",
+      "content": "【材料段落】\nD003 【7月9日·王厂长】每周一我要汇总上周各店营收、工单量、客单价发到管理群，手工弄小半天。\n\nD005 【7月10日·李厂长】大件库存要盯：电瓶、轮胎、机油这些低于安全库存就得订货，现在全靠库管员记在脑子里。\n\nD013 【7月22日·王厂长】预警发企业微信就行，库管员都在群里。\n\nD001 【7月8日·王厂长】上周说的报表的事，我把三号店的工单台账发你看看。\n\nD002 【7月8日·王厂长】5 家店，3 家用「店管家」连锁管理系统，2 家老店还是 Excel 工单台账。\n\nD004 【7月9日·王厂长】「店管家」有导出功能，但格式跟 Excel 老店的对不上，每次还要手工对齐。\n\nD006 【7月10日·王厂长】每年 11 月入冬，电瓶和防冻液卖爆，去年 12 月断货两次，眼看着单子流失。\n\nD007 【7月11日·王厂长】能不能按往年销量算算今年冬天备多少货？拍脑袋要么压货要么断货。\n\nD008 【7月12日·王厂长】还有个事一直没解决：供应商说好季度返利，年中了账上差了一万六，扯了俩月没对清。各家供应商返利规则还不一样，有按进货额的、有按回款的。\n\nD009 【7月15日·王厂长】「店管家」有开放接口文档，我可以让他们发一份给你们。\n\nD010 【7月16日·王厂长】之前某机油供应商送了一套免费报表工具，数据全要自己导，用了一个月没人用了。\n\nD011 【7月18日·王厂长】预算这块说实话不多，3 到 5 万，先解决最痛的。\n\nD012 【7月22日·王厂长】返利那事又提了，供应商答应补差，但这账不能年年这么扯。\n（小材料模式：已提供全部材料段落，检索命中排序在前）\n\n【问题】库存预警希望发到哪里？\n\n（注：若问题中的代词指代此前轮次的内容，请结合对话历史理解；回答须以材料段落或对话历史中已出现的 D 编号为引用依据）"
+    }
+  ],
+  "raw": {
+    "answer": "库存预警希望发到企业微信，库管员都在群里。",
+    "cited_dids": [
+      "D013"
+    ],
+    "sufficient": true
+  }
+}
