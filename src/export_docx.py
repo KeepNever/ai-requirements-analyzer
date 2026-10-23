@@ -47,7 +47,28 @@ def _ensure_citations(project_id: str, run: dict) -> dict:
                 "unresolved": [{"conclusion_type": "export",
                                 "conclusion_id": run["meta"].get("run_id"),
                                 "reason": "运行缺少版本引用信息，无法生成结构化引用"}]}
-    return storage.build_citations(run["analysis"], project_id, version_refs)
+    # 阻断 1/4 容错（六审）：不可定位的版本不静默过滤——逐个记录 unresolved，
+    # 只对可定位版本生成引用；部分缺失时报告如实呈现「哪些来源无法定位」
+    locatable, missing = [], []
+    for ref in version_refs:
+        try:
+            storage._load_version_data(project_id, ref["document_id"], ref["version_id"])
+            locatable.append(ref)
+        except (ValueError, FileNotFoundError):
+            missing.append(ref)
+    unresolved = []
+    for ref in missing:
+        unresolved.append({"conclusion_type": "export",
+                           "conclusion_id": f"{ref['document_id']}（{ref['version_id']}）",
+                           "reason": "来源版本不可定位（文档或版本缺失），该来源的全部结论无法生成引用"})
+    if not locatable:
+        unresolved.insert(0, {"conclusion_type": "export",
+                              "conclusion_id": run["meta"].get("run_id"),
+                              "reason": "全部版本引用不可定位（文档或版本缺失），证据无法展示"})
+        return {"project_id": project_id, "citations": [], "unresolved": unresolved}
+    result = storage.build_citations(run["analysis"], project_id, locatable)
+    result["unresolved"] = unresolved + result.get("unresolved", [])
+    return result
 
 
 def _set_cn_font(doc: Document) -> None:
@@ -70,29 +91,73 @@ def _add_table(doc: Document, headers: list, rows: list) -> None:
         cells = t.add_row().cells
         for i, v in enumerate(row):
             cells[i].text = str(v)
+    _repeat_header(t)
     doc.add_paragraph()
 
 
+def _file_name_of(project_id: str, document_id: str) -> str:
+    """从 Document 元数据读 file_name（四审改进 1：主展示文件名，ID 作次要）。"""
+    doc_file = storage._resolve_under_base("projects", project_id, "documents",
+                                           document_id, "doc.json")
+    if doc_file.exists():
+        return storage._read_json(doc_file).get("file_name", document_id)
+    return document_id
+
+
+def _repeat_header(table) -> None:
+    """长表格跨页重复表头（四审内容组织建议）。"""
+    from docx.oxml import OxmlElement
+    tr = table.rows[0]._tr
+    trPr = tr.get_or_add_trPr()
+    th = OxmlElement("w:tblHeader")
+    th.set(qn("w:val"), "true")
+    trPr.append(th)
+
+
+def _add_footer_page_number(doc: Document) -> None:
+    """页脚页码字段（四审内容组织建议：跨页可读性）。"""
+    from docx.oxml import OxmlElement
+    footer = doc.sections[0].footer
+    para = footer.paragraphs[0]
+    para.alignment = 1
+    run = para.add_run("第 ")
+    fld1 = OxmlElement("w:fldChar"); fld1.set(qn("w:fldCharType"), "begin")
+    instr = OxmlElement("w:instrText"); instr.text = "PAGE"
+    fld2 = OxmlElement("w:fldChar"); fld2.set(qn("w:fldCharType"), "end")
+    run._r.append(fld1); run._r.append(instr); run._r.append(fld2)
+    para.add_run(" 页")
+
+
 def export_run_docx(project_id: str, run_id: str, out_path: str | None = None) -> bytes:
-    """导出指定历史运行（run_id 绑定）为 Word。返回 docx 二进制；out_path 给定时同时落盘。"""
+    """导出指定历史运行（run_id 绑定）为 Word。返回 docx 二进制；out_path 给定时同时落盘。
+
+    阻止条件（四审改进 4）：运行状态非 done 或缺 analysis.json 时拒绝导出，
+    不生成看似完整的空报告。"""
     run = _load_run(project_id, run_id)
     meta, ana = run["meta"], run["analysis"]
+    if meta.get("status") != "done":
+        raise ValueError(f"运行状态为 {meta.get('status')!r}（非 done），不允许导出正式报告")
+    if not ana:
+        raise ValueError("运行缺少 analysis.json，不允许导出空报告")
     n1, n2 = ana.get("node1", {}) or {}, ana.get("node2", {}) or {}
     citations = _ensure_citations(project_id, run)
-    frontend = storage.citations_for_frontend(citations, project_id)   # 脱敏转换
+    frontend = storage.citations_for_frontend(citations, project_id)   # 脱敏转换（失败关闭）
 
     doc = Document()
     _set_cn_font(doc)
+    _add_footer_page_number(doc)
 
-    # ── 封面元信息 ──
+    # ── 封面元信息（四审改进 1/4：file_name 主展示；unknown 显示历史缺失）──
     doc.add_heading(f"客户材料分析报告 · {project_id}", level=0)
     version_refs = meta.get("version_refs") or []
     materials = "；".join(
-        f"{r['document_id']}（{r['version_id']}）" for r in version_refs) or "（无版本信息）"
+        f"{_file_name_of(project_id, r['document_id'])}（{r['version_id']}）"
+        for r in version_refs) or "（无版本信息）"
+    pv = str(meta.get("prompt_version", "unknown"))
+    pv_display = "未记录（历史数据缺失）" if pv == "unknown" else pv
     _add_table(doc, ["项目", "分析运行 ID", "材料与版本", "Prompt 版本", "生成时间"], [[
         project_id, meta.get("run_id", run_id), materials,
-        str(meta.get("prompt_version", "unknown")),
-        str(meta.get("created_at", "unknown"))]])
+        pv_display, str(meta.get("created_at", "unknown"))]])
 
     # ── 一、客户背景与业务目标 ──
     doc.add_heading("一、客户背景与业务目标", level=1)
@@ -116,13 +181,22 @@ def export_run_docx(project_id: str, run_id: str, out_path: str | None = None) -
 
     # ── 三、需求优先级与评分 ──
     doc.add_heading("三、需求优先级与维度评分", level=1)
-    pds = n2.get("priority_dimensions") or []
-    if pds:
-        _add_table(doc, ["编号", "影响面", "紧迫度", "覆盖度", "信号强度", "评分依据"],
-                   [[p.get("id"), p.get("impact"), p.get("urgency"),
-                     p.get("coverage"), p.get("signal"), p.get("reason", "")] for p in pds])
+    pri_final = ana.get("priority") or []
+    if not isinstance(pri_final, list):
+        pri_final = []   # 旧结构（如 {"top": "EN1"}）无逐条加权数据，降级用维度表
+    if pri_final:
+        _add_table(doc, ["编号", "影响面", "紧迫度", "覆盖度", "信号强度", "加权总分", "档位", "评分依据"],
+                   [[p.get("id"), p.get("impact"), p.get("urgency"), p.get("coverage"),
+                     p.get("signal"), p.get("weighted"), p.get("tier"), p.get("reason", "")]
+                    for p in pri_final])
     else:
-        doc.add_paragraph("（本运行数据中无优先级评分数据）")
+        pds = n2.get("priority_dimensions") or []
+        if pds:
+            _add_table(doc, ["编号", "影响面", "紧迫度", "覆盖度", "信号强度", "评分依据"],
+                       [[p.get("id"), p.get("impact"), p.get("urgency"),
+                         p.get("coverage"), p.get("signal"), p.get("reason", "")] for p in pds])
+        else:
+            doc.add_paragraph("（本运行数据中无优先级评分数据）")
 
     # ── 四、产品能力匹配 ──
     doc.add_heading("四、产品能力匹配情况", level=1)
@@ -155,14 +229,24 @@ def export_run_docx(project_id: str, run_id: str, out_path: str | None = None) -
 
     # ── 七、关键结论的原文引用与来源定位 ──
     doc.add_heading("七、关键结论的原文引用与来源定位", level=1)
+    doc.add_paragraph(
+        "说明：本节结构化引用仅覆盖能够可靠定位来源的结论；"
+        "其余结论（潜在需求、能力匹配、优先级依据、待确认事项等）尚未完成结构化证据关联，"
+        "见第八节未解析引用说明，不代表其判断已经过引用核验。")
     fcites = frontend.get("citations", [])
     if fcites:
         for c in fcites:
             doc.add_heading(f"结论 {c.get('conclusion_id')}（{c.get('document_id')} · {c.get('version_id')}）",
                             level=2)
+            if not c.get("displayable", True):
+                doc.add_paragraph("（该证据定位失败，不可展示——为保护隐私不输出原文）")
+                continue
             for e in c.get("source_excerpts", []):
-                doc.add_paragraph(
-                    f"【{e.get('source_paragraph_id')}】{e.get('text', '')}")
+                txt = e.get("text", "")
+                if not txt:
+                    doc.add_paragraph(f"【{e.get('source_paragraph_id')}】（证据文本不可展示）")
+                    continue
+                doc.add_paragraph(f"【{e.get('source_paragraph_id')}】{txt}")
     else:
         doc.add_paragraph("（本运行无结构化引用——历史迁移运行未生成推测性引用，见第八节说明）")
 
@@ -171,9 +255,12 @@ def export_run_docx(project_id: str, run_id: str, out_path: str | None = None) -
     unresolved = citations.get("unresolved") or []
     if unresolved:
         doc.add_paragraph("以下结论无法从现有数据可靠定位来源，如实标记、不生成虚假证据：")
-        _add_table(doc, ["类型", "结论", "原因"],
-                   [[u.get("conclusion_type"), u.get("conclusion_id"), u.get("reason", "")]
-                    for u in unresolved])
+        rows = []
+        for i, u in enumerate(unresolved, 1):
+            cid = u.get("conclusion_id")
+            label = cid if cid not in (None, "") else f"{u.get('conclusion_type')}#{i}"
+            rows.append([u.get("conclusion_type"), label, u.get("reason", "")])
+        _add_table(doc, ["类型", "结论", "原因"], rows)
     else:
         doc.add_paragraph("本运行全部结论均有结构化引用支撑。")
 

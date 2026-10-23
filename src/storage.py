@@ -352,22 +352,29 @@ def _build_excerpts(pair: dict, seg: dict) -> list:
 
 
 def build_citations(analysis: dict, project_id: str, version_refs: list) -> dict:
-    """从 analysis 的结构化 dids 字段生成规范化引用。
+    """从 analysis 的结构化 dids 字段生成规范化引用（六审：多文档池模式）。
 
-    version_refs: [{document_id, version_id}, ...]（审查问题 2：按完整组合定位）。
+    version_refs: [{document_id, version_id}, ...]（完整组合定位）。
+    每个 did 绑定其唯一来源版本（同编号按 version_refs 顺序取首个），
+    证据 excerpt 逐条携带 document_id + version_id（四审：每条引用绑定明确来源），
+    跨文档结论的引用分组到各自来源，不串档。
     证据字段 source_excerpts 逐段取自 clean.json 原文，不使用模型转述。
     """
-    # 本阶段分析绑定单文档版本组合；多文档时由调用方按结论归属扩展
-    ref = version_refs[0]
-    document_id, version_id = ref["document_id"], ref["version_id"]
-    pmap, segments = _load_version_data(project_id, document_id, version_id)
-    did2pair = {p["clean_paragraph_id"]: p for p in pmap["pairs"]}
-    seg_by_did = {s["did"]: s for s in segments}
+    # 多文档池：did → 来源信息（首个出现该 did 的版本拥有它）
+    pool = {}
+    for ref in version_refs:
+        pmap, segments = _load_version_data(project_id, ref["document_id"], ref["version_id"])
+        did2pair = {p["clean_paragraph_id"]: p for p in pmap["pairs"]}
+        for s in segments:
+            if s["did"] not in pool:
+                pool[s["did"]] = {"document_id": ref["document_id"],
+                                  "version_id": ref["version_id"],
+                                  "pair": did2pair[s["did"]], "seg": s}
 
     citations, unresolved = [], []
     for en in (analysis.get("node1", {}).get("explicit_needs") or []):
         dids = en.get("dids") or []
-        invalid = [d for d in dids if d not in did2pair]
+        invalid = [d for d in dids if d not in pool]
         if not dids or invalid:
             unresolved.append({
                 "conclusion_type": "explicit_need", "conclusion_id": en.get("id"),
@@ -376,19 +383,26 @@ def build_citations(analysis: dict, project_id: str, version_refs: list) -> dict
             continue
         excerpts, broken = [], False
         for d in dids:
-            for e in _build_excerpts(did2pair[d], seg_by_did[d]):
+            info = pool[d]
+            for e in _build_excerpts(info["pair"], info["seg"]):
                 if e["text"] is None:
                     broken = True
-                excerpts.append(e)
+                    continue
+                excerpts.append({"document_id": info["document_id"],
+                                 "version_id": info["version_id"],
+                                 **e})
         if broken:
             unresolved.append({
                 "conclusion_type": "explicit_need", "conclusion_id": en.get("id"),
                 "reason": "部分来源段落无法定位原文，拒绝生成推测性引用"})
             continue
+        # 主来源 = 首个引用段落所属版本（单文档期与历史结构兼容）
+        primary_doc = excerpts[0]["document_id"] if excerpts else None
+        primary_ver = excerpts[0]["version_id"] if excerpts else None
         citations.append({
             "conclusion_type": "explicit_need", "conclusion_id": en.get("id"),
-            "document_id": document_id,
-            "version_id": version_id,
+            "document_id": primary_doc,
+            "version_id": primary_ver,
             "clean_paragraph_ids": dids,
             "source_paragraph_ids": [e["source_paragraph_id"] for e in excerpts],
             "source_excerpts": excerpts,
@@ -424,17 +438,23 @@ def citations_for_frontend(citations: dict, project_id: str) -> dict:
             vdir = _documents_dir(project_id) / pid_ / "versions" / vid
             if not (vdir / "clean.json").exists():
                 raise ValueError("版本数据缺失")
-            segs = {s["did"]: s for s in _read_json(vdir / "clean.json")["segments"]}
-            pmap = _read_json(vdir / "paragraph_map.json")
-            did_by_source = {}
-            for p in pmap["pairs"]:
-                for sp in p["source_paragraph_ids"]:
-                    did_by_source[sp] = p["clean_paragraph_id"]
             for e in c.get("source_excerpts", []):
+                # 六审：excerpt 级来源优先（多文档），顶层 document_id 兜底（历史结构）
+                edoc = e.get("document_id") or pid_
+                ever = e.get("version_id") or vid
+                edir = _documents_dir(project_id) / edoc / "versions" / ever
+                if not (edir / "clean.json").exists():
+                    raise ValueError("excerpt 来源版本缺失")
+                esegs = {s["did"]: s for s in _read_json(edir / "clean.json")["segments"]}
+                epmap = _read_json(edir / "paragraph_map.json")
+                did_by_source = {}
+                for pp in epmap["pairs"]:
+                    for sp in pp["source_paragraph_ids"]:
+                        did_by_source[sp] = pp["clean_paragraph_id"]
                 did = did_by_source.get(e["source_paragraph_id"])
-                if did is None or did not in segs:
+                if did is None or did not in esegs:
                     raise ValueError("原文段落无法映射到脱敏文本")
-                e["text"] = segs[did]["clean_text"]   # 脱敏文本（可能含脱敏占位符）
+                e["text"] = esegs[did]["clean_text"]   # 脱敏文本（可能含脱敏占位符）
             c["displayable"] = True
             c.pop("quote_model", None)  # 模型转述不出现在前端证据中
         except Exception:

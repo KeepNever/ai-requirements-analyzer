@@ -43,7 +43,9 @@ ANALYSIS = {
         "priority_dimensions": [{"id": "EN1", "impact": 5, "urgency": 4, "coverage": 3,
                                  "signal": 5, "reason": "核心诉求反复强调"}],
     },
-    "priority": {"top": "EN1"},
+    "priority": [{"id": "EN1", "content": "车间实时看板，良品率当天可见", "impact": 5,
+                  "urgency": 4, "coverage": 3, "signal": 5, "weighted": 4.5, "tier": "高",
+                  "reason": "核心诉求反复强调"}],
     "meta": {},
 }
 
@@ -193,3 +195,283 @@ def test_historical_run_export_matches_its_own_data(store_with_run, tmp_path, mo
     t2 = _all_text(Document(str(o2)))
     assert "车间实时看板" in t1 and "车间实时看板" not in t2
     assert "第二版需求" in t2 and "第二版需求" not in t1
+
+
+# ---------- 四审补充：三类异常占位 / 多文档 v1 / 合并段 / 展示改进 ----------
+
+MERGED_MATERIAL = """## 原始材料
+
+P1 【赵总】我们要做会员体系。
+P2 【钱经理】会员等级分三档：普通、银卡、金卡。
+P6 【钱经理】会员等级分三档：普通、银卡、金卡。
+P3 【赵总】预算先按十万走。
+"""
+
+
+def test_export_fail_closed_placeholder_on_missing_doc(store_with_run, tmp_path):
+    """四审阻断 1：引用指向不存在文档时，docx 显示占位而非原文。"""
+    ana_bad = {"node1": {"explicit_needs": [
+        {"id": "ENX", "content": "跨文档需求", "dids": ["D001"], "quote": ""}]},
+        "node2": {}}
+    bad_refs = [{"document_id": "不存在的文档-00000000-aa", "version_id": "v1"}]
+    rdir = storage.create_run("导出测试项目", bad_refs, "v1.7.1", "deepseek-chat")
+    storage.save_run_outputs(rdir, ana_bad, "# x", {}, None)
+    out = tmp_path / "bad.docx"
+    export_docx.export_run_docx("导出测试项目", rdir.name, str(out))
+    from docx import Document
+    text = _all_text(Document(str(out)))
+    assert "不可定位" in text   # 失败关闭：unresolved 显式呈现
+    # 需求清单表的 ENX 描述为 analysis 元数据（非引用原文），正常呈现
+
+
+def test_export_multidoc_both_v1_correct_attribution(store_with_run, tmp_path):
+    """四审阻断 2：两份文档都有 v1，导出引用仍指向正确原文。"""
+    doc2 = storage.add_document("导出测试项目", "第二家客户.md",
+                                "## 原始材料\n\nP1 【刘总】我们要做会员体系，预算十万。\n")
+    refs2 = [{"document_id": doc2["document"]["document_id"], "version_id": "v1"},
+             store_with_run["refs"][0]]
+    ana_md = {"node1": {"explicit_needs": [
+        {"id": "EN1", "content": "会员体系", "dids": ["D001"], "quote": ""}],
+        "competitor_signals": []}, "node2": {}}
+    rdir = storage.create_run("导出测试项目", refs2, "v1.7.1", "deepseek-chat")
+    storage.save_run_outputs(rdir, ana_md, "# md",
+                             storage.build_citations(ana_md, "导出测试项目", refs2), None)
+    out = tmp_path / "md.docx"
+    export_docx.export_run_docx("导出测试项目", rdir.name, str(out))
+    from docx import Document
+    text = _all_text(Document(str(out)))
+    assert "我们要做会员体系" in text                       # 正确文档的原文
+    assert "主要做汽车冲压件" not in text                   # 另一文档内容不串档
+
+
+def test_export_merged_paragraph_per_source(store_with_run, tmp_path):
+    """四审阻断 3：合并段引用逐段对应原文（P2 与 P6 各自的原文，非复制整段）。"""
+    doc3 = storage.add_document("导出测试项目", "会员讨论.md",
+                                "## 原始材料\n\n" + MERGED_MATERIAL.split("## 原始材料\n\n")[1])
+    refs3 = [{"document_id": doc3["document"]["document_id"], "version_id": "v1"}]
+    ana_m = {"node1": {"explicit_needs": [
+        {"id": "EN1", "content": "会员体系与分档", "dids": ["D002"], "quote": ""}],
+        "competitor_signals": []}, "node2": {}}
+    rdir = storage.create_run("导出测试项目", refs3, "v1.7.1", "deepseek-chat")
+    storage.save_run_outputs(rdir, ana_m, "# m",
+                             storage.build_citations(ana_m, "导出测试项目", refs3), None)
+    out = tmp_path / "m.docx"
+    export_docx.export_run_docx("导出测试项目", rdir.name, str(out))
+    from docx import Document
+    text = _all_text(Document(str(out)))
+    assert "【P2】" in text and "【P6】" in text            # 两个物理来源各自出现
+    assert "会员等级分三档" in text                          # 内容正确（脱敏文本）
+
+
+def test_export_friendly_file_name_and_priority_tier(store_with_run, tmp_path):
+    """四审改进 1/2：file_name 主展示；加权总分与档位展示（不重算）。"""
+    out = tmp_path / "e2.docx"
+    export_docx.export_run_docx("导出测试项目", store_with_run["run_id"], str(out))
+    from docx import Document
+    text = _all_text(Document(str(out)))
+    assert "客户会议.md（v1）" in text                       # file_name 主展示
+    lines = [ln for ln in text.splitlines() if "材料与版本" in ln or "客户会议.md（" in ln]
+    assert all("客户会议.md-10" not in ln for ln in lines)   # 元信息表不含长 document_id
+    assert "加权总分" in text and "档位" in text             # 优先级表头
+
+
+def test_export_blocks_not_done_run(store_with_run):
+    """四审改进 4：非 done 运行阻止导出。"""
+    refs = store_with_run["refs"]
+    r2 = storage.create_run("导出测试项目", refs, "v1.7.1", "deepseek-chat")   # status=running
+    with pytest.raises(ValueError, match="不允许导出"):
+        export_docx.export_run_docx("导出测试项目", r2.name)
+
+
+def test_export_unknown_prompt_version_displayed(store_with_run, tmp_path):
+    """四审改进 4：prompt_version=unknown 显示「未记录（历史数据缺失）」。"""
+    refs = store_with_run["refs"]
+    rdir = storage.create_run("导出测试项目", refs, "unknown", "deepseek-chat")
+    storage.save_run_outputs(rdir, ANALYSIS, "# x",
+                             storage.build_citations(ANALYSIS, "导出测试项目", refs), None)
+    out = tmp_path / "u.docx"
+    export_docx.export_run_docx("导出测试项目", rdir.name, str(out))
+    from docx import Document
+    text = _all_text(Document(str(out)))
+    assert "未记录（历史数据缺失）" in text
+
+
+# ---------- 四审补充：三类异常占位 / 多文档 v1 / 合并段 / 展示改进 ----------
+
+MERGED_MATERIAL = """## 原始材料
+
+P1 【赵总】我们要做会员体系。
+P2 【钱经理】会员等级分三档：普通、银卡、金卡。
+P6 【钱经理】会员等级分三档：普通、银卡、金卡。
+P3 【赵总】预算先按十万走。
+"""
+
+
+def test_export_fail_closed_placeholder_on_missing_doc(store_with_run, tmp_path):
+    """四审阻断 1：引用指向不存在文档时，docx 显示占位而非原文。"""
+    ana_bad = {"node1": {"explicit_needs": [
+        {"id": "ENX", "content": "跨文档需求", "dids": ["D001"], "quote": ""}]},
+        "node2": {}}
+    bad_refs = [{"document_id": "不存在的文档-00000000-aa", "version_id": "v1"}]
+    rdir = storage.create_run("导出测试项目", bad_refs, "v1.7.1", "deepseek-chat")
+    storage.save_run_outputs(rdir, ana_bad, "# x", {}, None)
+    out = tmp_path / "bad.docx"
+    export_docx.export_run_docx("导出测试项目", rdir.name, str(out))
+    from docx import Document
+    text = _all_text(Document(str(out)))
+    assert "不可定位" in text   # 失败关闭：unresolved 显式呈现
+    # 需求清单表的 ENX 描述为 analysis 元数据（非引用原文），正常呈现
+
+
+def test_export_multidoc_both_v1_correct_attribution(store_with_run, tmp_path):
+    """四审阻断 2：两份文档都有 v1，导出引用仍指向正确原文。"""
+    doc2 = storage.add_document("导出测试项目", "第二家客户.md",
+                                "## 原始材料\n\nP1 【刘总】我们要做会员体系，预算十万。\n")
+    refs2 = [{"document_id": doc2["document"]["document_id"], "version_id": "v1"},
+             store_with_run["refs"][0]]
+    ana_md = {"node1": {"explicit_needs": [
+        {"id": "EN1", "content": "会员体系", "dids": ["D001"], "quote": ""}],
+        "competitor_signals": []}, "node2": {}}
+    rdir = storage.create_run("导出测试项目", refs2, "v1.7.1", "deepseek-chat")
+    storage.save_run_outputs(rdir, ana_md, "# md",
+                             storage.build_citations(ana_md, "导出测试项目", refs2), None)
+    out = tmp_path / "md.docx"
+    export_docx.export_run_docx("导出测试项目", rdir.name, str(out))
+    from docx import Document
+    text = _all_text(Document(str(out)))
+    assert "我们要做会员体系" in text                       # 正确文档的原文
+    assert "主要做汽车冲压件" not in text                   # 另一文档内容不串档
+
+
+def test_export_merged_paragraph_per_source(store_with_run, tmp_path):
+    """四审阻断 3：合并段引用逐段对应原文（P2 与 P6 各自的原文，非复制整段）。"""
+    doc3 = storage.add_document("导出测试项目", "会员讨论.md",
+                                "## 原始材料\n\n" + MERGED_MATERIAL.split("## 原始材料\n\n")[1])
+    refs3 = [{"document_id": doc3["document"]["document_id"], "version_id": "v1"}]
+    ana_m = {"node1": {"explicit_needs": [
+        {"id": "EN1", "content": "会员体系与分档", "dids": ["D002"], "quote": ""}],
+        "competitor_signals": []}, "node2": {}}
+    rdir = storage.create_run("导出测试项目", refs3, "v1.7.1", "deepseek-chat")
+    storage.save_run_outputs(rdir, ana_m, "# m",
+                             storage.build_citations(ana_m, "导出测试项目", refs3), None)
+    out = tmp_path / "m.docx"
+    export_docx.export_run_docx("导出测试项目", rdir.name, str(out))
+    from docx import Document
+    text = _all_text(Document(str(out)))
+    assert "【P2】" in text and "【P6】" in text            # 两个物理来源各自出现
+    assert "会员等级分三档" in text                          # 内容正确（脱敏文本）
+
+
+def test_export_friendly_file_name_and_priority_tier(store_with_run, tmp_path):
+    """四审改进 1/2：file_name 主展示；加权总分与档位展示（不重算）。"""
+    out = tmp_path / "e2.docx"
+    export_docx.export_run_docx("导出测试项目", store_with_run["run_id"], str(out))
+    from docx import Document
+    text = _all_text(Document(str(out)))
+    assert "客户会议.md（v1）" in text                       # file_name 主展示
+    lines = [ln for ln in text.splitlines() if "材料与版本" in ln or "客户会议.md（" in ln]
+    assert all("客户会议.md-10" not in ln for ln in lines)   # 元信息表不含长 document_id
+    assert "加权总分" in text and "档位" in text             # 优先级表头
+
+
+def test_export_blocks_not_done_run(store_with_run):
+    """四审改进 4：非 done 运行阻止导出。"""
+    refs = store_with_run["refs"]
+    r2 = storage.create_run("导出测试项目", refs, "v1.7.1", "deepseek-chat")   # status=running
+    with pytest.raises(ValueError, match="不允许导出"):
+        export_docx.export_run_docx("导出测试项目", r2.name)
+
+
+def test_export_unknown_prompt_version_displayed(store_with_run, tmp_path):
+    """四审改进 4：prompt_version=unknown 显示「未记录（历史数据缺失）」。"""
+    refs = store_with_run["refs"]
+    rdir = storage.create_run("导出测试项目", refs, "unknown", "deepseek-chat")
+    storage.save_run_outputs(rdir, ANALYSIS, "# x",
+                             storage.build_citations(ANALYSIS, "导出测试项目", refs), None)
+    out = tmp_path / "u.docx"
+    export_docx.export_run_docx("导出测试项目", rdir.name, str(out))
+    from docx import Document
+    text = _all_text(Document(str(out)))
+    assert "未记录（历史数据缺失）" in text
+
+
+def test_export_partially_missing_version_recorded_not_silent(store_with_run, tmp_path):
+    """六审阻断 4：部分版本不可定位时显式记录 unresolved，不静默过滤成看似完整。"""
+    ana = {"node1": {"explicit_needs": [
+        {"id": "EN1", "content": "会员体系", "dids": ["D001"], "quote": ""}],
+        "competitor_signals": []}, "node2": {}}
+    refs_mixed = [{"document_id": "幽灵文档-00000000-aa", "version_id": "v1"},
+                  store_with_run["refs"][0]]
+    rdir = storage.create_run("导出测试项目", refs_mixed, "v1.7.1", "deepseek-chat")
+    storage.save_run_outputs(rdir, ana, "# x", {}, None)
+    out = tmp_path / "mixed.docx"
+    export_docx.export_run_docx("导出测试项目", rdir.name, str(out))
+    from docx import Document
+    text = _all_text(Document(str(out)))
+    assert "不可定位" in text                      # 缺失来源显式呈现
+    assert "幽灵文档-00000000-aa" in text          # 指明是哪个来源缺失
+
+
+def test_export_multidoc_same_pd_codes_no_crosstalk(store_with_run, tmp_path):
+    """六审阻断 4：两文档相同 P/D 编号（都从 D001/P1 开始），引用不串档。"""
+    doc2 = storage.add_document("导出测试项目", "第二家客户.md",
+                                "## 原始材料\n\nP1 【刘总】我们要做会员积分体系。\n")
+    refs2 = [{"document_id": doc2["document"]["document_id"], "version_id": "v1"},
+             store_with_run["refs"][0]]
+    ana_md = {"node1": {"explicit_needs": [
+        {"id": "EN1", "content": "会员积分体系", "dids": ["D001"], "quote": ""},
+        {"id": "EN2", "content": "看板当天可见", "dids": ["D003"], "quote": ""}],
+        "competitor_signals": []}, "node2": {}}
+    rdir = storage.create_run("导出测试项目", refs2, "v1.7.1", "deepseek-chat")
+    storage.save_run_outputs(rdir, ana_md, "# md",
+                             storage.build_citations(ana_md, "导出测试项目", refs2), None)
+    out = tmp_path / "md2.docx"
+    export_docx.export_run_docx("导出测试项目", rdir.name, str(out))
+    from docx import Document
+    d = Document(str(out))
+    text = _all_text(d)
+    assert "会员积分体系" in text and "主要做汽车冲压件" not in text
+    # 引用逐段对应：EN1（D001）取第二家客户的原文，EN2（D003）取第一家客户的原文
+    assert "我们要做会员积分体系" in text
+    assert "【P3】" in text and "想要个实时看板" in text   # 第一家客户 D003 的原文（P3）
+
+
+def test_export_partially_missing_version_recorded_not_silent(store_with_run, tmp_path):
+    """六审阻断 4：部分版本不可定位时显式记录 unresolved，不静默过滤成看似完整。"""
+    ana = {"node1": {"explicit_needs": [
+        {"id": "EN1", "content": "会员体系", "dids": ["D001"], "quote": ""}],
+        "competitor_signals": []}, "node2": {}}
+    refs_mixed = [{"document_id": "幽灵文档-00000000-aa", "version_id": "v1"},
+                  store_with_run["refs"][0]]
+    rdir = storage.create_run("导出测试项目", refs_mixed, "v1.7.1", "deepseek-chat")
+    storage.save_run_outputs(rdir, ana, "# x", {}, None)
+    out = tmp_path / "mixed.docx"
+    export_docx.export_run_docx("导出测试项目", rdir.name, str(out))
+    from docx import Document
+    text = _all_text(Document(str(out)))
+    assert "不可定位" in text                      # 缺失来源显式呈现
+    assert "幽灵文档-00000000-aa" in text          # 指明是哪个来源缺失
+
+
+def test_export_multidoc_same_pd_codes_no_crosstalk(store_with_run, tmp_path):
+    """六审阻断 4：两文档相同 P/D 编号（都从 D001/P1 开始），引用不串档。"""
+    doc2 = storage.add_document("导出测试项目", "第二家客户.md",
+                                "## 原始材料\n\nP1 【刘总】我们要做会员积分体系。\n")
+    refs2 = [{"document_id": doc2["document"]["document_id"], "version_id": "v1"},
+             store_with_run["refs"][0]]
+    ana_md = {"node1": {"explicit_needs": [
+        {"id": "EN1", "content": "会员积分体系", "dids": ["D001"], "quote": ""},
+        {"id": "EN2", "content": "看板当天可见", "dids": ["D003"], "quote": ""}],
+        "competitor_signals": []}, "node2": {}}
+    rdir = storage.create_run("导出测试项目", refs2, "v1.7.1", "deepseek-chat")
+    storage.save_run_outputs(rdir, ana_md, "# md",
+                             storage.build_citations(ana_md, "导出测试项目", refs2), None)
+    out = tmp_path / "md2.docx"
+    export_docx.export_run_docx("导出测试项目", rdir.name, str(out))
+    from docx import Document
+    d = Document(str(out))
+    text = _all_text(d)
+    assert "会员积分体系" in text and "主要做汽车冲压件" not in text
+    # 引用逐段对应：EN1（D001）取第二家客户的原文，EN2（D003）取第一家客户的原文
+    assert "我们要做会员积分体系" in text
+    assert "【P3】" in text and "想要个实时看板" in text   # 第一家客户 D003 的原文（P3）
