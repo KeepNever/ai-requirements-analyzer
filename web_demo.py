@@ -16,7 +16,7 @@ import time
 import uuid
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
-from urllib.parse import unquote, urlparse
+from urllib.parse import unquote, urlparse, quote as url_quote
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(PROJECT_ROOT / "src"))
@@ -25,6 +25,7 @@ from pipeline import cleaner  # noqa: E402
 from pipeline import workflow as wf  # noqa: E402
 import storage  # noqa: E402
 import retrieval  # noqa: E402
+import export_docx  # noqa: E402
 
 
 def _safe_pid(pid) -> str:
@@ -476,7 +477,8 @@ fetch('/api/project/'+encodeURIComponent(PID)).then(r=>r.json()).then(function(t
   document.getElementById('runs').innerHTML = t.runs.length ? t.runs.map(function(r){
     var badge = r.status==='done' ? '<span class="pill p-ok">done</span>' : '<span class="pill p-mid">'+esc(r.status)+'</span>';
     var links = '　<a class="back" href="/pipeline/'+encodeURIComponent(r.project_id)+'">流水线</a>'
-      + (r.report_exists ? '　<a class="back" href="/report/'+encodeURIComponent(r.project_id)+'">报告</a>' : '');
+      + (r.report_exists ? '　<a class="back" href="/report/'+encodeURIComponent(r.project_id)+'">报告</a>' : '')
+      + '　<a class="back" href="/export/docx/'+encodeURIComponent(r.project_id)+'/'+encodeURIComponent(r.run_id)+'">导出 Word</a>';
     return '<div style="padding:8px 0;border-bottom:1px solid var(--line);font-size:13px">'
       + '<b style="color:var(--blues)">'+esc(r.run_id)+'</b> '+badge
       + '　Prompt '+esc(r.prompt_version||'unknown')
@@ -933,6 +935,23 @@ class Handler(BaseHTTPRequestHandler):
                 runs.append({"run_id": r["run_id"], "status": r.get("status")})
             self._json({"documents": tree["documents"], "explicit_needs": needs,
                         "recent_runs": runs})
+        elif path.startswith("/export/docx/"):
+            _, rest = path.split("/export/docx/", 1)
+            pid, run_id = rest.split("/", 1)
+            try:
+                data = export_docx.export_run_docx(pid, run_id)
+            except ValueError as e:
+                self._send("<h1>" + html.escape(str(e)) + "</h1><p><a href='/library'>返回资料库</a></p>", 404)
+                return
+            fname = f"分析报告_{pid}_{run_id}.docx"
+            self.send_response(200)
+            self.send_header("Content-Type",
+                             "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+            self.send_header("Content-Disposition",
+                             "attachment; filename*=UTF-8''" + url_quote(fname))
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
         elif path.startswith("/api/version/"):
             _, rest = path.split("/api/version/", 1)
             pid, doc_id, vid = rest.split("/", 2)
