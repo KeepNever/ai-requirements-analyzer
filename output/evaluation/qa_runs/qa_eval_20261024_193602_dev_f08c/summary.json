@@ -1,0 +1,19 @@
+{
+  "split": "DEV",
+  "run_ts": "20261024_193602",
+  "mock": false,
+  "total_questions": 1,
+  "refuse_judgement_accuracy": 0.0,
+  "citation_valid_rate": 1.0,
+  "retrieval_recall_mean": 1.0,
+  "citation_hit_rate_mean": 0.0,
+  "all_evidence_hit_rate": 1.0,
+  "multi_turn_count": 0,
+  "by_category": {
+    "single_fact": {
+      "count": 1,
+      "refuse_judgement_ok": 0,
+      "invalid_free": 1
+    }
+  }
+}

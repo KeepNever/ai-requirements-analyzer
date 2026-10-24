@@ -161,6 +161,11 @@ HOME_PAGE = """<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">
   <span style="font-size:13px;color:var(--muted)">或上传文件：</span>
   <input type="file" id="file" accept=".md,.txt">
   <button class="ghost" id="btnClean" onclick="doClean()">① 清洗预览（免费·秒出）</button>
+  <span style="font-size:13px;color:var(--muted)">场景：</span>
+  <select id="scene" style="border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:13px;background:#fff">
+    <option value="presale">售前需求分析</option>
+    <option value="service_diagnosis">学员服务诊断</option>
+  </select>
   <button id="btnRun" onclick="doRun()" disabled>② 运行完整分析（约 0.3 元）</button>
 </div>
 <div class="err" id="err"></div>
@@ -232,11 +237,14 @@ function doRun() {
   var t = document.getElementById('mat').value.trim();
   var b = document.getElementById('btnRun');
   b.disabled = true; b.textContent = '分析中…（1~2 分钟，请勿关闭）';
+  var scene = document.getElementById('scene') ? document.getElementById('scene').value : 'presale';
   fetch('/run-text', { method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ material: t }) })
+    body: JSON.stringify({ material: t, scene: scene }) })
   .then(function(r){ return r.json().then(function(d){ return { status:r.status, d:d }; }); })
   .then(function(x) {
-    if (x.status === 200 && x.d.case) { window.location.href = '/pipeline/' + encodeURIComponent(x.d.case); }
+    if (x.status === 200 && x.d.scene === 'service_diagnosis') {
+      window.location.href = '/library/' + encodeURIComponent(x.d.case);
+    } else if (x.status === 200 && x.d.case) { window.location.href = '/pipeline/' + encodeURIComponent(x.d.case); }
     else { showErr(x.d.error || '运行失败'); b.disabled = false; b.textContent = '② 运行完整分析（约 0.3 元）'; }
   })
   .catch(function(e){ showErr('请求失败：' + e); b.disabled = false; });
@@ -1041,8 +1049,15 @@ class Handler(BaseHTTPRequestHandler):
                     self._json({"error": "材料为空"}, 400)
                     return
                 stem = save_material(material)
-                wf.run_case(str(UPLOAD_DIR / f"{stem}.md"), mock=False)
-                self._json({"case": stem})
+                scene = (payload.get("scene") or "presale").strip()
+                if scene == "service_diagnosis":
+                    from scene_runner import run_scene_case
+                    rdir = run_scene_case(str(UPLOAD_DIR / f"{stem}.md"),
+                                          scene=scene, mock=False)
+                    self._json({"case": stem, "scene": scene, "run_id": rdir.name})
+                else:
+                    wf.run_case(str(UPLOAD_DIR / f"{stem}.md"), mock=False)
+                    self._json({"case": stem})
             except Exception as e:  # noqa: BLE001
                 self._json({"error": f"{type(e).__name__}: {e}"}, 500)
             return
