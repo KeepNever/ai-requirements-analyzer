@@ -221,9 +221,21 @@ def answer_question(project_id: str, version_refs: list, question: str,
              "content": f"【材料段落】\n{material_block}\n{material_note}\n\n【问题】{question}\n\n"
                         "（注：若问题中的代词指代此前轮次的内容，请结合对话历史理解；"
                         "回答须以材料段落或对话历史中已出现的 D 编号为引用依据）"}]
-        text = llm_client.chat(messages, json_mode=True, node="QA")
-        usage = llm_client.usage_summary()
-        raw = json.loads(text)
+        try:
+            text = llm_client.chat(messages, json_mode=True, node="QA")
+            usage = llm_client.usage_summary()
+            raw = json.loads(text)
+            llm_failed = False
+            fail_reason = ""
+        except Exception as e:  # noqa: BLE001
+            # FAILED 语义（MP-OS 借鉴）：系统故障必须与「材料无相关信息」严格区分，
+            # 故障不得伪装成诚实拒答
+            raw = {"answer": f"系统暂时无法完成分析（{type(e).__name__}），请稍后重试。"
+                             "这不是材料中缺少相关信息，而是服务故障。",
+                   "cited_dids": [], "sufficient": False}
+            usage = None
+            llm_failed = True
+            fail_reason = f"{type(e).__name__}: {e}"
 
     # 4. EVD-01 引用真实性校验：可引用范围 = 材料池（小材料=全量；大材料=命中/回落段落）
     provided_hit_dids = {m["did"] for m in material_pool}
@@ -250,9 +262,20 @@ def answer_question(project_id: str, version_refs: list, question: str,
                                                       if d in did2pair and d in seg_by_did],
                               "source_excerpts": excerpts,
                               "citation_reason": "支撑问答结论"})
+    # EVD 三态语义（MP-OS 借鉴）：GROUNDED（有据）/ NO_EVIDENCE（诚实无命中，合法产物）
+    # / FAILED（系统故障，不得伪装成无依据）——故障与无依据严格分离
+    if mock:
+        evidence_status = "GROUNDED" if cited else "NO_EVIDENCE"
+    elif llm_failed:
+        evidence_status = "FAILED"
+    elif cited:
+        evidence_status = "GROUNDED"
+    else:
+        evidence_status = "NO_EVIDENCE"
     result = {"project_id": project_id, "question": question,
               "answer": raw.get("answer", ""), "sufficient": sufficient,
               "cited_dids": cited, "invalid_dids": invalid,
+              "evidence_status": evidence_status,
               "hits": [{"did": h["did"], "score": h["score"]} for h in hits],
               "provided_dids": sorted(provided_hit_dids),   # 实际提供给 LLM 的证据集（评测召回用）
               "citations": citations,
@@ -269,7 +292,9 @@ def answer_question(project_id: str, version_refs: list, question: str,
                  "elapsed": {"search": round(elapsed_search, 3),
                              "llm": round(elapsed_llm, 3)},
                  "usage": usage,
-                 "cited": cited, "invalid": invalid}
+                 "cited": cited, "invalid": invalid,
+                 "evidence_status": evidence_status,
+                 "fail_reason": fail_reason if not mock else ""}
         if not mock:
             trace["llm_messages"] = messages     # 含材料块与历史轮（不含凭证）
             trace["raw"] = raw                   # EVD-01 校验前的模型原始输出
