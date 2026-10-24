@@ -180,9 +180,17 @@ def test_historical_run_export_matches_its_own_data(store_with_run, tmp_path, mo
     ana2["node2"]["capability_match"][0]["target"] = "EN1 第二版：移动端看板覆盖"
     ana2["node2"]["priority_dimensions"][0]["id"] = "EN1v2"
     ana2["node2"]["potential_needs"][0]["content"] = "第二版推断：离线缓存"
+    ana2["priority"][0]["content"] = "第二版需求：移动端看板"
+    ana2["priority"][0]["reason"] = "第二版评分依据"
+    ana2["priority"][0]["content"] = "第二版需求：移动端看板"
+    ana2["priority"][0]["reason"] = "第二版评分依据"
     ana2["node2"]["capability_match"][0]["target"] = "EN1 第二版：移动端看板覆盖"
     ana2["node2"]["priority_dimensions"][0]["id"] = "EN1v2"
     ana2["node2"]["potential_needs"][0]["content"] = "第二版推断：离线缓存"
+    ana2["priority"][0]["content"] = "第二版需求：移动端看板"
+    ana2["priority"][0]["reason"] = "第二版评分依据"
+    ana2["priority"][0]["content"] = "第二版需求：移动端看板"
+    ana2["priority"][0]["reason"] = "第二版评分依据"
     rdir2 = storage.create_run("导出测试项目", refs, "v1.7.1", "deepseek-chat")
     storage.save_run_outputs(rdir2, ana2, "# v2 报告",
                              storage.build_citations(ana2, "导出测试项目", refs), None)

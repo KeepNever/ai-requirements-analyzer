@@ -79,7 +79,8 @@ def _set_cn_font(doc: Document) -> None:
     style.element.rPr.rFonts.set(qn("w:eastAsia"), "宋体")
 
 
-def _add_table(doc: Document, headers: list, rows: list) -> None:
+def _add_table(doc: Document, headers: list, rows: list,
+               col_widths: list | None = None) -> None:
     t = doc.add_table(rows=1, cols=len(headers))
     t.style = "Table Grid"
     for i, h in enumerate(headers):
@@ -91,6 +92,9 @@ def _add_table(doc: Document, headers: list, rows: list) -> None:
         cells = t.add_row().cells
         for i, v in enumerate(row):
             cells[i].text = str(v)
+    if col_widths:
+        _set_col_widths(t, col_widths)
+    _no_split_rows(t)        # 单条记录不跨页断开
     _repeat_header(t)
     doc.add_paragraph()
 
@@ -102,6 +106,26 @@ def _file_name_of(project_id: str, document_id: str) -> str:
     if doc_file.exists():
         return storage._read_json(doc_file).get("file_name", document_id)
     return document_id
+
+
+
+def _no_split_rows(table) -> None:
+    """表格行禁止跨页断开（视觉验收：避免单条记录被切断成残片）。"""
+    from docx.oxml import OxmlElement
+    for row in table.rows:
+        trPr = row._tr.get_or_add_trPr()
+        cs = OxmlElement("w:cantSplit")
+        trPr.append(cs)
+
+
+def _set_col_widths(table, widths_cm: list) -> None:
+    """显式列宽（cm 列表），按内容性质分配而不是均分挤爆。"""
+    from docx.shared import Cm
+    table.autofit = False
+    for row in table.rows:
+        for i, w in enumerate(widths_cm):
+            if i < len(row.cells):
+                row.cells[i].width = Cm(w)
 
 
 def _repeat_header(table) -> None:
@@ -157,7 +181,8 @@ def export_run_docx(project_id: str, run_id: str, out_path: str | None = None) -
     pv_display = "未记录（历史数据缺失）" if pv == "unknown" else pv
     _add_table(doc, ["项目", "分析运行 ID", "材料与版本", "Prompt 版本", "生成时间"], [[
         project_id, meta.get("run_id", run_id), materials,
-        pv_display, str(meta.get("created_at", "unknown"))]])
+        pv_display, str(meta.get("created_at", "unknown"))]],
+        col_widths=[2.8, 4.0, 5.2, 2.2, 2.0])
 
     # ── 一、客户背景与业务目标 ──
     doc.add_heading("一、客户背景与业务目标", level=1)
@@ -175,7 +200,8 @@ def export_run_docx(project_id: str, run_id: str, out_path: str | None = None) -
     ens = n1.get("explicit_needs") or []
     if ens:
         _add_table(doc, ["编号", "需求", "引用段落（D 编号）"],
-                   [[e.get("id"), e.get("content"), "、".join(e.get("dids", []))] for e in ens])
+                   [[e.get("id"), e.get("content"), "、".join(e.get("dids", []))] for e in ens],
+                   col_widths=[1.4, 10.2, 4.4])
     else:
         doc.add_paragraph("（本运行数据中无显性需求数据）")
 
@@ -185,16 +211,23 @@ def export_run_docx(project_id: str, run_id: str, out_path: str | None = None) -
     if not isinstance(pri_final, list):
         pri_final = []   # 旧结构（如 {"top": "EN1"}）无逐条加权数据，降级用维度表
     if pri_final:
-        _add_table(doc, ["编号", "影响面", "紧迫度", "覆盖度", "信号强度", "加权总分", "档位", "评分依据"],
+        # 3.1 评分汇总表：纯数值列，紧凑易横向比较（视觉验收：依据不再塞窄单元格）
+        _add_table(doc, ["编号", "影响面", "紧迫度", "覆盖度", "信号强度", "加权总分", "档位"],
                    [[p.get("id"), p.get("impact"), p.get("urgency"), p.get("coverage"),
-                     p.get("signal"), p.get("weighted"), p.get("tier"), p.get("reason", "")]
-                    for p in pri_final])
+                     p.get("signal"), p.get("weighted"), p.get("tier")] for p in pri_final],
+                   col_widths=[2.0, 2.2, 2.2, 2.2, 2.2, 2.4, 1.6])
+        # 3.2 逐需求评分依据：独立小标题 + 正文，长文本正常阅读
+        doc.add_heading("评分依据（逐需求）", level=2)
+        for p in pri_final:
+            doc.add_heading(f"{p.get('id')}　{p.get('content', '')}", level=3)
+            doc.add_paragraph(p.get("reason", ""))
     else:
         pds = n2.get("priority_dimensions") or []
         if pds:
-            _add_table(doc, ["编号", "影响面", "紧迫度", "覆盖度", "信号强度", "评分依据"],
-                       [[p.get("id"), p.get("impact"), p.get("urgency"),
-                         p.get("coverage"), p.get("signal"), p.get("reason", "")] for p in pds])
+            doc.add_heading("评分依据（逐需求）", level=2)
+            for p in pds:
+                doc.add_heading(f"{p.get('id')}", level=3)
+                doc.add_paragraph(p.get("reason", ""))
         else:
             doc.add_paragraph("（本运行数据中无优先级评分数据）")
 
@@ -203,7 +236,8 @@ def export_run_docx(project_id: str, run_id: str, out_path: str | None = None) -
     cms = n2.get("capability_match") or []
     if cms:
         _add_table(doc, ["需求", "判定", "依据"],
-                   [[c.get("target"), c.get("verdict"), c.get("reason", "")] for c in cms])
+                   [[c.get("target"), c.get("verdict"), c.get("reason", "")] for c in cms],
+                   col_widths=[5.0, 1.8, 9.2])
     else:
         doc.add_paragraph("（本运行数据中无能力匹配数据）")
 
@@ -213,7 +247,8 @@ def export_run_docx(project_id: str, run_id: str, out_path: str | None = None) -
     if pns:
         _add_table(doc, ["编号", "潜在需求", "推断依据", "置信度"],
                    [[p.get("id"), p.get("content"), p.get("reasoning", ""), p.get("confidence", "")]
-                    for p in pns])
+                    for p in pns],
+                   col_widths=[1.4, 4.6, 8.4, 1.6])
     else:
         doc.add_paragraph("（本运行数据中无潜在需求数据）")
 
@@ -223,7 +258,8 @@ def export_run_docx(project_id: str, run_id: str, out_path: str | None = None) -
     if pcs:
         _add_table(doc, ["缺口", "等级", "影响", "建议追问"],
                    [[p.get("gap"), p.get("level"), p.get("impact", ""), p.get("question", "")]
-                    for p in pcs])
+                    for p in pcs],
+                   col_widths=[3.6, 1.4, 4.6, 6.4])
     else:
         doc.add_paragraph("（本运行数据中无待确认事项）")
 
@@ -260,7 +296,7 @@ def export_run_docx(project_id: str, run_id: str, out_path: str | None = None) -
             cid = u.get("conclusion_id")
             label = cid if cid not in (None, "") else f"{u.get('conclusion_type')}#{i}"
             rows.append([u.get("conclusion_type"), label, u.get("reason", "")])
-        _add_table(doc, ["类型", "结论", "原因"], rows)
+        _add_table(doc, ["类型", "结论", "原因"], rows, col_widths=[3.0, 4.4, 8.6])
     else:
         doc.add_paragraph("本运行全部结论均有结构化引用支撑。")
 
