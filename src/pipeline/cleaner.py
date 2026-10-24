@@ -101,6 +101,8 @@ def _auto_number_lines(raw_material: str) -> str:
             continue
         if re.fullmatch(r"[（(]\s*时间[:：].*?[)）]", line):   # 纯时间戳行
             continue
+        if line.startswith("#") or line.startswith(">"):       # md 文档头/引用说明（元数据不进正文）
+            continue
         seq += 1
         out.append(f"P{seq} {line}")
     return "\n\n".join(out)
