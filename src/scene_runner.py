@@ -39,9 +39,17 @@ def run_scene_case(material_path: str, scene: str = "service_diagnosis",
     pid = storage.slug(pname)
     if not storage.get_project(pid):
         storage.create_project(pid)
-    doc = storage.add_document(pid, material_path.name,
-                               material_path.read_text(encoding="utf-8"))
-    refs = [{"document_id": doc["document"]["document_id"], "version_id": "v1"}]
+    try:
+        doc = storage.add_document(pid, material_path.name,
+                                   material_path.read_text(encoding="utf-8"))
+        doc_id = doc["document"]["document_id"]
+    except ValueError as e:
+        if "重复" not in str(e):
+            raise
+        # 同内容文档已存在：复用其当前版本（重跑同一材料不新建）
+        tree = storage.get_project_tree(pid)
+        doc_id = tree["documents"][0]["document_id"]
+    refs = [{"document_id": doc_id, "version_id": "v1"}]
 
     # 3. 运行（meta 带 scene 标识——场景隔离的锚点）
     rdir = storage.create_run(pid, refs, SD_PROMPT_VERSION, "deepseek-chat")
