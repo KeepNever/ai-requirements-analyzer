@@ -169,6 +169,10 @@ def export_run_docx(project_id: str, run_id: str, out_path: str | None = None) -
 
     doc = Document()
     _set_cn_font(doc)
+    from docx.shared import Cm as _Cm
+    for sec in doc.sections:            # 页心 17cm（21 - 2x2），宽表格不越界
+        sec.left_margin = _Cm(2)
+        sec.right_margin = _Cm(2)
     _add_footer_page_number(doc)
 
     # ── 封面元信息（四审改进 1/4：file_name 主展示；unknown 显示历史缺失）──
@@ -182,7 +186,7 @@ def export_run_docx(project_id: str, run_id: str, out_path: str | None = None) -
     _add_table(doc, ["项目", "分析运行 ID", "材料与版本", "Prompt 版本", "生成时间"], [[
         project_id, meta.get("run_id", run_id), materials,
         pv_display, str(meta.get("created_at", "unknown"))]],
-        col_widths=[2.8, 4.0, 5.2, 2.2, 2.0])
+        col_widths=[2.6, 3.8, 5.0, 2.8, 2.8])
 
     # ── 一、客户背景与业务目标 ──
     doc.add_heading("一、客户背景与业务目标", level=1)
@@ -201,7 +205,7 @@ def export_run_docx(project_id: str, run_id: str, out_path: str | None = None) -
     if ens:
         _add_table(doc, ["编号", "需求", "引用段落（D 编号）"],
                    [[e.get("id"), e.get("content"), "、".join(e.get("dids", []))] for e in ens],
-                   col_widths=[1.4, 10.2, 4.4])
+                   col_widths=[1.4, 11.2, 4.4])
     else:
         doc.add_paragraph("（本运行数据中无显性需求数据）")
 
@@ -215,7 +219,7 @@ def export_run_docx(project_id: str, run_id: str, out_path: str | None = None) -
         _add_table(doc, ["编号", "影响面", "紧迫度", "覆盖度", "信号强度", "加权总分", "档位"],
                    [[p.get("id"), p.get("impact"), p.get("urgency"), p.get("coverage"),
                      p.get("signal"), p.get("weighted"), p.get("tier")] for p in pri_final],
-                   col_widths=[2.0, 2.2, 2.2, 2.2, 2.2, 2.4, 1.6])
+                   col_widths=[2.0, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5])
         # 3.2 逐需求评分依据：独立小标题 + 正文，长文本正常阅读
         doc.add_heading("评分依据（逐需求）", level=2)
         for p in pri_final:
@@ -237,7 +241,7 @@ def export_run_docx(project_id: str, run_id: str, out_path: str | None = None) -
     if cms:
         _add_table(doc, ["需求", "判定", "依据"],
                    [[c.get("target"), c.get("verdict"), c.get("reason", "")] for c in cms],
-                   col_widths=[5.0, 1.8, 9.2])
+                   col_widths=[5.0, 1.8, 10.2])
     else:
         doc.add_paragraph("（本运行数据中无能力匹配数据）")
 
@@ -248,7 +252,7 @@ def export_run_docx(project_id: str, run_id: str, out_path: str | None = None) -
         _add_table(doc, ["编号", "潜在需求", "推断依据", "置信度"],
                    [[p.get("id"), p.get("content"), p.get("reasoning", ""), p.get("confidence", "")]
                     for p in pns],
-                   col_widths=[1.4, 4.6, 8.4, 1.6])
+                   col_widths=[1.4, 4.6, 9.0, 2.0])
     else:
         doc.add_paragraph("（本运行数据中无潜在需求数据）")
 
@@ -259,7 +263,7 @@ def export_run_docx(project_id: str, run_id: str, out_path: str | None = None) -
         _add_table(doc, ["缺口", "等级", "影响", "建议追问"],
                    [[p.get("gap"), p.get("level"), p.get("impact", ""), p.get("question", "")]
                     for p in pcs],
-                   col_widths=[3.6, 1.4, 4.6, 6.4])
+                   col_widths=[3.6, 1.4, 4.8, 7.2])
     else:
         doc.add_paragraph("（本运行数据中无待确认事项）")
 
@@ -296,7 +300,7 @@ def export_run_docx(project_id: str, run_id: str, out_path: str | None = None) -
             cid = u.get("conclusion_id")
             label = cid if cid not in (None, "") else f"{u.get('conclusion_type')}#{i}"
             rows.append([u.get("conclusion_type"), label, u.get("reason", "")])
-        _add_table(doc, ["类型", "结论", "原因"], rows, col_widths=[3.0, 4.4, 8.6])
+        _add_table(doc, ["类型", "结论", "原因"], rows, col_widths=[3.0, 4.4, 9.6])
     else:
         doc.add_paragraph("本运行全部结论均有结构化引用支撑。")
 
