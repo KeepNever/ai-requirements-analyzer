@@ -1000,6 +1000,109 @@ def build_questions_page(name: str) -> tuple[str, int]:
     return body, 200
 
 
+def app_html() -> str:
+    """正式前端（webapp/index.html，由原型转正）；缺失时给出提示页。"""
+    f = PROJECT_ROOT / "webapp" / "index.html"
+    if f.exists():
+        return f.read_text(encoding="utf-8")
+    return "<h1>webapp/index.html 缺失</h1><p>请确认文件存在后重启服务。</p>"
+
+
+def _pending_count(analysis: dict) -> int:
+    node2 = (analysis or {}).get("node2") or {}
+    return len(node2.get("pending_confirmations") or [])
+
+
+def load_report_payload(name: str):
+    """统一报告数据源：入库项目（projects/）优先，其次案例（output/），再按 run_id 反查。"""
+    def project_payload(pid: str, run_id: str):
+        rdir = PROJECT_ROOT / "projects" / pid / "analysis_runs" / run_id
+        ana = rdir / "analysis.json"
+        a = json.loads(ana.read_text(encoding="utf-8"))
+        rep_md = rdir / "report.md"
+        return {"source": "project", "name": pid, "run_id": run_id, "analysis": a,
+                "report_md": rep_md.read_text(encoding="utf-8") if rep_md.exists() else "",
+                "export_url": f"/export/docx/{url_quote(pid)}/{run_id}"}
+
+    pdir = PROJECT_ROOT / "projects" / name
+    runs_dir = pdir / "analysis_runs"
+    if runs_dir.exists():
+        for rdir in sorted(runs_dir.glob("run*"), reverse=True):
+            if (rdir / "analysis.json").exists():
+                return project_payload(name, rdir.name)
+
+    out = PROJECT_ROOT / "output" / name
+    if (out / "analysis.json").exists():
+        a = json.loads((out / "analysis.json").read_text(encoding="utf-8"))
+        rep_md = out / "report.md"
+        return {"source": "case", "name": name, "run_id": name, "analysis": a,
+                "report_md": rep_md.read_text(encoding="utf-8") if rep_md.exists() else "",
+                "export_url": None}
+
+    projects_root = PROJECT_ROOT / "projects"
+    if projects_root.exists():
+        for cand in projects_root.glob(f"*/analysis_runs/{name}"):
+            if (cand / "analysis.json").exists():
+                return project_payload(cand.parent.parent.name, name)
+    return None
+
+
+def strip_sales_report(payload: dict) -> dict:
+    """销售只拿追问数据，完整分析不下发。"""
+    node2 = (payload.get("analysis") or {}).get("node2") or {}
+    return {"source": payload.get("source"), "name": payload.get("name"),
+            "run_id": payload.get("run_id"),
+            "questions": node2.get("pending_confirmations", [])}
+
+
+def build_overview() -> list:
+    """工作台总览：入库项目（projects/）+ 快速案例（output/），按更新时间倒序。"""
+    items = []
+    for entry in storage.list_projects():
+        pid, meta = entry[0], entry[1] if len(entry) > 1 else {}
+        pdir = PROJECT_ROOT / "projects" / pid
+        runs_dir = pdir / "analysis_runs"
+        runs = sorted(runs_dir.glob("run*")) if runs_dir.exists() else []
+        questions = 0
+        for rdir in reversed(runs):
+            ana = rdir / "analysis.json"
+            if ana.exists():
+                try:
+                    questions = _pending_count(json.loads(ana.read_text(encoding="utf-8")))
+                except (json.JSONDecodeError, OSError):
+                    pass
+                break
+        doc_json = pdir / "doc.json"
+        mtime = runs[-1].stat().st_mtime if runs else (doc_json.stat().st_mtime if doc_json.exists() else time.time())
+        name = meta.get("name", pid) if isinstance(meta, dict) else str(meta)
+        items.append({"id": pid, "name": name, "source": "project", "questions": questions,
+                      "updated_ts": mtime,
+                      "updated": time.strftime("%m-%d %H:%M", time.localtime(mtime)),
+                      "runs": len(runs)})
+    out = PROJECT_ROOT / "output"
+    if out.exists():
+        for d in sorted(out.iterdir()):
+            if not d.is_dir() or d.name == "evaluation":
+                continue
+            rep_md = d / "report.md"
+            if not rep_md.exists():
+                continue
+            questions = 0
+            ana = d / "analysis.json"
+            if ana.exists():
+                try:
+                    questions = _pending_count(json.loads(ana.read_text(encoding="utf-8")))
+                except (json.JSONDecodeError, OSError):
+                    pass
+            mtime = rep_md.stat().st_mtime
+            items.append({"id": d.name, "name": d.name, "source": "case", "questions": questions,
+                          "updated_ts": mtime,
+                          "updated": time.strftime("%m-%d %H:%M", time.localtime(mtime)),
+                          "runs": 1})
+    items.sort(key=lambda x: -x["updated_ts"])
+    return items
+
+
 def render(template: str, **kw: str) -> str:
     body = template
     for k, v in kw.items():
@@ -1016,8 +1119,23 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
-    def _json(self, obj, code: int = 200):
-        self._send(json.dumps(obj, ensure_ascii=False), code, "application/json; charset=utf-8")
+    def _json(self, obj, code: int = 200, cookie: str | None = None):
+        body = json.dumps(obj, ensure_ascii=False).encode("utf-8")
+        self.send_response(code)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        if cookie:
+            self.send_header("Set-Cookie", cookie)
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _json_body(self) -> dict:
+        length = int(self.headers.get("Content-Length", 0))
+        try:
+            data = json.loads(self.rfile.read(length).decode("utf-8"))
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            return {}
+        return data if isinstance(data, dict) else {}
 
     def _redirect(self, target: str, cookie: str | None = None):
         self.send_response(303)
@@ -1041,6 +1159,11 @@ class Handler(BaseHTTPRequestHandler):
 
         if path == "/logout":
             self._redirect("/login", auth.clear_session_cookie())
+            return
+
+        # 正式前端（SPA）：登录态由前端经 /api/me 判断，此处直接放行
+        if path in ("/", "/app"):
+            self._send(app_html())
             return
 
         # 未登录：登录/注册可访问；API 返回 401；页面统一跳登录
@@ -1097,6 +1220,22 @@ class Handler(BaseHTTPRequestHandler):
                               created=html.escape(tree["project"].get("created_at", "")),
                               pid=json.dumps(pid, ensure_ascii=False),
                               role=user["role"]), "library"))
+        elif path == "/api/me":
+            self._json(user)
+        elif path == "/api/overview":
+            self._json(build_overview())
+        elif path.startswith("/api/report/"):
+            name = unquote(path.split("/api/report/", 1)[1])
+            payload = load_report_payload(name)
+            if payload is None:
+                self._json({"error": "报告不存在"}, 404)
+            elif role == "sales":
+                self._json(strip_sales_report(payload))
+            else:
+                self._json(payload)
+        elif path == "/api/admin/users":
+            if deny("manage_users"): return
+            self._json(auth.list_users_public())
         elif path == "/api/projects":
             self._json(storage.list_projects())
         elif path.startswith("/api/project/"):
@@ -1219,6 +1358,30 @@ class Handler(BaseHTTPRequestHandler):
         path = unquote(urlparse(self.path).path)
         user = self._user()
 
+        if path == "/api/auth/login":
+            payload = self._json_body()
+            try:
+                u = auth.authenticate(payload.get("email", ""), payload.get("password", ""))
+                self._json(u, cookie=auth.session_cookie(auth.make_session(u["user_id"])))
+            except auth.AuthError as e:
+                self._json({"error": str(e)}, 400)
+            return
+        if path == "/api/auth/register":
+            if auth.count_users() > 0:
+                self._json({"error": "系统已初始化，请使用管理员邀请或登录"}, 403)
+                return
+            payload = self._json_body()
+            try:
+                u = auth.register_first_admin(payload.get("name", ""), payload.get("email", ""),
+                                              payload.get("password", ""), payload.get("org", ""))
+                self._json(u, cookie=auth.session_cookie(auth.make_session(u["user_id"])))
+            except auth.AuthError as e:
+                self._json({"error": str(e)}, 400)
+            return
+        if path == "/api/auth/logout":
+            self._json({"ok": True}, cookie=auth.clear_session_cookie())
+            return
+
         # 登录 / 注册：未登录才允许
         if path in ("/login", "/register"):
             if user:
@@ -1265,7 +1428,27 @@ class Handler(BaseHTTPRequestHandler):
                     f"<p>你当前角色：{auth.ROLES.get(role, role)}</p><p><a href='/'>返回工作台</a></p>"), 403)
             return True
 
-        # 管理端：添加成员 / 调整角色
+        # 管理端 JSON 端点（SPA 使用）
+        if path == "/api/admin/users/create":
+            if deny("manage_users"): return
+            payload = self._json_body()
+            try:
+                u = auth.create_user(payload.get("name", ""), payload.get("email", ""),
+                                     payload.get("password", ""), payload.get("role", "sales"))
+                self._json(u)
+            except auth.AuthError as e:
+                self._json({"error": str(e)}, 400)
+            return
+        if path == "/api/admin/users/role":
+            if deny("manage_users"): return
+            payload = self._json_body()
+            try:
+                self._json(auth.update_role(payload.get("email", ""), payload.get("role", "")))
+            except auth.AuthError as e:
+                self._json({"error": str(e)}, 400)
+            return
+
+        # 管理端：添加成员 / 调整角色（表单版，保留兼容）
         if path == "/admin/users/create":
             if deny("manage_users"): return
             form = self._form()

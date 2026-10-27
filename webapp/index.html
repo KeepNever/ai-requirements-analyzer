@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 客户需求分析助手</title>
+<!--
+正式前端：由 prototype/saas-ui-v1.html 设计稿转正。
+视觉层沿用原型；数据层全部对接 web_demo.py 真实 API（/api/me、/api/overview、/api/report、
+/api/clean、/run-text、/api/ask、/api/admin/users、/api/auth/*）。
+角色矩阵与后端 src/auth.py PAGE_ACCESS 保持一致，前端过滤仅做展示，后端为最终边界。
+-->
+<style>
+:root{--blue:#2b5cff;--blue-dark:#1f46c8;--blue-soft:#eef2ff;--ink:#1c2536;--muted:#68758a;--line:#e3e8f0;--bg:#f5f7fb;--panel:#fff;--green:#16855c;--green-soft:#eaf7f1;--amber:#a96300;--amber-soft:#fff6e6;--red:#c4404e;--red-soft:#fff0f1;--sidebar:232px}
+*{box-sizing:border-box;margin:0;padding:0}body{font-family:"PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--ink);font-size:14px;line-height:1.65}button,input,textarea,select{font:inherit}button{cursor:pointer}.hidden{display:none!important}
+.btn{border:0;border-radius:7px;background:var(--blue);color:#fff;padding:10px 18px;font-weight:600;transition:.18s}.btn:hover{background:var(--blue-dark)}.btn.secondary{background:#fff;color:var(--ink);border:1px solid var(--line)}.btn.secondary:hover{border-color:var(--blue);color:var(--blue)}.btn.small{padding:6px 12px;font-size:12px}.btn.text{background:transparent;color:var(--blue);padding:5px 8px}.btn:disabled{background:#aab6d2;cursor:not-allowed}.link{color:var(--blue);text-decoration:none;cursor:pointer}.muted{color:var(--muted)}.small-text{font-size:12px}.strong{font-weight:600}.pill{display:inline-flex;align-items:center;border-radius:999px;padding:2px 9px;font-size:12px;white-space:nowrap}.pill.blue{background:var(--blue-soft);color:var(--blue)}.pill.green{background:var(--green-soft);color:var(--green)}.pill.amber{background:var(--amber-soft);color:var(--amber)}.pill.gray{background:#eef1f5;color:var(--muted)}.pill.red{background:var(--red-soft);color:var(--red)}
+.login{min-height:100vh;display:grid;grid-template-columns:minmax(420px,1.12fr) minmax(440px,.88fr);background:#fff}.login-story{position:relative;overflow:hidden;background:#173da8;color:#fff;padding:64px 72px;display:flex;flex-direction:column;justify-content:space-between}.login-story:after{content:"";position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.045) 1px,transparent 1px);background-size:48px 48px;pointer-events:none}.brand{position:relative;z-index:1;display:flex;align-items:center;gap:12px;font-size:17px;font-weight:600;letter-spacing:.02em}.brand-mark{width:36px;height:36px;border-radius:9px;background:var(--blue);color:#fff;display:grid;place-items:center;font-size:17px;font-weight:700}.login-story .brand-mark{background:#fff;color:#173da8}.story-main{position:relative;z-index:1;max-width:600px}.eyebrow{font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:#b9caff;margin-bottom:20px}.story-main h1{font-size:42px;line-height:1.28;letter-spacing:-.03em;margin-bottom:18px;font-weight:650}.story-main>p{color:#d6dfff;font-size:16px;max-width:470px}.evidence-flow{margin-top:48px;background:rgba(8,27,86,.35);border:1px solid rgba(255,255,255,.18);border-radius:12px;padding:22px 24px;backdrop-filter:blur(4px)}.flow-quote{font-size:14px;color:#fff}.flow-quote b{color:#cbd8ff;margin-right:9px}.flow-line{height:1px;background:rgba(255,255,255,.16);margin:17px 0}.flow-result{display:grid;grid-template-columns:1fr 1fr;gap:20px}.flow-result span{display:block;color:#aebfef;font-size:11px;margin-bottom:5px}.flow-result b{font-size:13px;font-weight:500}.login-foot{position:relative;z-index:1;color:#aebfef;font-size:12px}.login-form-side{display:grid;place-items:center;padding:48px}.login-form{width:100%;max-width:400px}.login-form h2{font-size:28px;margin-bottom:8px}.login-form .sub{color:var(--muted);margin-bottom:34px}.field{margin-bottom:18px}.field label{display:block;font-size:13px;font-weight:600;margin-bottom:7px}.input,select,textarea{width:100%;border:1px solid var(--line);border-radius:7px;background:#fff;color:var(--ink);padding:10px 12px;outline:none;transition:.15s}.input:focus,select:focus,textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(43,92,255,.09)}.password-row{display:flex;justify-content:space-between;align-items:center}.login-options{display:flex;justify-content:space-between;align-items:center;margin:4px 0 24px;color:var(--muted);font-size:12px}.check{display:flex;gap:7px;align-items:center}.check input{accent-color:var(--blue)}.login-submit{width:100%;padding:12px}.demo-note{margin-top:20px;padding:12px 14px;background:var(--bg);border-radius:7px;color:var(--muted);font-size:12px}.login-meta{margin-top:28px;text-align:center;color:#97a1b2;font-size:11px}.form-error{margin-bottom:14px;background:var(--red-soft);color:var(--red);border-radius:7px;padding:10px 13px;font-size:12px}.password-hint{font-size:11px;color:var(--muted);margin-top:5px}.register-form{max-width:440px}.register-form .form-grid{gap:0 14px}
+.app{min-height:100vh}.sidebar{position:fixed;inset:0 auto 0 0;width:var(--sidebar);background:#fff;border-right:1px solid var(--line);display:flex;flex-direction:column;z-index:10}.sidebar .brand{height:72px;padding:0 22px;border-bottom:1px solid var(--line);font-size:14px}.sidebar .brand-mark{width:31px;height:31px;font-size:14px;flex:none}.nav{padding:22px 14px;flex:1}.nav-label{font-size:10px;color:#9aa4b4;letter-spacing:.16em;padding:0 12px;margin:15px 0 7px}.nav-item{display:flex;align-items:center;gap:11px;padding:10px 12px;margin:3px 0;border-radius:7px;color:#536176;cursor:pointer;font-size:13px}.nav-item:hover{background:var(--bg);color:var(--ink)}.nav-item.active{background:var(--blue-soft);color:var(--blue);font-weight:600}.nav-dot{width:6px;height:6px;border:1.5px solid currentColor;border-radius:2px;flex:none}.nav-item.active .nav-dot{background:var(--blue);border-color:var(--blue)}.sidebar-foot{padding:16px 18px;border-top:1px solid var(--line)}.version{font-size:11px;color:#9aa4b4;margin-top:8px}.main{margin-left:var(--sidebar);min-height:100vh}.topbar{height:72px;background:rgba(255,255,255,.95);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 34px;position:sticky;top:0;z-index:8}.breadcrumb{color:var(--muted);font-size:12px}.top-actions{display:flex;align-items:center;gap:14px}.avatar{width:32px;height:32px;border-radius:50%;background:#202d49;color:#fff;display:grid;place-items:center;font-size:12px}.content{max-width:1380px;margin:0 auto;padding:32px 36px 64px}.page-head{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;margin-bottom:26px}.page-head h1{font-size:25px;line-height:1.35;margin-bottom:5px}.page-head p{color:var(--muted);font-size:13px}.head-actions{display:flex;gap:10px;flex:none}.panel{background:#fff;border:1px solid var(--line);border-radius:10px;padding:22px;min-width:0}.panel-title{font-size:15px;margin-bottom:4px}.panel-sub{font-size:12px;color:var(--muted);margin-bottom:18px}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px}.stat{background:#fff;border:1px solid var(--line);border-radius:9px;padding:18px 20px}.stat-label{font-size:12px;color:var(--muted)}.stat-value{font-size:27px;line-height:1.3;margin:5px 0 2px;font-weight:650}.stat-note{font-size:11px;color:#8a95a7}.dashboard-grid{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:20px}.table-wrap{overflow:auto}table{width:100%;border-collapse:collapse;font-size:12px}th{text-align:left;color:var(--muted);font-weight:500;background:#fafbfc;border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:11px 12px;white-space:nowrap}td{padding:14px 12px;border-bottom:1px solid var(--line);vertical-align:middle}tbody tr:last-child td{border-bottom:0}tbody tr:hover{background:#fbfcff}.project-name{font-size:13px;font-weight:600;margin-bottom:2px}.todo-list{margin-top:12px}.todo{padding:14px 0;border-bottom:1px solid var(--line)}.todo:last-child{border-bottom:0}.todo b{font-size:12px;display:block;margin-bottom:3px}.todo p{font-size:12px;color:var(--muted)}.notice{padding:12px 15px;background:var(--blue-soft);border-radius:7px;color:#3151ae;font-size:12px;margin-bottom:20px}.tabs{display:flex;gap:24px;border-bottom:1px solid var(--line);margin-bottom:22px}.tab{padding:0 1px 11px;color:var(--muted);font-size:13px;cursor:pointer;border-bottom:2px solid transparent}.tab.active{color:var(--blue);border-color:var(--blue);font-weight:600}.empty{padding:60px 24px;text-align:center;color:var(--muted)}
+.steps{display:flex;align-items:center;margin-bottom:24px}.step{display:flex;align-items:center;gap:9px;color:var(--muted);font-size:12px}.step-num{width:25px;height:25px;border-radius:50%;border:1px solid var(--line);display:grid;place-items:center;background:#fff}.step.active{color:var(--blue);font-weight:600}.step.active .step-num{background:var(--blue);border-color:var(--blue);color:#fff}.step.done .step-num{background:var(--green);border-color:var(--green);color:#fff}.step-line{height:1px;background:var(--line);width:70px;margin:0 14px}.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}.upload-box{border:1px dashed #bdc8db;border-radius:9px;background:#fafbfe;padding:30px;text-align:center;margin:20px 0 16px;cursor:pointer}.upload-box:hover{border-color:var(--blue);background:var(--blue-soft)}.upload-title{font-weight:600;margin-bottom:4px}.upload-box p{font-size:12px;color:var(--muted)}textarea{resize:vertical;min-height:150px;line-height:1.7}.form-actions{display:flex;justify-content:space-between;align-items:center;margin-top:18px}.cost{font-size:12px;color:var(--muted)}.clean-result{margin-top:20px;border-top:1px solid var(--line);padding-top:20px}.clean-stats{display:flex;gap:30px;margin:14px 0;flex-wrap:wrap}.clean-stats b{display:block;font-size:20px}.clean-stats span{font-size:11px;color:var(--muted)}.segment{padding:9px 0;border-bottom:1px solid var(--line);font-size:12px}.segment b{color:var(--blue);margin-right:9px}
+.report-head{background:#fff;border:1px solid var(--line);border-radius:10px;padding:24px;margin-bottom:20px}.report-title-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap}.report-title-row h1{font-size:23px}.report-meta{display:flex;gap:20px;color:var(--muted);font-size:12px;flex-wrap:wrap}.report-layout{display:grid;grid-template-columns:minmax(0,1fr) 290px;gap:20px}.evidence{border-left:3px solid #b7c5ef;background:#f8faff;padding:12px 15px;margin:14px 0;color:#4a5971;font-size:12px}.evidence b{color:var(--blue);margin-right:8px}.report-summary{font-size:14px;line-height:1.9;margin-bottom:20px}.side-section{padding-bottom:18px;margin-bottom:18px;border-bottom:1px solid var(--line)}.side-section:last-child{border:0;margin:0;padding:0}.side-section h3{font-size:12px;margin-bottom:10px}.side-item{font-size:12px;color:var(--muted);padding:4px 0}.question-chain{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:14px 0}.chain-box{background:var(--bg);padding:13px;border-radius:7px;font-size:12px}.chain-box span{display:block;color:var(--muted);font-size:11px;margin-bottom:4px}.comment-box{margin-top:16px}.comment-box textarea{min-height:80px}
+.chat-layout{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:20px}.chat-panel{min-height:610px;display:flex;flex-direction:column}.chat-log{flex:1;max-height:480px;overflow:auto;padding:4px 0 18px}.message{margin:16px 0;max-width:88%}.message.user{margin-left:auto;text-align:right}.bubble{display:inline-block;text-align:left;background:#f1f3f7;border-radius:9px;padding:11px 14px;font-size:13px;white-space:pre-wrap}.message.user .bubble{background:var(--blue);color:#fff}.citations{margin-top:8px;border-left:2px solid #bcc9ee;padding-left:11px;font-size:11px;color:var(--muted)}.chat-input{display:flex;gap:10px;border-top:1px solid var(--line);padding-top:16px}.chat-input textarea{min-height:62px;flex:1}.chat-input .btn{align-self:flex-end}.suggestion{padding:11px 0;border-bottom:1px solid var(--line);font-size:12px;color:var(--blue);cursor:pointer}.suggestion:last-child{border:0}
+.permission-grid{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:20px}.role-cards{display:grid;grid-template-columns:1fr 1fr;gap:12px}.role-card{border:1px solid var(--line);border-radius:8px;padding:15px}.role-card h3{font-size:13px;margin-bottom:4px}.role-card p{font-size:11px;color:var(--muted)}.member-person{display:flex;align-items:center;gap:9px}.mini-avatar{width:28px;height:28px;border-radius:50%;background:#edf1fa;color:#4d5d7a;display:grid;place-items:center;font-size:11px}.member-person b{display:block;font-size:12px}.member-person span{display:block;color:var(--muted);font-size:10px}.no-access{max-width:560px;margin:90px auto;text-align:center}.no-access h1{font-size:22px;margin-bottom:8px}.no-access p{color:var(--muted);margin-bottom:22px}
+.toast{position:fixed;right:26px;bottom:26px;background:#202b40;color:#fff;padding:11px 17px;border-radius:8px;font-size:12px;box-shadow:0 8px 30px rgba(20,30,50,.18);z-index:100;animation:toastin .2s ease}@keyframes toastin{from{transform:translateY(8px);opacity:0}to{transform:translateY(0);opacity:1}}
+.loading{padding:60px 24px;text-align:center;color:var(--muted);font-size:13px}
+@media(max-width:1100px){.dashboard-grid,.report-layout,.chat-layout,.permission-grid{grid-template-columns:1fr}.stats{grid-template-columns:1fr 1fr}.login-story{padding:48px}.story-main h1{font-size:34px}}
+@media(max-width:820px){:root{--sidebar:72px}.sidebar .brand{padding:0;justify-content:center}.sidebar .brand span,.nav-label,.nav-item span,.sidebar-foot{display:none}.nav-item{justify-content:center}.nav-item .nav-dot{width:8px;height:8px}.content{padding:24px 20px}.topbar{padding:0 20px}.login{grid-template-columns:1fr}.login-story{display:none}.page-head{flex-direction:column}.head-actions{width:100%}}
+@media(max-width:560px){.stats,.form-grid,.role-cards,.question-chain{grid-template-columns:1fr}.content{padding:20px 14px}.breadcrumb{display:none}.login-form-side{padding:28px}.steps{flex-wrap:wrap;gap:10px}.step-line{width:20px;margin:0 4px}.panel{padding:17px}.report-meta{flex-direction:column;gap:2px}}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+const ROLE_PAGES={
+ admin:['dashboard','report','members'],
+ pm:['dashboard','new','report','chat'],
+ sales:['dashboard','new','report','chat'],
+ presale:['dashboard','report','chat']};
+const ROLE_NAMES={admin:'管理员',pm:'产品经理',sales:'销售',presale:'售前'};
+const ROLE_DESC={admin:'账号、角色和项目授权',pm:'分析、修正、确认和导出',sales:'提交材料与处理客户追问',presale:'能力匹配查看与补充意见'};
+const PAGE_NAMES={dashboard:'项目工作台',new:'新建分析',report:'分析报告',chat:'材料问答',members:'成员与权限'};
+const NAV_ITEMS=[['dashboard','项目工作台'],['new','新建分析'],['chat','材料问答'],['members','成员与权限']];
+const VERDICT_CLASS={'匹配':'green','部分匹配':'amber','待确认':'gray','不支持':'red'};
+const state={booting:true,user:null,page:'dashboard',overview:[],overviewLoading:true,
+ projectView:'projects',versionPid:'',versions:null,
+ reportId:'',report:null,reportLoading:false,reportTab:'needs',
+ scene:'presale',material:'',clean:null,cleanLoading:false,running:false,
+ chatPid:'',chatMode:'mock',chatConv:'',chatMsgs:[],chatBusy:false,
+ members:[],membersLoading:false,addOpen:false};
+
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function toast(msg){const old=document.querySelector('.toast');if(old)old.remove();const el=document.createElement('div');el.className='toast';el.textContent=msg;document.body.appendChild(el);setTimeout(()=>el.remove(),2600)}
+function can(p){return !!(state.user&&ROLE_PAGES[state.user.role]&&ROLE_PAGES[state.user.role].includes(p))}
+
+async function api(path,opts={}){
+ const init={method:opts.method||'GET',headers:{}};
+ if(opts.body!==undefined){init.headers['Content-Type']='application/json';init.body=JSON.stringify(opts.body)}
+ const r=await fetch(path,init);
+ let data={};try{data=await r.json()}catch(e){}
+ if(r.status===401){state.user=null;state.page='login';render();throw new Error(data.error||'未登录')}
+ if(!r.ok)throw new Error(data.error||('HTTP '+r.status));
+ return data;
+}
+
+async function boot(){
+ try{state.user=await api('/api/me');state.page='dashboard';await loadOverview(false);}
+ catch(e){state.page='login'}
+ state.booting=false;render();
+}
+async function loadOverview(spinner=true){
+ if(spinner){state.overviewLoading=true;render()}
+ try{state.overview=await api('/api/overview')}catch(e){if(state.user)toast('加载项目失败：'+e.message)}
+ state.overviewLoading=false;
+}
+function askableProjects(){return state.overview.filter(x=>x.source==='project')}
+
+async function doLogin(form){
+ const f=new FormData(form);
+ try{
+  state.user=await api('/api/auth/login',{method:'POST',body:{email:f.get('email'),password:f.get('password')}});
+  state.page='dashboard';await loadOverview(false);
+ }catch(e){showAuthError(e.message);return}
+ render();
+}
+async function doRegister(form){
+ const f=new FormData(form);
+ if(f.get('password')!==f.get('password2')){showAuthError('两次输入的密码不一致');return}
+ try{
+  state.user=await api('/api/auth/register',{method:'POST',body:{name:f.get('name'),org:f.get('org'),email:f.get('email'),password:f.get('password')}});
+  state.page='dashboard';await loadOverview(false);
+ }catch(e){showAuthError(e.message);return}
+ render();toast('团队创建成功，你已成为管理员');
+}
+async function doLogout(){
+ try{await api('/api/auth/logout',{method:'POST'})}catch(e){}
+ state.user=null;state.page='login';render();
+}
+function showAuthError(msg){const el=document.getElementById('authError');if(el){el.textContent=msg;el.classList.remove('hidden')}}
+
+function go(page){
+ if(!can(page)){toast('当前角色没有此页面权限');return}
+ state.page=page;
+ if(page==='dashboard')loadOverview();
+ if(page==='chat'&&!state.overview.length)loadOverview(false);
+ if(page==='members')loadMembers();
+ render();window.scrollTo(0,0);
+}
+function setProjectView(v){state.projectView=v;render()}
+function setReportTab(k){state.reportTab=k;render()}
+function setScene(v){state.scene=v;render()}
+function setMaterial(v){state.material=v}
+function setChatPid(v){state.chatPid=v;state.chatConv='';state.chatMsgs=[];render()}
+function setChatMode(v){state.chatMode=v;state.chatConv='';render()}
+function resetChat(){state.chatConv='';state.chatMsgs=[];render()}
+
+async function doClean(){
+ if(!state.material.trim()){toast('请先粘贴或上传材料');return}
+ state.cleanLoading=true;render();
+ try{state.clean=await api('/api/clean',{method:'POST',body:{material:state.material}})}
+ catch(e){toast('清洗失败：'+e.message)}
+ state.cleanLoading=false;render();
+}
+async function doRun(){
+ if(!state.material.trim()){toast('请先粘贴或上传材料');return}
+ state.running=true;render();
+ try{
+  const r=await api('/run-text',{method:'POST',body:{material:state.material,scene:state.scene}});
+  state.running=false;state.clean=null;state.material='';
+  toast('分析完成');
+  openReport(r.case);
+ }catch(e){state.running=false;toast('分析失败：'+e.message);render()}
+}
+function pickFile(input){
+ const file=input.files&&input.files[0];
+ if(!file)return;
+ file.text().then(t=>{state.material=t;render();toast('已读取 '+file.name)});
+}
+async function openReport(id){
+ state.reportId=id;state.report=null;state.reportLoading=true;state.page='report';
+ const tabs=reportTabs();state.reportTab=tabs[0].key;
+ render();
+ try{state.report=await api('/api/report/'+encodeURIComponent(id))}
+ catch(e){state.report={error:e.message}}
+ state.reportLoading=false;render();window.scrollTo(0,0);
+}
+function reportTabs(){
+ if(state.user.role==='sales')return[{key:'questions',label:'待确认与追问'}];
+ if(state.user.role==='presale')return[{key:'capability',label:'能力匹配'},{key:'questions',label:'待确认信息'}];
+ return[{key:'needs',label:'需求分析'},{key:'capability',label:'能力匹配'},{key:'questions',label:'待确认追问'},{key:'audit',label:'修正记录'}];
+}
+async function askSuggested(text){
+ const box=document.getElementById('question');if(box)box.value=text;
+ await sendQuestion();
+}
+async function sendQuestion(){
+ const box=document.getElementById('question');
+ const q=(box?box.value:'').trim();
+ if(!q){toast('请输入问题');return}
+ if(!state.chatPid){toast('请先选择项目');return}
+ if(state.chatBusy)return;
+ state.chatMsgs.push({from:'user',text:q});state.chatBusy=true;box.value='';render();
+ try{
+  const r=await api('/api/ask',{method:'POST',body:{project_id:state.chatPid,question:q,mock:state.chatMode==='mock',conversation_id:state.chatConv||null}});
+  state.chatConv=r.conversation_id||state.chatConv;
+  state.chatMsgs.push({from:'ai',text:r.answer,cites:r.frontend_citations||[],insufficient:!r.sufficient});
+ }catch(e){state.chatMsgs.push({from:'ai',text:'出错了：'+e.message})}
+ state.chatBusy=false;render();
+ const log=document.querySelector('.chat-log');if(log)log.scrollTop=log.scrollHeight;
+}
+async function loadMembers(){
+ if(state.user.role!=='admin')return;
+ state.membersLoading=true;render();
+ try{state.members=await api('/api/admin/users')}catch(e){toast('加载成员失败：'+e.message)}
+ state.membersLoading=false;render();
+}
+async function changeMemberRole(email,role){
+ try{await api('/api/admin/users/role',{method:'POST',body:{email,role}});toast('成员角色已更新')}
+ catch(e){toast(e.message)}
+ loadMembers();
+}
+async function addMember(form){
+ const f=new FormData(form);
+ try{
+  await api('/api/admin/users/create',{method:'POST',body:{name:f.get('name'),email:f.get('email'),password:f.get('password'),role:f.get('role')}});
+  state.addOpen=false;toast('成员已添加');
+ }catch(e){toast(e.message);return}
+ loadMembers();
+}
+async function openVersions(pid){
+ state.versionPid=pid;state.versions=null;render();
+ try{state.versions=await api('/api/project/'+encodeURIComponent(pid))}
+ catch(e){state.versions={error:e.message}}
+ render();
+}
+
+function brand(){return '<div class="brand"><div class="brand-mark">需</div><span>AI 客户需求分析助手</span></div>'}
+function splash(){return '<div style="min-height:100vh;display:grid;place-items:center;color:var(--muted)">加载中…</div>'}
+function render(){const root=document.getElementById('root');root.innerHTML=state.booting?splash():state.page==='login'?loginPage():state.page==='register'?registerPage():app()}
+
+function loginPage(){return `<div class="login"><section class="login-story">${brand()}<div class="story-main"><div class="eyebrow">Evidence before judgement</div><h1>从客户原话，<br>到可追溯的需求判断。</h1><p>把会议、邮件和聊天记录变成结构化分析。每条结论都有出处，每个缺口都有下一步。</p><div class="evidence-flow"><div class="flow-quote"><b>D07</b>「希望按区域查看任务完成情况，不然每周都要人工汇总。」</div><div class="flow-line"></div><div class="flow-result"><div><span>显性需求 EN2</span><b>按区域追踪任务进展</b></div><div><span>待确认问题 Q3</span><b>需要覆盖哪些区域与角色？</b></div></div></div></div><div class="login-foot">内部工作平台 · 材料脱敏 · 版本留痕 · 引用回链</div></section><section class="login-form-side"><form class="login-form" onsubmit="event.preventDefault();doLogin(this)"><h2>欢迎回来</h2><p class="sub">登录后继续处理你的项目与分析任务</p><div id="authError" class="form-error hidden"></div><div class="field"><label>工作邮箱</label><input class="input" name="email" type="email" required></div><div class="field"><label>密码</label><input class="input" name="password" type="password" required></div><button class="btn login-submit" type="submit">登录</button><div class="auth-switch" style="text-align:center;margin-top:22px;font-size:13px;color:var(--muted)">还没有账号？<a class="link" onclick="state.page='register';render()">注册并创建团队</a></div><div class="demo-note">新成员请使用管理员在成员页分配的账号登录。</div><div class="login-meta">AI 客户需求分析助手 · 正式版</div></form></section></div>`}
+function registerPage(){return `<div class="login"><section class="login-story">${brand()}<div class="story-main"><div class="eyebrow">Create your workspace</div><h1>从建立团队开始，<br>让材料与判断归到一起。</h1><p>注册后自动创建独立工作空间。你将成为管理员，再邀请销售、产品经理和售前加入。</p><div class="evidence-flow"><div class="flow-result"><div><span>第一步</span><b>创建团队与管理员账号</b></div><div><span>第二步</span><b>邀请成员并指定角色</b></div></div><div class="flow-line"></div><div class="flow-result"><div><span>数据边界</span><b>项目按授权范围开放</b></div><div><span>已有团队</span><b>通过管理员邀请加入</b></div></div></div></div><div class="login-foot">独立工作空间 · 固定角色边界 · 项目授权访问</div></section><section class="login-form-side"><form class="login-form register-form" onsubmit="event.preventDefault();doRegister(this)"><h2>注册并创建团队</h2><p class="sub">创建人自动成为管理员，后续可邀请团队成员</p><div id="authError" class="form-error hidden"></div><div class="form-grid"><div class="field"><label>你的姓名</label><input id="regName" class="input" name="name" placeholder="例如：林然" required></div><div class="field"><label>团队 / 企业名称</label><input id="regOrg" class="input" name="org" placeholder="例如：星海科技" required></div></div><div class="field"><label>工作邮箱</label><input id="regEmail" class="input" name="email" type="email" placeholder="name@company.cn" required></div><div class="form-grid"><div class="field"><label>设置密码</label><input id="regPassword" class="input" name="password" type="password" placeholder="至少 8 个字符" required><div class="password-hint">建议组合字母、数字与符号</div></div><div class="field"><label>确认密码</label><input id="regConfirm" class="input" name="password2" type="password" placeholder="再次输入密码" required></div></div><button class="btn login-submit" type="submit">创建团队并进入工作台</button><div class="auth-switch" style="text-align:center;margin-top:22px;font-size:13px;color:var(--muted)">已有账号？<a class="link" onclick="state.page='login';render()">返回登录</a></div><div class="demo-note">加入已有团队无需在这里注册，请使用管理员分配的账号。</div></form></section></div>`}
+
+function sidebar(){return `<aside class="sidebar">${brand()}<nav class="nav"><div class="nav-label">日常工作</div>${NAV_ITEMS.slice(0,3).filter(n=>can(n[0])).map(n=>`<div class="nav-item ${state.page===n[0]?'active':''}" onclick="go('${n[0]}')"><i class="nav-dot"></i><span>${n[1]}</span></div>`).join('')}<div class="nav-label">组织管理</div>${NAV_ITEMS.slice(3).filter(n=>can(n[0])).map(n=>`<div class="nav-item ${state.page===n[0]?'active':''}" onclick="go('${n[0]}')"><i class="nav-dot"></i><span>${n[1]}</span></div>`).join('')}<div class="nav-item" onclick="location.href='/dashboard'"><i class="nav-dot"></i><span>质量评测</span></div></nav><div class="sidebar-foot"><a class="link small-text" onclick="doLogout()">退出登录</a><div class="version">正式版 · 引用可追溯</div></div></aside>`}
+function topbar(){return `<header class="topbar"><div class="breadcrumb">${esc(state.user.org||'工作空间')} / <b>${PAGE_NAMES[state.page]||''}</b></div><div class="top-actions"><span class="small-text muted">${ROLE_NAMES[state.user.role]} · ${esc(state.user.name)}</span><div class="avatar">${esc(state.user.name.slice(0,1))}</div></div></header>`}
+
+function app(){let body='';if(!can(state.page))body=noAccess();else if(state.page==='dashboard')body=dashboardPage();else if(state.page==='new')body=newAnalysisPage();else if(state.page==='report')body=reportPage();else if(state.page==='chat')body=chatPage();else if(state.page==='members')body=membersPage();return `<div class="app">${sidebar()}<main class="main">${topbar()}<div class="content">${body}</div></main></div>`}
+function noAccess(){return `<div class="no-access"><h1>当前角色无权访问</h1><p>返回工作台，或联系管理员调整角色。</p><button class="btn" onclick="go('dashboard')">返回工作台</button></div>`}
+
+function roleNotice(){
+ if(state.user.role==='sales')return '<div class="notice">销售视图聚焦材料提交和客户追问；完整需求判断由产品经理确认。</div>';
+ if(state.user.role==='presale')return '<div class="notice">售前视图聚焦能力匹配与方案补充，不能修改需求状态。</div>';
+ return '';
+}
+function dashboardPage(){
+ if(state.overviewLoading)return '<div class="loading">项目加载中…</div>';
+ const total=state.overview.length;
+ const questions=state.overview.reduce((s,x)=>s+(x.questions||0),0);
+ const week=state.overview.filter(x=>x.updated_ts&&Date.now()/1000-x.updated_ts<7*86400).length;
+ const askable=askableProjects().length;
+ const isSales=state.user.role==='sales';
+ const stats=isSales
+  ?[['可见项目',total,'来自工作空间'],['待追问客户',questions,'来自分析缺口'],['近7天提交',week,'材料均已脱敏'],['可问答项目',askable,'材料问答可用']]
+  :[['进行中的项目',total,'含案例与项目两类'],['待确认问题',questions,'影响需求终审'],['近7天更新',week,'材料与报告合计'],['可问答项目',askable,'已入库材料的项目']];
+ return `<div class="page-head"><div><h1>项目工作台</h1><p>${ROLE_DESC[state.user.role]} · 只展示你有权限的内容</p></div><div class="head-actions">${can('new')?'<button class="btn" onclick="go(\'new\')">新建分析</button>':''}</div></div>${roleNotice()}<div class="stats">${stats.map(s=>`<div class="stat"><div class="stat-label">${s[0]}</div><div class="stat-value">${s[1]}</div><div class="stat-note">${s[2]}</div></div>`).join('')}</div><div class="tabs"><div class="tab ${state.projectView==='projects'?'active':''}" onclick="setProjectView('projects')">项目列表</div><div class="tab ${state.projectView==='versions'?'active':''}" onclick="setProjectView('versions')">资料与版本</div></div>${state.projectView==='versions'?versionsPanel():projectsPanel()}`;
+}
+function projectsPanel(){
+ if(!state.overview.length)return '<section class="panel"><div class="empty">还没有任何分析。'+(can('new')?'点击右上角「新建分析」提交第一份材料。':'')+'</div></section>';
+ return `<div class="dashboard-grid"><section class="panel"><h2 class="panel-title">最近项目</h2><p class="panel-sub">按更新时间排序；「案例」为快速分析，「项目」为入库资料库的长期项目</p><div class="table-wrap"><table><thead><tr><th>名称</th><th>来源</th><th>待确认</th><th>更新时间</th><th></th></tr></thead><tbody>${state.overview.map(p=>`<tr><td><div class="project-name"><a class="link" onclick="openReport('${esc(p.id)}')">${esc(p.name)}</a></div></td><td><span class="pill ${p.source==='project'?'blue':'gray'}">${p.source==='project'?'项目':'案例'}</span></td><td>${p.questions?`<span class="pill amber">${p.questions} 项</span>`:'<span class="muted">无</span>'}</td><td class="muted">${esc(p.updated||'')}</td><td><button class="btn text" onclick="openReport('${esc(p.id)}')">${state.user.role==='sales'?'查看追问':'查看'}</button></td></tr>`).join('')}</tbody></table></div></section><aside class="panel"><h2 class="panel-title">使用提示</h2><p class="panel-sub">按角色聚焦</p><div class="todo"><b>${state.user.role==='sales'?'带着追问清单见客户':'先清洗预览，再跑完整分析'}</b><p>${state.user.role==='sales'?'每条追问都带判断影响，沟通后把客户原话提交回系统':'清洗免费可反复调；确认材料质量后再消耗 API'}</p></div><div class="todo"><b>${state.user.role==='sales'?'客户回复及时回传':'报告全部草稿态'}</b><p>${state.user.role==='sales'?'回复会成为项目新材料，推动缺口收敛':'高优先级结论与能力匹配须经人工确认'}</p></div><div class="todo"><b>结论可追溯</b><p>每条分析都带 D 编号引用，可回链到清洗后的原文</p></div></aside></div>`;
+}
+function versionsPanel(){
+ const projs=askableProjects();
+ if(!projs.length)return '<section class="panel"><div class="empty">资料库暂无入库项目；快速案例的版本在报告页查看。</div></section>';
+ if(!state.versionPid)state.versionPid=projs[0].id;
+ const sel=`<div style="margin-bottom:16px"><span class="muted small-text">选择项目：</span><select onchange="openVersions(this.value)" style="width:auto;min-width:240px">${projs.map(p=>`<option value="${esc(p.id)}" ${p.id===state.versionPid?'selected':''}>${esc(p.name)}</option>`).join('')}</select></div>`;
+ if(!state.versions)return sel+'<div class="loading">版本加载中…</div>';
+ if(state.versions.error)return sel+`<div class="form-error">${esc(state.versions.error)}</div>`;
+ const t=state.versions;
+ const docs=(t.documents||[]).map(d=>`<tr><td><div class="strong">${esc(d.file_name)}</div><span class="muted small-text">${esc(d.document_id)}</span></td><td><span class="pill gray">${esc(d.current_version_id||'')}</span></td><td>${(d.versions||[]).length} 个版本</td></tr>`).join('')||'<tr><td colspan="3" class="muted">无文档</td></tr>';
+ const isSales=state.user.role==='sales';
+ const runs=(t.runs||[]).map(r=>{
+  const links=isSales
+   ?`<a class="link" onclick="openReport('${esc(t.project? t.project.id||state.versionPid : state.versionPid)}')">追问清单</a>`
+   :`<a class="link" onclick="openReport('${esc(state.versionPid)}')">报告</a>`+(r.report_exists?'':'')+(state.user.role!=='sales'?`　<a class="link" href="/export/docx/${encodeURIComponent(state.versionPid)}/${encodeURIComponent(r.run_id)}">导出 Word</a>`:'');
+  return `<tr><td class="strong">${esc(r.run_id)}</td><td><span class="pill ${r.status==='done'?'green':'amber'}">${esc(r.status||'')}</span></td><td class="muted">${esc(r.created_at||'')}</td><td>${links}</td></tr>`;
+ }).join('')||'<tr><td colspan="4" class="muted">无运行记录</td></tr>';
+ return `<section class="panel">${sel}<h2 class="panel-title">文档与版本</h2><p class="panel-sub">原文、清洗版本分开留存，历史版本不可覆盖</p><div class="table-wrap"><table><thead><tr><th>文档</th><th>当前版本</th><th>版本数</th></tr></thead><tbody>${docs}</tbody></table></div><h2 class="panel-title" style="margin-top:24px">分析运行记录</h2><div class="table-wrap"><table><thead><tr><th>运行</th><th>状态</th><th>时间</th><th>入口</th></tr></thead><tbody>${runs}</tbody></table></div></section>`;
+}
+function newAnalysisPage(){
+ const step2=state.clean?'active':'';
+ return `<div class="page-head"><div><h1>新建分析</h1><p>先确认清洗结果，再消耗 API 运行完整分析</p></div></div><div class="steps"><div class="step active"><span class="step-num">1</span>上传材料</div><div class="step-line"></div><div class="step ${step2}"><span class="step-num">2</span>清洗确认</div><div class="step-line"></div><div class="step"><span class="step-num">3</span>生成报告</div></div><section class="panel"><div class="form-grid"><div class="field"><label>分析场景</label><select onchange="setScene(this.value)"><option value="presale" ${state.scene==='presale'?'selected':''}>售前需求分析</option><option value="service_diagnosis" ${state.scene==='service_diagnosis'?'selected':''}>学员服务诊断</option></select></div><div class="field"><label>上传文件（可选）</label><input type="file" accept=".md,.txt" onchange="pickFile(this)"></div></div><div class="field" style="margin-top:6px"><label>粘贴原始材料</label><textarea oninput="setMaterial(this.value)" placeholder="把客户的会议转写 / 邮件 / 微信记录原样粘贴到这里。每段一行，段前标 P1、P2……（不标也能清洗，但引用回链会缺失）">${esc(state.material)}</textarea></div><div class="form-actions"><span class="cost">清洗预览免费 · 完整分析约 1～2 分钟</span><button class="btn" onclick="doClean()" ${state.cleanLoading||state.running?'disabled':''}>${state.cleanLoading?'清洗中…':'清洗预览'}</button></div>${state.clean?cleanResult():''}</section>`;
+}
+function cleanResult(){
+ const c=state.clean,st=c.stats||{};
+ const warn=(c.warnings||[]).map(w=>`<div class="${w.indexOf('✓')===0?'notice':'form-error'}" style="margin-top:10px">${esc(w)}</div>`).join('');
+ const segs=(c.segments||[]).map(s=>`<div class="segment"><b>${esc(s.did)}</b>${esc(s.text)}${s.pii_scrubbed?' <span class="pill amber">已脱敏</span>':''}</div>`).join('');
+ return `<div class="clean-result"><h2 class="panel-title">清洗结果</h2><div class="clean-stats"><div><b>${esc(st['输入块数']||'—')}</b><span>输入块数</span></div><div><b>${esc(st['解析段落数']||'—')}</b><span>解析段落数</span></div><div><b>${esc(st['PII脱敏段落数']||'—')}</b><span>PII 脱敏段落</span></div><div><b>${esc(c.cleaned_len||'—')}</b><span>清洗后字符</span></div></div>${warn}<div style="max-height:260px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:0 12px;margin-top:12px">${segs||'<div class="loading">无段落</div>'}</div><div class="form-actions"><span class="cost">确认段落与编号无误后继续</span><button class="btn" onclick="doRun()" ${state.running?'disabled':''}>${state.running?'分析运行中…约 1～2 分钟':'运行完整分析'}</button></div>${state.running?'<div class="loading">正在调用分析流水线（提取 → 分析 → 评分 → 报告），请勿关闭页面…</div>':''}</div>`;
+}
+function reportPage(){
+ if(state.reportLoading)return '<div class="loading">报告加载中…</div>';
+ if(!state.report||state.report.error)return `<section class="panel"><div class="empty">${esc((state.report&&state.report.error)||'报告不存在')}</div></section>`;
+ const r=state.report,tabs=reportTabs();
+ if(!tabs.some(t=>t.key===state.reportTab))state.reportTab=tabs[0].key;
+ const srcPill=r.source==='project'?'<span class="pill blue">项目</span>':'<span class="pill gray">案例</span>';
+ const a=r.analysis||{};
+ const exportBtn=(r.export_url&&state.user.role!=='sales')?`<button class="btn secondary" onclick="location.href='${r.export_url}'">导出 Word</button>`:'';
+ return `<div class="report-head"><div class="page-head" style="margin:0"><div><div class="report-title-row"><h1>${esc(r.name)}</h1>${srcPill}<span class="pill amber">AI 草稿</span></div><div class="report-meta"><span>运行 ${esc(r.run_id||'')}</span><span>生成于分析流水线 · 全部结论带引用</span></div></div><div class="head-actions"><button class="btn" onclick="exportReport()">${state.user.role==='sales'?'复制追问清单':'导出 Word'}</button>${exportBtn}</div></div></div>${roleNoticeForReport()}<div class="tabs">${tabs.map(t=>`<div class="tab ${state.reportTab===t.key?'active':''}" onclick="setReportTab('${t.key}')">${t.label}</div>`).join('')}</div>${reportBody(a,r)}`;
+}
+function roleNoticeForReport(){
+ if(state.user.role==='sales')return '<div class="notice">你正在查看销售专用视图：只展示信息缺口、客户追问和回复入口。</div>';
+ if(state.user.role==='presale')return '<div class="notice">你正在查看售前专用视图：可核对能力匹配并补充方案意见，不能确认需求。</div>';
+ return '';
+}
+function exportReport(){
+ if(state.report&&state.report.export_url&&state.user.role!=='sales'){location.href=state.report.export_url;return}
+ if(state.user.role==='sales'){
+  const pend=(state.report&&(state.report.questions||(state.report.analysis&&state.report.analysis.node2&&state.report.analysis.node2.pending_confirmations)))||[];
+  const lines=pend.map(n=>'【'+(n.level||'')+'】缺口：'+n.gap+'｜影响：'+n.impact+'｜建议追问：'+n.question).join('\n');
+  const text='待确认与追问清单\n'+(lines||'（无）');
+  if(navigator.clipboard)navigator.clipboard.writeText(text).then(()=>toast('追问清单已复制到剪贴板'),()=>toast('复制失败，请手动选择文本'));
+  else toast('当前浏览器不支持自动复制');
+  return;
+ }
+ toast('案例版暂不支持 Word 导出，请走资料库运行记录');
+}
+function reportBody(a,r){
+ if(state.reportTab==='capability')return capabilityBody(a);
+ if(state.reportTab==='questions')return questionsBody(a,r);
+ if(state.reportTab==='audit')return auditBody();
+ return needsBody(a);
+}
+function pill(v,cls){return `<span class="pill ${cls}">${esc(v)}</span>`}
+function needsBody(a){
+ const n1=a.node1||{},n2=a.node2||{},pri=a.priority||[];
+ const tierMap={};pri.forEach(x=>{tierMap[x.id]=x.tier});
+ const high=pri.filter(x=>x.tier==='高').length;
+ const en=(n1.explicit_needs||[]),pn=(n2.potential_needs||[]),pend=(n2.pending_confirmations||[]);
+ const quote=en[0]?`<div class="evidence"><b>${esc((en[0].dids||[]).join('、')||'引用')}</b>「${esc(en[0].quote||en[0].content||'')}」</div>`:'';
+ const enRows=en.map(n=>`<tr><td class="strong">${esc(n.id)}</td><td>${esc(n.content)}</td><td>${tierMap[n.id]?pill(tierMap[n.id],tierMap[n.id]==='高'?'blue':tierMap[n.id]==='中'?'amber':'gray'):'<span class="muted">—</span>'}</td><td><span class="pill gray">草稿</span></td></tr>`).join('')||'<tr><td colspan="4" class="muted">无</td></tr>';
+ const pnRows=pn.map(n=>`<tr><td class="strong">${esc(n.id)}</td><td>${esc(n.content)}</td><td class="muted">${esc(n.reasoning||'')}</td><td>${esc(n.confidence||'')}</td></tr>`).join('')||'<tr><td colspan="4" class="muted">无</td></tr>';
+ const priRows=pri.slice(0,6).map(x=>`<tr><td class="strong">${esc(x.id)}</td><td>${esc((x.content||'').slice(0,24))}</td><td>${x.weighted}</td><td>${pill(x.tier,x.tier==='高'?'blue':x.tier==='中'?'amber':'gray')}</td></tr>`).join('')||'<tr><td colspan="4" class="muted">无</td></tr>';
+ return `<div class="report-layout"><section class="panel"><h2 class="panel-title">需求分析摘要</h2><p class="panel-sub">AI 提取与推断分离，所有判断保留原文依据</p><p class="report-summary">显性需求 ${en.length} 条（高优先级 ${high} 条）；潜在需求 ${pn.length} 条；待确认 ${pend.length} 条（决定性 ${pend.filter(x=>x.level==='决定性').length} 条）。本报告为草稿态，优先级结论、能力匹配与待确认分级须经产品经理确认后方可进入需求池。</p>${quote}<div class="table-wrap"><table><thead><tr><th>编号</th><th>显性需求</th><th>优先级</th><th>状态</th></tr></thead><tbody>${enRows}</tbody></table></div><h2 class="panel-title" style="margin-top:24px">潜在需求（推断）</h2><div class="table-wrap"><table><thead><tr><th>编号</th><th>需求</th><th>推断线索</th><th>置信度</th></tr></thead><tbody>${pnRows}</tbody></table></div><h2 class="panel-title" style="margin-top:24px">优先级建议（Top 6）</h2><div class="table-wrap"><table><thead><tr><th>编号</th><th>需求</th><th>加权</th><th>档位</th></tr></thead><tbody>${priRows}</tbody></table></div></section><aside class="panel"><div class="side-section"><h3>报告口径</h3><div class="side-item">AI 结果为草稿，不自动进入排期</div><div class="side-item">潜在需求必须经人工确认</div><div class="side-item">引用基于清洗后 D 编号原文</div></div><div class="side-section"><h3>下一步</h3><button class="btn secondary small" onclick="setReportTab('questions')">查看 ${pend.length} 项待确认问题</button></div></aside></div>`;
+}
+function capabilityBody(a){
+ const caps=((a.node2||{}).capability_match)||[];
+ const rows=caps.map(n=>`<tr><td>${esc(n.target)}</td><td>${pill(n.verdict,VERDICT_CLASS[n.verdict]||'gray')}</td><td class="muted">${esc(n.reason)}</td></tr>`).join('')||'<tr><td colspan="3" class="muted">无</td></tr>';
+ return `<section class="panel"><h2 class="panel-title">产品能力匹配</h2><p class="panel-sub">结论分为匹配、部分匹配、待确认和不支持，不强行归类</p><div class="table-wrap"><table><thead><tr><th>对象</th><th>匹配结论</th><th>判断依据</th></tr></thead><tbody>${rows}</tbody></table></div>${state.user.role==='presale'?`<div class="comment-box"><label class="strong small-text">补充售前意见</label><textarea placeholder="记录能力边界、实现条件或方案建议（下一轮接入保存）"></textarea></div>`:''}</section>`;
+}
+function questionsBody(a,r){
+ const pend=(r.questions)||((a.node2||{}).pending_confirmations)||[];
+ if(!pend.length)return '<section class="panel"><div class="empty">本分析没有待确认问题，信息缺口已收敛。</div></section>';
+ const items=pend.map((n,i)=>`<div class="evidence" style="margin-top:${i?'18px':'14px'}"><b>${esc(n.level||'')}</b>缺口：${esc(n.gap)}</div><div class="question-chain"><div class="chain-box"><span>判断影响</span>${esc(n.impact)}</div><div class="chain-box"><span>建议追问 Q${i+1}</span>「${esc(n.question)}」</div></div>`).join('');
+ const salesBox=state.user.role==='sales'?`<div class="comment-box"><label class="strong small-text">客户沟通后，把回复原话提交回系统</label><textarea placeholder="客户回复可粘贴回工作台「新建分析」，作为项目新材料留存"></textarea><div style="text-align:right;margin-top:10px"><button class="btn small" onclick="toast('请回到工作台粘贴客户回复并新建分析，回复会进入版本库')">知道了</button></div></div>`:'';
+ return `<section class="panel"><h2 class="panel-title">信息缺口与客户追问</h2><p class="panel-sub">每个问题都说明为什么需要，而不是只给一张问题清单</p>${items}${salesBox}</section>`;
+}
+function auditBody(){return '<section class="panel"><h2 class="panel-title">人工修正留痕</h2><p class="panel-sub">保留 AI 原判断、人工判断和修改原因</p><div class="empty">修正留痕接口将在下一轮接入；当前报告均为草稿态，确认流转由产品经理线下完成。</div></section>'}
+
+function chatPage(){
+ const projs=askableProjects();
+ if(!state.chatPid&&projs.length)state.chatPid=projs[0].id;
+ if(!projs.length)return '<section class="panel"><div class="empty">材料问答依赖入库项目；请先在「新建分析」提交材料生成项目。</div></section>';
+ const lastAi=[...state.chatMsgs].reverse().find(m=>m.from==='ai');
+ const cites=(lastAi&&lastAi.cites||[]).map(c=>`<div class="ctx-item"><b>${esc(c.did||c.id||'')}</b>${esc(c.text||c.quote||'')}</div>`).join('')||'<div class="muted small-text" style="padding:8px 0">提问后，这里显示答案引用的原文段落</div>';
+ return `<div class="page-head"><div><h1>材料问答</h1><p>只依据当前项目材料回答；依据不足时明确提示</p></div></div><div class="chat-layout"><section class="panel chat-panel"><div class="row" style="margin:0 0 14px"><span class="muted small-text">项目：</span><select onchange="setChatPid(this.value)" style="width:auto;min-width:200px">${projs.map(p=>`<option value="${esc(p.id)}" ${p.id===state.chatPid?'selected':''}>${esc(p.name)}</option>`).join('')}</select><span class="muted small-text">模式：</span><select onchange="setChatMode(this.value)" style="width:auto"><option value="mock" ${state.chatMode==='mock'?'selected':''}>离线演示（不调用 API）</option><option value="real" ${state.chatMode==='real'?'selected':''}>真实问答（调用 DeepSeek）</option></select><button class="btn secondary small" onclick="resetChat()">开新会话</button></div><div class="chat-log">${state.chatMsgs.length?state.chatMsgs.map(m=>`<div class="message ${m.from==='user'?'user':''}"><div class="bubble">${esc(m.text)}</div>${m.cites&&m.cites.length?`<div class="citations">${m.cites.map(c=>`<div>${esc((c.did||c.id||'')+' '+(c.text||c.quote||'')).slice(0,80)}</div>`).join('')}</div>`:''}${m.insufficient?'<div class="citations" style="border-color:#e0b4b4">依据不足，请补充材料后再确认</div>':''}</div>`).join(''):'<div class="empty">输入问题，或从右侧推荐问题开始。<br>回答会附带材料段落编号。</div>'}</div><div class="chat-input"><textarea id="question" placeholder="例如：客户最关心的问题是什么？" onkeydown="if(event.ctrlKey&&event.key==='Enter')sendQuestion()"></textarea><button class="btn" onclick="sendQuestion()" ${state.chatBusy?'disabled':''}>${state.chatBusy?'思考中…':'发送'}</button></div></section><aside><section class="panel"><h2 class="panel-title">可以这样问</h2><p class="panel-sub">围绕当前项目的真实材料</p><div class="suggestion" onclick="askSuggested('客户最关心的问题是什么？')">客户最关心的问题是什么？</div><div class="suggestion" onclick="askSuggested('哪些需求还没有足够依据？')">哪些需求还没有足够依据？</div><div class="suggestion" onclick="askSuggested('下次客户沟通应该问什么？')">下次客户沟通应该问什么？</div></section><section class="panel" style="margin-top:18px"><h2 class="panel-title">引用上下文</h2><p class="panel-sub">最近一次回答的依据</p>${cites}</section></aside></div>`;
+}
+function membersPage(){
+ if(state.membersLoading)return '<div class="loading">成员加载中…</div>';
+ const rows=state.members.map(m=>`<tr><td><div class="member-person"><div class="mini-avatar">${esc((m.name||'?').slice(0,1))}</div><div><b>${esc(m.name)}</b><span>${esc(m.email)}</span></div></div></td><td><select onchange="changeMemberRole('${esc(m.email)}',this.value)">${Object.entries(ROLE_NAMES).map(([k,v])=>`<option value="${k}" ${m.role===k?'selected':''}>${v}</option>`).join('')}</select></td><td class="muted small-text">${m.role==='admin'?'成员、角色与项目授权':m.role==='pm'?'分析、修正、确认和导出':m.role==='sales'?'提交材料与处理客户追问':'能力匹配查看与补充意见'}</td></tr>`).join('');
+ return `<div class="page-head"><div><h1>成员与权限</h1><p>四种预设角色覆盖当前业务，不开放复杂自定义权限</p></div><div class="head-actions"><button class="btn" onclick="state.addOpen=!state.addOpen;render()">邀请成员</button></div></div>${state.addOpen?`<section class="panel" style="margin-bottom:20px"><h2 class="panel-title">添加成员</h2><p class="panel-sub">先指定角色；成员用分配的邮箱和初始密码登录</p><form onsubmit="event.preventDefault();addMember(this)"><div class="form-grid"><div class="field"><label>姓名</label><input class="input" name="name" required></div><div class="field"><label>角色</label><select class="input" name="role"><option value="sales">销售</option><option value="pm">产品经理</option><option value="presale">售前</option><option value="admin">管理员</option></select></div></div><div class="field"><label>工作邮箱</label><input class="input" name="email" type="email" required></div><div class="field"><label>初始密码</label><input class="input" name="password" type="password" minlength="8" required></div><button class="btn small" type="submit">添加成员</button></form></section>`:''}<div class="permission-grid"><section class="panel"><h2 class="panel-title">团队成员</h2><p class="panel-sub">角色决定操作边界；系统至少保留一名管理员</p><div class="table-wrap"><table><thead><tr><th>成员</th><th>角色</th><th>职责</th></tr></thead><tbody>${rows||'<tr><td colspan="3" class="muted">加载中</td></tr>'}</tbody></table></div></section><aside class="panel"><h2 class="panel-title">角色说明</h2><p class="panel-sub">业务确认权与系统管理权分离</p><div class="role-cards">${Object.entries(ROLE_NAMES).map(([k,v])=>`<div class="role-card"><h3>${v}</h3><p>${{admin:'账号、角色和项目授权',pm:'分析、修正、确认和导出',sales:'提交材料与处理客户追问',presale:'能力匹配查看与补充意见'}[k]}</p></div>`).join('')}</div></aside></div><section class="panel" style="margin-top:20px"><h2 class="panel-title">权限边界</h2><p class="panel-sub">固定矩阵，与后端校验一致</p><div class="table-wrap"><table><thead><tr><th>能力</th><th>管理员</th><th>产品经理</th><th>销售</th><th>售前</th></tr></thead><tbody><tr><td>上传材料 / 创建分析</td><td>—</td><td>允许</td><td>允许</td><td>—</td></tr><tr><td>查看报告</td><td>全部项目</td><td>全部项目</td><td>部分 · 追问</td><td>部分 · 匹配</td></tr><tr><td>修正与确认需求</td><td>—</td><td>允许</td><td>—</td><td>—</td></tr><tr><td>材料问答</td><td>—</td><td>允许</td><td>允许</td><td>允许</td></tr><tr><td>导出 Word</td><td>允许</td><td>允许</td><td>仅追问清单</td><td>允许</td></tr><tr><td>成员、角色与项目授权</td><td>允许</td><td>—</td><td>—</td><td>—</td></tr></tbody></table></div></section>`;
+}
+boot();
+</script>
+</body>
+</html>
