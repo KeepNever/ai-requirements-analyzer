@@ -40,6 +40,13 @@ PAGE_ACCESS: dict[str, set[str]] = {
     "report": {"pm", "admin", "presale"},
     # 追问清单是完整报告的销售子集视图，四角色都可看
     "questions": ALL_ROLES,
+    # 角色工作功能：追问跟进（销售/产品）、能力匹配复核（售前/产品）
+    "my_questions": {"pm", "sales"},
+    "cap_review": {"pm", "presale"},
+    # 标注写权限：确认=产品经理，客户回复=销售，售前意见=售前/产品
+    "note_confirm": {"pm"},
+    "note_reply": {"sales"},
+    "note_presale": {"pm", "presale"},
     "export_docx": {"pm", "admin", "presale"},
     "case": ALL_ROLES,
     # 材料清洗与完整分析属于业务提交动作
