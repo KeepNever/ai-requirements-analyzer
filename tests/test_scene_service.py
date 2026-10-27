@@ -135,3 +135,25 @@ def test_service_prompt_is_independent():
     presale = prompts.SYSTEM_PROMPT if hasattr(prompts, "SYSTEM_PROMPT") else ""
     if presale:
         assert "学员服务诊断" not in presale
+
+
+def test_scene_template_engine_loads_json():
+    """Task 8 场景 JSON 化：模板从 scenes/*.json 加载，契约字段齐全。"""
+    from pipeline import scenes as scene_engine
+    sc = scene_engine.get_scene("service_diagnosis")
+    assert sc["id"] == "service_diagnosis"
+    assert sc["system_prompt"] and sc["task_instruction"]
+    keys = {sec["key"] for sec in sc["sections"]}
+    assert {"core_demands", "emotion_risks", "response_issues"} <= keys
+    with pytest.raises(ValueError, match="未知模板场景"):
+        scene_engine.get_scene("不存在")
+
+
+def test_mock_analysis_follows_schema():
+    """mock 分析按 sections schema 生成，bullet 段与表格段都能出结构。"""
+    from pipeline import scenes as scene_engine
+    sc = scene_engine.get_scene("service_diagnosis")
+    out = scene_engine.analyze_scene(sc, "P1 【学生】我觉得跟不上了。", mock=True)
+    assert out["summary"]
+    assert out["core_demands"] and out["emotion_risks"] and out["response_issues"]
+    assert out["action_items"]                              # actions_section 也生成

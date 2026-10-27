@@ -84,10 +84,12 @@ def run_scene_case(material_path: str, scene: str = "service_diagnosis",
                                  None if mock else llm_client.usage_summary())
         return rdir
 
-    # service_diagnosis 场景
-    sd = analyze_service_diagnosis(data.cleaned_text(), mock=mock)
-    cits = build_citations_service(sd, pid, refs)
-    report_md = build_service_report(sd, pname, rdir.name)
+    # 模板场景（JSON 配置驱动，Task 8 场景化）
+    from pipeline import scenes as scene_engine
+    sc = scene_engine.get_scene(scene)
+    sd = scene_engine.analyze_scene(sc, data.cleaned_text(), mock=mock)
+    cits = scene_engine.build_citations_scene(sd, sc, pid, refs)
+    report_md = scene_engine.render_report_scene(sd, sc, pname, rdir.name)
     storage.save_run_outputs(rdir, sd, report_md, cits, None)
     return rdir
 

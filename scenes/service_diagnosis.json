@@ -1,0 +1,67 @@
+{
+  "id": "service_diagnosis",
+  "name": "学员服务诊断",
+  "prompt_version": "v1.0-sd",
+  "report_title": "学员服务诊断报告",
+  "meta_headers": ["项目", "诊断运行 ID", "材料与版本", "诊断 Prompt 版本", "生成时间"],
+  "meta_col_widths": [2.6, 3.8, 5.0, 2.8, 2.8],
+  "system_prompt": "你是学员服务诊断助手。依据【材料段落】中服务方（班主任/老师）与学员的对话，\n做一次服务诊断，输出 JSON：\n{\n  \"summary\": \"一句话定性：学员现状 + 风险等级\",\n  \"core_demands\": [\n    {\"id\": \"SD1\", \"content\": \"诉求描述\", \"quote\": \"学员原话\", \"dids\": [\"D003\"], \"priority\": \"高/中/低\"}\n  ],\n  \"emotion_risks\": [\n    {\"type\": \"情绪或风险描述\", \"evidence_quote\": \"学员原话\", \"dids\": [\"D030\"], \"level\": \"高/中/低\"}\n  ],\n  \"response_issues\": [\n    {\"issue\": \"服务方响应中存在的问题\", \"dids\": [\"D010\"]}\n  ],\n  \"action_items\": [\n    {\"action\": \"行动名称\", \"detail\": \"具体做法与时限\", \"priority\": \"高/中/低\"}\n  ]\n}\n规则：\n1. dids 只能引用【材料段落】中真实出现的 D 编号；每条诉求必须带学员原话（quote）；\n2. 情绪与风险信号要引用触发它的原话；风险等级按流失可能性判断；\n3. response_issues 引用服务方的回应原文作为依据；\n4. action_items 是给服务方的具体行动建议（给谁做什么、时限多少），必须可执行、不含空话；\n   行动是建议而非证据，action_items 不需要 dids；detail 中的时限一律表述为\n   「建议时限（需服务负责人确认）」，不得写成已确认的服务承诺；\n5. 归因边界：response_issues 的结论不得超出对话证据——材料只记录到某时刻时，\n   写「当前截取的对话中尚未看到…」而非断言服务方「没有采取行动」；\n   指出服务方未承接某个具体问题时，应同时引用学员明确描述该问题的段落编号，\n   形成完整证据链；\n6. 协助方式不做意愿替判：远程讲解、远程代做、操作指导是不同的协助形式，\n   学员拒绝其中一种不代表拒绝全部——应指出「双方对协助边界可能存在理解差异，\n   建议先澄清学员期望的协助形式」，而非直接判定「方案与学员意愿不符」；\n7. 材料与学员服务无关时全部输出空列表，summary 说明原因。",
+  "task_instruction": "【任务】请对这份对话做学员服务诊断，按 JSON 结构输出。",
+  "summary_title": "一、诊断摘要",
+  "sections": [
+    {
+      "key": "core_demands",
+      "word_title": "二、学员核心诉求（带原话锚点）",
+      "citation_type": "core_demand",
+      "citation_reason": "支撑学员诉求识别",
+      "quote_field": "quote",
+      "empty_text": "（本运行无核心需求数据）",
+      "columns": [
+        {"field": "id", "header": "编号"},
+        {"field": "content", "header": "诉求"},
+        {"field": "priority", "header": "优先级"},
+        {"field": "quote", "header": "原话锚点"},
+        {"field": "_dids", "header": "引用段落"}
+      ],
+      "col_widths": [1.2, 5.4, 1.4, 5.6, 3.4]
+    },
+    {
+      "key": "emotion_risks",
+      "word_title": "三、情绪与风险信号",
+      "citation_type": "emotion_risk",
+      "citation_reason": "支撑情绪与风险判断",
+      "quote_field": "evidence_quote",
+      "empty_text": "（本运行无情绪与风险数据）",
+      "columns": [
+        {"field": "type", "header": "信号"},
+        {"field": "level", "header": "等级"},
+        {"field": "evidence_quote", "header": "触发原话"},
+        {"field": "_dids", "header": "引用段落"}
+      ],
+      "col_widths": [3.4, 1.4, 7.8, 4.4]
+    },
+    {
+      "key": "response_issues",
+      "word_title": "四、服务方响应问题",
+      "citation_type": "response_issue",
+      "citation_reason": "支撑服务方响应问题分析",
+      "quote_field": "issue",
+      "empty_text": "（本运行无响应问题数据）",
+      "render": "bullet",
+      "bullet_template": "- {issue}（{dids}）"
+    }
+  ],
+  "actions_section": {
+    "key": "action_items",
+    "word_title": "五、行动清单",
+    "empty_text": "（本运行无行动清单）",
+    "columns": [
+      {"field": "action", "header": "行动"},
+      {"field": "priority", "header": "优先级"},
+      {"field": "detail", "header": "具体做法与时限"}
+    ],
+    "col_widths": [3.4, 1.4, 12.2]
+  },
+  "citation_note": "说明：本节结构化引用仅覆盖能够可靠定位来源的结论；行动清单为服务方建议，不作为证据引用。",
+  "footer_note": "— 本报告由 AI 客户材料分析工作台基于指定历史运行导出，引用均为脱敏后展示文本 —"
+}
