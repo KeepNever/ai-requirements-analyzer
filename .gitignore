@@ -5,3 +5,6 @@
 __pycache__/
 *.pyc
 projects/
+
+# 本地账号与会话密钥
+data/

@@ -10,13 +10,14 @@
 """
 import html
 import json
+import os
 import re
 import sys
 import time
 import uuid
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
-from urllib.parse import unquote, urlparse, quote as url_quote
+from urllib.parse import unquote, urlparse, quote as url_quote, parse_qs
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(PROJECT_ROOT / "src"))
@@ -26,6 +27,7 @@ from pipeline import workflow as wf  # noqa: E402
 import storage  # noqa: E402
 import retrieval  # noqa: E402
 import export_docx  # noqa: E402
+import auth  # noqa: E402
 
 
 def _safe_pid(pid) -> str:
@@ -865,6 +867,76 @@ def load_snapshots():
             "case_1": case_1, "case_5": case_5, "case_6": case_6}
 
 
+AUTH_CSS = """
+body{font-family:"PingFang SC","Microsoft YaHei",sans-serif;background:#f5f7fb;color:#1c2536;margin:0;line-height:1.65}
+.wrap{max-width:420px;margin:8vh auto;background:#fff;border:1px solid #e3e8f0;border-radius:12px;padding:34px}
+.brand{font-size:13px;color:#2b5cff;font-weight:700;margin-bottom:22px}
+h1{font-size:24px;margin:0 0 6px}p.sub{color:#68758a;font-size:13px;margin:0 0 22px}
+label{display:block;font-size:13px;font-weight:600;margin:14px 0 7px}
+input,select{width:100%;box-sizing:border-box;border:1px solid #e3e8f0;border-radius:7px;padding:10px 12px;font:inherit}
+button{width:100%;margin-top:22px;background:#2b5cff;color:#fff;border:0;border-radius:7px;padding:11px;font:inherit;font-weight:600;cursor:pointer}
+button:hover{background:#1f46c8}
+a{color:#2b5cff;text-decoration:none}
+.note{margin-top:18px;background:#f5f7fb;border-radius:7px;padding:11px 13px;color:#68758a;font-size:12px}
+.error{margin-bottom:16px;background:#fff0f1;color:#c4404e;border-radius:7px;padding:10px 13px;font-size:13px}
+table{width:100%;border-collapse:collapse;font-size:13px;margin-top:14px}
+th,td{text-align:left;border-bottom:1px solid #e3e8f0;padding:10px 8px;white-space:nowrap}
+form.inline{display:inline}
+button.small{width:auto;margin:0;padding:6px 10px;font-size:12px}
+.muted{color:#68758a;font-size:12px}
+"""
+
+def auth_page(title: str, sub: str, body: str, error: str = "") -> str:
+    err = f'<div class="error">{html.escape(error)}</div>' if error else ""
+    return f"""<!doctype html><html lang="zh-CN"><meta charset="utf-8"><title>{title} · AI 客户需求分析助手</title><style>{AUTH_CSS}</style><div class="wrap"><div class="brand">AI 客户需求分析助手</div><h1>{title}</h1><p class="sub">{sub}</p>{err}{body}</div>"""
+
+
+LOGIN_FORM = """
+<form method="post" action="/login">
+  <label>工作邮箱</label><input name="email" type="email" required>
+  <label>密码</label><input name="password" type="password" required>
+  <button>登录</button>
+</form>
+<p style="margin-top:18px;font-size:13px">还没有账号？<a href="/register">注册并创建团队</a></p>
+<div class="note">已有团队成员请使用管理员分配的账号登录。</div>
+"""
+
+REGISTER_FORM = """
+<form method="post" action="/register">
+  <label>你的姓名</label><input name="name" required>
+  <label>团队 / 企业名称</label><input name="org" required>
+  <label>工作邮箱</label><input name="email" type="email" required>
+  <label>设置密码</label><input name="password" type="password" minlength="8" required>
+  <button>创建团队并进入</button>
+</form>
+<p style="margin-top:18px;font-size:13px">已有账号？<a href="/login">返回登录</a></p>
+<div class="note">首次注册创建管理员；之后的新成员由管理员在成员页添加。</div>
+"""
+
+
+def members_page(user: dict, error: str = "") -> str:
+    rows = []
+    for u in auth.list_users_public():
+        options = "".join(
+            f'<option value="{r}"{" selected" if r == u["role"] else ""}>{n}</option>'
+            for r, n in auth.ROLES.items())
+        rows.append(f"""<tr><td>{html.escape(u['name'])}<div class="muted">{html.escape(u['email'])}</div></td>
+<td><form class="inline" method="post" action="/admin/users/role"><input type="hidden" name="email" value="{html.escape(u['email'])}"><select name="role" onchange="this.form.submit()">{options}</select></form></td>
+<td>{auth.ROLES.get(u['role'], u['role'])}</td></tr>""")
+    create_form = """
+<form method="post" action="/admin/users/create">
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:0 14px">
+<div><label>姓名</label><input name="name" required></div>
+<div><label>角色</label><select name="role"><option value="sales">销售</option><option value="pm">产品经理</option><option value="presale">售前</option><option value="admin">管理员</option></select></div>
+</div>
+<label>工作邮箱</label><input name="email" type="email" required>
+<label>初始密码</label><input name="password" type="password" minlength="8" required>
+<button>添加成员</button>
+</form>"""
+    err = f'<div class="error">{html.escape(error)}</div>' if error else ""
+    return f"""<!doctype html><html lang="zh-CN"><meta charset="utf-8"><title>成员与权限</title><style>{AUTH_CSS}</style><div class="wrap" style="max-width:720px"><div style="display:flex;justify-content:space-between;align-items:center"><div class="brand">成员与权限</div><a href="/">返回工作台</a> · <a href="/logout">退出</a></div>{err}<table><tr><th>成员</th><th>角色</th><th>说明</th></tr>{''.join(rows)}</table><h1 style="font-size:20px;margin-top:32px">添加成员</h1><p class="sub">固定角色边界；至少保留一名管理员。</p>{create_form}</div>"""
+
+
 def render(template: str, **kw: str) -> str:
     body = template
     for k, v in kw.items():
@@ -884,16 +956,75 @@ class Handler(BaseHTTPRequestHandler):
     def _json(self, obj, code: int = 200):
         self._send(json.dumps(obj, ensure_ascii=False), code, "application/json; charset=utf-8")
 
+    def _redirect(self, target: str, cookie: str | None = None):
+        self.send_response(303)
+        self.send_header("Location", target)
+        if cookie:
+            self.send_header("Set-Cookie", cookie)
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+
+    def _form(self) -> dict:
+        length = int(self.headers.get("Content-Length", 0))
+        raw = self.rfile.read(length).decode("utf-8")
+        return {k: v[0] for k, v in parse_qs(raw).items()}
+
+    def _user(self):
+        return auth.user_from_cookie(self.headers.get("Cookie"))
+
     def do_GET(self):
         path = unquote(urlparse(self.path).path)
-        if path in ("/", "/index.html"):
+        user = self._user()
+
+        if path == "/logout":
+            self._redirect("/login", auth.clear_session_cookie())
+            return
+
+        # 未登录：登录/注册可访问；API 返回 401；页面统一跳登录
+        if not user:
+            if path == "/login":
+                self._send(auth_page("登录", "登录后继续处理你的项目与分析任务", LOGIN_FORM))
+            elif path == "/register":
+                if auth.count_users() == 0:
+                    self._send(auth_page("注册并创建团队", "首次注册自动创建管理员", REGISTER_FORM))
+                else:
+                    self._send(auth_page("注册", "系统已初始化", "<p>新成员请联系管理员添加。</p><p><a href='/login'>返回登录</a></p>"), 403)
+            elif path.startswith("/api/"):
+                self._json({"error": "未登录"}, 401)
+            else:
+                self._redirect("/login")
+            return
+
+        role = user["role"]
+
+        def deny(action: str) -> bool:
+            if auth.can(role, action):
+                return False
+            if path.startswith("/api/"):
+                self._json({"error": "当前角色没有该功能权限"}, 403)
+            else:
+                self._send(auth_page("无权限", "当前角色无法访问该页面",
+                    f"<p>你当前角色：{auth.ROLES.get(role, role)}</p><p><a href='/'>返回工作台</a></p>"), 403)
+            return True
+
+        # 已登录后不再重复显示登录/注册
+        if path in ("/login", "/register"):
+            self._redirect(auth.login_redirect_target(user))
+        elif path == "/members":
+            if deny("members"): return
+            self._send(members_page(user))
+        elif path in ("/", "/index.html"):
+            if deny("home"): return
             self._send(render(HOME_PAGE, css=PAGE_CSS, cases=list_cases()))
         elif path == "/dashboard":
+            if deny("dashboard"): return
             self._send(render(DASHBOARD_PAGE, css=PAGE_CSS,
                               data=json.dumps(load_snapshots(), ensure_ascii=False)))
         elif path == "/library":
+            if deny("library"): return
             self._send(render(LIBRARY_PAGE, css=PAGE_CSS))
         elif path.startswith("/library/"):
+            if deny("library"): return
             pid = path.split("/library/", 1)[1]
             tree = storage.get_project_tree(pid)
             if tree is None:
@@ -905,6 +1036,7 @@ class Handler(BaseHTTPRequestHandler):
         elif path == "/api/projects":
             self._json(storage.list_projects())
         elif path.startswith("/api/project/"):
+            if deny("library"): return
             pid = path.split("/api/project/", 1)[1]
             tree = storage.get_project_tree(pid)
             if tree is None:
@@ -912,11 +1044,14 @@ class Handler(BaseHTTPRequestHandler):
                 return
             self._json(tree)
         elif path == "/chat":
+            if deny("chat"): return
             self._send(render(CHAT_PAGE, css=PAGE_CSS))
         elif path.startswith("/api/conversations/"):
+            if deny("chat"): return
             pid = path.split("/api/conversations/", 1)[1]
             self._json(retrieval.list_conversations(pid))
         elif path.startswith("/api/conversation/"):
+            if deny("chat"): return
             _, rest = path.split("/api/conversation/", 1)
             pid, cid = rest.split("/", 1)
             msg_file = storage._resolve_under_base(
@@ -926,13 +1061,13 @@ class Handler(BaseHTTPRequestHandler):
                 return
             self._json(json.loads(msg_file.read_text(encoding="utf-8")))
         elif path.startswith("/api/project-context/"):
+            if deny("chat"): return
             pid = path.split("/api/project-context/", 1)[1]
             tree = storage.get_project_tree(pid)
             if tree is None:
                 self._json({"error": "项目不存在"}, 404)
                 return
             needs, runs = [], []
-            # tree["runs"] 已按最近在前排序；取最近一条含 analysis.json 的运行
             for r in tree["runs"]:
                 ana = storage._resolve_under_base("projects", pid, "analysis_runs", r["run_id"], "analysis.json")
                 if ana.exists():
@@ -944,6 +1079,7 @@ class Handler(BaseHTTPRequestHandler):
             self._json({"documents": tree["documents"], "explicit_needs": needs,
                         "recent_runs": runs})
         elif path.startswith("/export/docx/"):
+            if deny("export_docx"): return
             _, rest = path.split("/export/docx/", 1)
             pid, run_id = rest.split("/", 1)
             try:
@@ -961,6 +1097,7 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(data)
         elif path.startswith("/api/version/"):
+            if deny("library"): return
             _, rest = path.split("/api/version/", 1)
             pid, doc_id, vid = rest.split("/", 2)
             vdir = storage._documents_dir(pid) / doc_id / "versions" / vid
@@ -969,6 +1106,7 @@ class Handler(BaseHTTPRequestHandler):
                 return
             self._json(json.loads((vdir / "clean.json").read_text(encoding="utf-8")))
         elif path.startswith("/api/case/"):
+            if deny("case"): return
             name = path.split("/api/case/", 1)[1]
             got = load_case(name)
             if got is None:
@@ -977,6 +1115,7 @@ class Handler(BaseHTTPRequestHandler):
             a, m = got
             self._json({"analysis": a, "mapping": m})
         elif path.startswith("/pipeline/"):
+            if deny("report"): return
             name = path.split("/pipeline/", 1)[1]
             got = load_case(name)
             if got is None:
@@ -987,6 +1126,7 @@ class Handler(BaseHTTPRequestHandler):
             self._send(render(PIPELINE_PAGE, title=html.escape(name), css=PAGE_CSS,
                               urlname=name, body=body, chart=chart))
         elif path.startswith("/report/"):
+            if deny("report"): return
             name = path.split("/report/", 1)[1]
             report = PROJECT_ROOT / "output" / name / "report.md"
             ana = PROJECT_ROOT / "output" / name / "analysis.json"
@@ -1002,7 +1142,77 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         path = unquote(urlparse(self.path).path)
+        user = self._user()
+
+        # 登录 / 注册：未登录才允许
+        if path in ("/login", "/register"):
+            if user:
+                self._redirect(auth.login_redirect_target(user))
+                return
+            form = self._form()
+            if path == "/login":
+                try:
+                    u = auth.authenticate(form.get("email", ""), form.get("password", ""))
+                    token = auth.make_session(u["user_id"])
+                    self._redirect(auth.login_redirect_target(u), auth.session_cookie(token))
+                except auth.AuthError as e:
+                    self._send(auth_page("登录", "登录后继续处理你的项目与分析任务", LOGIN_FORM, str(e)), 400)
+                return
+            if auth.count_users() > 0:
+                self._send(auth_page("注册", "系统已初始化",
+                    "<p>新成员请联系管理员在成员页添加。</p><p><a href='/login'>返回登录</a></p>"), 403)
+                return
+            try:
+                u = auth.register_first_admin(form.get("name", ""), form.get("email", ""),
+                                              form.get("password", ""), form.get("org", ""))
+                token = auth.make_session(u["user_id"])
+                self._redirect(auth.login_redirect_target(u), auth.session_cookie(token))
+            except auth.AuthError as e:
+                self._send(auth_page("注册并创建团队", "首次注册自动创建管理员", REGISTER_FORM, str(e)), 400)
+            return
+
+        if not user:
+            if path.startswith("/api/"):
+                self._json({"error": "未登录"}, 401)
+            else:
+                self._redirect("/login")
+            return
+
+        role = user["role"]
+
+        def deny(action: str) -> bool:
+            if auth.can(role, action):
+                return False
+            if path.startswith("/api/"):
+                self._json({"error": "当前角色没有该功能权限"}, 403)
+            else:
+                self._send(auth_page("无权限", "当前角色无法执行该操作",
+                    f"<p>你当前角色：{auth.ROLES.get(role, role)}</p><p><a href='/'>返回工作台</a></p>"), 403)
+            return True
+
+        # 管理端：添加成员 / 调整角色
+        if path == "/admin/users/create":
+            if deny("manage_users"): return
+            form = self._form()
+            try:
+                auth.create_user(form.get("name", ""), form.get("email", ""),
+                                 form.get("password", ""), form.get("role", "sales"))
+                self._redirect("/members")
+            except auth.AuthError as e:
+                self._send(members_page(user, str(e)), 400)
+            return
+        if path == "/admin/users/role":
+            if deny("manage_users"): return
+            form = self._form()
+            try:
+                auth.update_role(form.get("email", ""), form.get("role", ""))
+                self._redirect("/members")
+            except auth.AuthError as e:
+                self._send(members_page(user, str(e)), 400)
+            return
+
         if path == "/api/ask":
+            if deny("ask"): return
             length = int(self.headers.get("Content-Length", 0))
             try:
                 payload = json.loads(self.rfile.read(length).decode("utf-8"))
@@ -1029,6 +1239,7 @@ class Handler(BaseHTTPRequestHandler):
                 self._json({"error": f"{type(e).__name__}: {e}"}, 500)
             return
         if path == "/api/clean":
+            if deny("run_analysis"): return
             length = int(self.headers.get("Content-Length", 0))
             try:
                 payload = json.loads(self.rfile.read(length).decode("utf-8"))
@@ -1041,6 +1252,7 @@ class Handler(BaseHTTPRequestHandler):
                 self._json({"error": f"{type(e).__name__}: {e}"}, 500)
             return
         if path == "/run-text":
+            if deny("run_analysis"): return
             length = int(self.headers.get("Content-Length", 0))
             try:
                 payload = json.loads(self.rfile.read(length).decode("utf-8"))
@@ -1062,7 +1274,7 @@ class Handler(BaseHTTPRequestHandler):
                 self._json({"error": f"{type(e).__name__}: {e}"}, 500)
             return
         if path == "/run":
-            # 兼容旧表单（multipart）：直接跑完整分析
+            if deny("run_analysis"): return
             ctype = self.headers.get("Content-Type", "")
             boundary = re.search(r"boundary=([^;]+)", ctype)
             length = int(self.headers.get("Content-Length", 0))
@@ -1092,7 +1304,7 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main():
-    port = 8000
+    port = int(os.environ.get("WEB_PORT", "8000"))
     print(f"[Web] 工作台：http://127.0.0.1:{port}")
     print(f"[Web] 评测 Dashboard：http://127.0.0.1:{port}/dashboard")
     print("[Web] Ctrl+C 退出")
