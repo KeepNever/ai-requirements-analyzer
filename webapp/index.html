@@ -37,7 +37,7 @@ const ROLE_PAGES={
  presale:['dashboard','report','chat']};
 const ROLE_NAMES={admin:'管理员',pm:'产品经理',sales:'销售',presale:'售前'};
 const ROLE_DESC={admin:'账号、角色和项目授权',pm:'分析、修正、确认和导出',sales:'提交材料与处理客户追问',presale:'能力匹配查看与补充意见'};
-const PAGE_NAMES={dashboard:'项目工作台',new:'新建分析',report:'分析报告',chat:'材料问答',members:'成员与权限'};
+const PAGE_NAMES={dashboard:'项目工作台',new:'新建分析',report:'分析报告',chat:'材料问答',members:'成员与权限',eval:'质量评测'};
 const NAV_ITEMS=[['dashboard','项目工作台'],['new','新建分析'],['chat','材料问答'],['members','成员与权限']];
 const VERDICT_CLASS={'匹配':'green','部分匹配':'amber','待确认':'gray','不支持':'red'};
 const state={booting:true,user:null,page:'dashboard',overview:[],overviewLoading:true,
@@ -61,9 +61,32 @@ async function api(path,opts={}){
  return data;
 }
 
+function routeHash(){
+ if(!state.user)return false;
+ const h=location.hash.replace('#','');
+ const allowed={dashboard:'dashboard',new:'new',chat:'chat',members:'members',eval:'eval'};
+ const target=allowed[h];
+ const ok=!!target&&(target==='eval'?can('dashboard'):can(target));
+ if(ok){
+  state.page=target;
+  try{history.replaceState(null,'','#'+target)}catch(e){}
+  if(target==='dashboard')loadOverview();
+  if(target==='chat'&&!state.overview.length)loadOverview(false);
+  if(target==='members')loadMembers();
+  render();window.scrollTo(0,0);
+ }else if(h){
+  try{history.replaceState(null,'','#'+state.page)}catch(e){}
+ }
+ return ok;
+}
+window.addEventListener('hashchange',()=>{if(state.user&&!state.booting)routeHash()});
 async function boot(){
- try{state.user=await api('/api/me');state.page='dashboard';await loadOverview(false);}
- catch(e){state.page='login'}
+ try{
+  state.user=await api('/api/me');
+  if(!routeHash())state.page=state.user.role==='admin'?'members':'dashboard';
+  await loadOverview(false);
+  if(state.page==='members')loadMembers();
+ }catch(e){state.page='login'}
  state.booting=false;render();
 }
 async function loadOverview(spinner=true){
@@ -73,11 +96,18 @@ async function loadOverview(spinner=true){
 }
 function askableProjects(){return state.overview.filter(x=>x.source==='project')}
 
+function pageAfterLogin(){
+ const h=location.hash.replace('#','');
+ const allowed={dashboard:'dashboard',new:'new',chat:'chat',members:'members',eval:'eval'};
+ if(h&&allowed[h]&&(allowed[h]==='eval'?can('dashboard'):can(allowed[h])))return allowed[h];
+ return state.user.role==='admin'?'members':'dashboard';
+}
 async function doLogin(form){
  const f=new FormData(form);
  try{
   state.user=await api('/api/auth/login',{method:'POST',body:{email:f.get('email'),password:f.get('password')}});
-  state.page='dashboard';await loadOverview(false);
+  state.page=pageAfterLogin();await loadOverview(false);
+  if(state.page==='members')loadMembers();
  }catch(e){showAuthError(e.message);return}
  render();
 }
@@ -86,7 +116,8 @@ async function doRegister(form){
  if(f.get('password')!==f.get('password2')){showAuthError('两次输入的密码不一致');return}
  try{
   state.user=await api('/api/auth/register',{method:'POST',body:{name:f.get('name'),org:f.get('org'),email:f.get('email'),password:f.get('password')}});
-  state.page='dashboard';await loadOverview(false);
+  state.page=pageAfterLogin();await loadOverview(false);
+  if(state.page==='members')loadMembers();
  }catch(e){showAuthError(e.message);return}
  render();toast('团队创建成功，你已成为管理员');
 }
@@ -97,8 +128,10 @@ async function doLogout(){
 function showAuthError(msg){const el=document.getElementById('authError');if(el){el.textContent=msg;el.classList.remove('hidden')}}
 
 function go(page){
- if(!can(page)){toast('当前角色没有此页面权限');return}
+ const gate=page==='eval'?'dashboard':page;
+ if(!can(gate)){toast('当前角色没有此页面权限');return}
  state.page=page;
+ try{history.replaceState(null,'','#'+page)}catch(e){}
  if(page==='dashboard')loadOverview();
  if(page==='chat'&&!state.overview.length)loadOverview(false);
  if(page==='members')loadMembers();
@@ -199,10 +232,10 @@ function render(){const root=document.getElementById('root');root.innerHTML=stat
 function loginPage(){return `<div class="login"><section class="login-story">${brand()}<div class="story-main"><div class="eyebrow">Evidence before judgement</div><h1>从客户原话，<br>到可追溯的需求判断。</h1><p>把会议、邮件和聊天记录变成结构化分析。每条结论都有出处，每个缺口都有下一步。</p><div class="evidence-flow"><div class="flow-quote"><b>D07</b>「希望按区域查看任务完成情况，不然每周都要人工汇总。」</div><div class="flow-line"></div><div class="flow-result"><div><span>显性需求 EN2</span><b>按区域追踪任务进展</b></div><div><span>待确认问题 Q3</span><b>需要覆盖哪些区域与角色？</b></div></div></div></div><div class="login-foot">内部工作平台 · 材料脱敏 · 版本留痕 · 引用回链</div></section><section class="login-form-side"><form class="login-form" onsubmit="event.preventDefault();doLogin(this)"><h2>欢迎回来</h2><p class="sub">登录后继续处理你的项目与分析任务</p><div id="authError" class="form-error hidden"></div><div class="field"><label>工作邮箱</label><input class="input" name="email" type="email" required></div><div class="field"><label>密码</label><input class="input" name="password" type="password" required></div><button class="btn login-submit" type="submit">登录</button><div class="auth-switch" style="text-align:center;margin-top:22px;font-size:13px;color:var(--muted)">还没有账号？<a class="link" onclick="state.page='register';render()">注册并创建团队</a></div><div class="demo-note">新成员请使用管理员在成员页分配的账号登录。</div><div class="login-meta">AI 客户需求分析助手 · 正式版</div></form></section></div>`}
 function registerPage(){return `<div class="login"><section class="login-story">${brand()}<div class="story-main"><div class="eyebrow">Create your workspace</div><h1>从建立团队开始，<br>让材料与判断归到一起。</h1><p>注册后自动创建独立工作空间。你将成为管理员，再邀请销售、产品经理和售前加入。</p><div class="evidence-flow"><div class="flow-result"><div><span>第一步</span><b>创建团队与管理员账号</b></div><div><span>第二步</span><b>邀请成员并指定角色</b></div></div><div class="flow-line"></div><div class="flow-result"><div><span>数据边界</span><b>项目按授权范围开放</b></div><div><span>已有团队</span><b>通过管理员邀请加入</b></div></div></div></div><div class="login-foot">独立工作空间 · 固定角色边界 · 项目授权访问</div></section><section class="login-form-side"><form class="login-form register-form" onsubmit="event.preventDefault();doRegister(this)"><h2>注册并创建团队</h2><p class="sub">创建人自动成为管理员，后续可邀请团队成员</p><div id="authError" class="form-error hidden"></div><div class="form-grid"><div class="field"><label>你的姓名</label><input id="regName" class="input" name="name" placeholder="例如：林然" required></div><div class="field"><label>团队 / 企业名称</label><input id="regOrg" class="input" name="org" placeholder="例如：星海科技" required></div></div><div class="field"><label>工作邮箱</label><input id="regEmail" class="input" name="email" type="email" placeholder="name@company.cn" required></div><div class="form-grid"><div class="field"><label>设置密码</label><input id="regPassword" class="input" name="password" type="password" placeholder="至少 8 个字符" required><div class="password-hint">建议组合字母、数字与符号</div></div><div class="field"><label>确认密码</label><input id="regConfirm" class="input" name="password2" type="password" placeholder="再次输入密码" required></div></div><button class="btn login-submit" type="submit">创建团队并进入工作台</button><div class="auth-switch" style="text-align:center;margin-top:22px;font-size:13px;color:var(--muted)">已有账号？<a class="link" onclick="state.page='login';render()">返回登录</a></div><div class="demo-note">加入已有团队无需在这里注册，请使用管理员分配的账号。</div></form></section></div>`}
 
-function sidebar(){return `<aside class="sidebar">${brand()}<nav class="nav"><div class="nav-label">日常工作</div>${NAV_ITEMS.slice(0,3).filter(n=>can(n[0])).map(n=>`<div class="nav-item ${state.page===n[0]?'active':''}" onclick="go('${n[0]}')"><i class="nav-dot"></i><span>${n[1]}</span></div>`).join('')}<div class="nav-label">组织管理</div>${NAV_ITEMS.slice(3).filter(n=>can(n[0])).map(n=>`<div class="nav-item ${state.page===n[0]?'active':''}" onclick="go('${n[0]}')"><i class="nav-dot"></i><span>${n[1]}</span></div>`).join('')}<div class="nav-item" onclick="location.href='/dashboard'"><i class="nav-dot"></i><span>质量评测</span></div></nav><div class="sidebar-foot"><a class="link small-text" onclick="doLogout()">退出登录</a><div class="version">正式版 · 引用可追溯</div></div></aside>`}
+function sidebar(){return `<aside class="sidebar">${brand()}<nav class="nav"><div class="nav-label">日常工作</div>${NAV_ITEMS.slice(0,3).filter(n=>can(n[0])).map(n=>`<div class="nav-item ${state.page===n[0]?'active':''}" onclick="go('${n[0]}')"><i class="nav-dot"></i><span>${n[1]}</span></div>`).join('')}<div class="nav-label">组织管理</div>${NAV_ITEMS.slice(3).filter(n=>can(n[0])).map(n=>`<div class="nav-item ${state.page===n[0]?'active':''}" onclick="go('${n[0]}')"><i class="nav-dot"></i><span>${n[1]}</span></div>`).join('')}<div class="nav-item ${state.page==='eval'?'active':''}" onclick="go('eval')"><i class="nav-dot"></i><span>质量评测</span></div></nav><div class="sidebar-foot"><a class="link small-text" onclick="doLogout()">退出登录</a><div class="version">正式版 · 引用可追溯</div></div></aside>`}
 function topbar(){return `<header class="topbar"><div class="breadcrumb">${esc(state.user.org||'工作空间')} / <b>${PAGE_NAMES[state.page]||''}</b></div><div class="top-actions"><span class="small-text muted">${ROLE_NAMES[state.user.role]} · ${esc(state.user.name)}</span><div class="avatar">${esc(state.user.name.slice(0,1))}</div></div></header>`}
 
-function app(){let body='';if(!can(state.page))body=noAccess();else if(state.page==='dashboard')body=dashboardPage();else if(state.page==='new')body=newAnalysisPage();else if(state.page==='report')body=reportPage();else if(state.page==='chat')body=chatPage();else if(state.page==='members')body=membersPage();return `<div class="app">${sidebar()}<main class="main">${topbar()}<div class="content">${body}</div></main></div>`}
+function app(){let body='';if(state.page==='eval')body=can('dashboard')?evalPage():noAccess();else if(!can(state.page))body=noAccess();else if(state.page==='dashboard')body=dashboardPage();else if(state.page==='new')body=newAnalysisPage();else if(state.page==='report')body=reportPage();else if(state.page==='chat')body=chatPage();else if(state.page==='members')body=membersPage();return `<div class="app">${sidebar()}<main class="main">${topbar()}<div class="content">${body}</div></main></div>`}
 function noAccess(){return `<div class="no-access"><h1>当前角色无权访问</h1><p>返回工作台，或联系管理员调整角色。</p><button class="btn" onclick="go('dashboard')">返回工作台</button></div>`}
 
 function roleNotice(){
@@ -321,10 +354,13 @@ function chatPage(){
  const cites=(lastAi&&lastAi.cites||[]).map(c=>`<div class="ctx-item"><b>${esc(c.did||c.id||'')}</b>${esc(c.text||c.quote||'')}</div>`).join('')||'<div class="muted small-text" style="padding:8px 0">提问后，这里显示答案引用的原文段落</div>';
  return `<div class="page-head"><div><h1>材料问答</h1><p>只依据当前项目材料回答；依据不足时明确提示</p></div></div><div class="chat-layout"><section class="panel chat-panel"><div class="row" style="margin:0 0 14px"><span class="muted small-text">项目：</span><select onchange="setChatPid(this.value)" style="width:auto;min-width:200px">${projs.map(p=>`<option value="${esc(p.id)}" ${p.id===state.chatPid?'selected':''}>${esc(p.name)}</option>`).join('')}</select><span class="muted small-text">模式：</span><select onchange="setChatMode(this.value)" style="width:auto"><option value="mock" ${state.chatMode==='mock'?'selected':''}>离线演示（不调用 API）</option><option value="real" ${state.chatMode==='real'?'selected':''}>真实问答（调用 DeepSeek）</option></select><button class="btn secondary small" onclick="resetChat()">开新会话</button></div><div class="chat-log">${state.chatMsgs.length?state.chatMsgs.map(m=>`<div class="message ${m.from==='user'?'user':''}"><div class="bubble">${esc(m.text)}</div>${m.cites&&m.cites.length?`<div class="citations">${m.cites.map(c=>`<div>${esc((c.did||c.id||'')+' '+(c.text||c.quote||'')).slice(0,80)}</div>`).join('')}</div>`:''}${m.insufficient?'<div class="citations" style="border-color:#e0b4b4">依据不足，请补充材料后再确认</div>':''}</div>`).join(''):'<div class="empty">输入问题，或从右侧推荐问题开始。<br>回答会附带材料段落编号。</div>'}</div><div class="chat-input"><textarea id="question" placeholder="例如：客户最关心的问题是什么？" onkeydown="if(event.ctrlKey&&event.key==='Enter')sendQuestion()"></textarea><button class="btn" onclick="sendQuestion()" ${state.chatBusy?'disabled':''}>${state.chatBusy?'思考中…':'发送'}</button></div></section><aside><section class="panel"><h2 class="panel-title">可以这样问</h2><p class="panel-sub">围绕当前项目的真实材料</p><div class="suggestion" onclick="askSuggested('客户最关心的问题是什么？')">客户最关心的问题是什么？</div><div class="suggestion" onclick="askSuggested('哪些需求还没有足够依据？')">哪些需求还没有足够依据？</div><div class="suggestion" onclick="askSuggested('下次客户沟通应该问什么？')">下次客户沟通应该问什么？</div></section><section class="panel" style="margin-top:18px"><h2 class="panel-title">引用上下文</h2><p class="panel-sub">最近一次回答的依据</p>${cites}</section></aside></div>`;
 }
+function evalPage(){
+ return `<div class="page-head"><div><h1>质量评测</h1><p>评测驱动迭代 · 六指标四数据集，与工作台同源</p></div><div class="head-actions"><button class="btn secondary" onclick="window.open('/dashboard','_blank')">新窗口打开</button></div></div><iframe src="/dashboard?embed=1" style="width:100%;height:calc(100vh - 210px);min-height:560px;border:1px solid var(--line);border-radius:10px;background:#fff"></iframe>`;
+}
 function membersPage(){
  if(state.membersLoading)return '<div class="loading">成员加载中…</div>';
  const rows=state.members.map(m=>`<tr><td><div class="member-person"><div class="mini-avatar">${esc((m.name||'?').slice(0,1))}</div><div><b>${esc(m.name)}</b><span>${esc(m.email)}</span></div></div></td><td><select onchange="changeMemberRole('${esc(m.email)}',this.value)">${Object.entries(ROLE_NAMES).map(([k,v])=>`<option value="${k}" ${m.role===k?'selected':''}>${v}</option>`).join('')}</select></td><td class="muted small-text">${m.role==='admin'?'成员、角色与项目授权':m.role==='pm'?'分析、修正、确认和导出':m.role==='sales'?'提交材料与处理客户追问':'能力匹配查看与补充意见'}</td></tr>`).join('');
- return `<div class="page-head"><div><h1>成员与权限</h1><p>四种预设角色覆盖当前业务，不开放复杂自定义权限</p></div><div class="head-actions"><button class="btn" onclick="state.addOpen=!state.addOpen;render()">邀请成员</button></div></div>${state.addOpen?`<section class="panel" style="margin-bottom:20px"><h2 class="panel-title">添加成员</h2><p class="panel-sub">先指定角色；成员用分配的邮箱和初始密码登录</p><form onsubmit="event.preventDefault();addMember(this)"><div class="form-grid"><div class="field"><label>姓名</label><input class="input" name="name" required></div><div class="field"><label>角色</label><select class="input" name="role"><option value="sales">销售</option><option value="pm">产品经理</option><option value="presale">售前</option><option value="admin">管理员</option></select></div></div><div class="field"><label>工作邮箱</label><input class="input" name="email" type="email" required></div><div class="field"><label>初始密码</label><input class="input" name="password" type="password" minlength="8" required></div><button class="btn small" type="submit">添加成员</button></form></section>`:''}<div class="permission-grid"><section class="panel"><h2 class="panel-title">团队成员</h2><p class="panel-sub">角色决定操作边界；系统至少保留一名管理员</p><div class="table-wrap"><table><thead><tr><th>成员</th><th>角色</th><th>职责</th></tr></thead><tbody>${rows||'<tr><td colspan="3" class="muted">加载中</td></tr>'}</tbody></table></div></section><aside class="panel"><h2 class="panel-title">角色说明</h2><p class="panel-sub">业务确认权与系统管理权分离</p><div class="role-cards">${Object.entries(ROLE_NAMES).map(([k,v])=>`<div class="role-card"><h3>${v}</h3><p>${{admin:'账号、角色和项目授权',pm:'分析、修正、确认和导出',sales:'提交材料与处理客户追问',presale:'能力匹配查看与补充意见'}[k]}</p></div>`).join('')}</div></aside></div><section class="panel" style="margin-top:20px"><h2 class="panel-title">权限边界</h2><p class="panel-sub">固定矩阵，与后端校验一致</p><div class="table-wrap"><table><thead><tr><th>能力</th><th>管理员</th><th>产品经理</th><th>销售</th><th>售前</th></tr></thead><tbody><tr><td>上传材料 / 创建分析</td><td>—</td><td>允许</td><td>允许</td><td>—</td></tr><tr><td>查看报告</td><td>全部项目</td><td>全部项目</td><td>部分 · 追问</td><td>部分 · 匹配</td></tr><tr><td>修正与确认需求</td><td>—</td><td>允许</td><td>—</td><td>—</td></tr><tr><td>材料问答</td><td>—</td><td>允许</td><td>允许</td><td>允许</td></tr><tr><td>导出 Word</td><td>允许</td><td>允许</td><td>仅追问清单</td><td>允许</td></tr><tr><td>成员、角色与项目授权</td><td>允许</td><td>—</td><td>—</td><td>—</td></tr></tbody></table></div></section>`;
+ return `<div class="page-head"><div><h1>${state.user.role==='admin'?'管理控制台':'成员与权限'}</h1><p>${state.user.role==='admin'?'邀请企业成员、分配角色；业务确认权与系统管理权分离，至少保留一名管理员':'四种预设角色覆盖当前业务，不开放复杂自定义权限'}</p></div><div class="head-actions"><button class="btn" onclick="state.addOpen=!state.addOpen;render()">邀请成员</button></div></div>${state.addOpen?`<section class="panel" style="margin-bottom:20px"><h2 class="panel-title">添加成员</h2><p class="panel-sub">先指定角色；成员用分配的邮箱和初始密码登录</p><form onsubmit="event.preventDefault();addMember(this)"><div class="form-grid"><div class="field"><label>姓名</label><input class="input" name="name" required></div><div class="field"><label>角色</label><select class="input" name="role"><option value="sales">销售</option><option value="pm">产品经理</option><option value="presale">售前</option><option value="admin">管理员</option></select></div></div><div class="field"><label>工作邮箱</label><input class="input" name="email" type="email" required></div><div class="field"><label>初始密码</label><input class="input" name="password" type="password" minlength="8" required></div><button class="btn small" type="submit">添加成员</button></form></section>`:''}<div class="permission-grid"><section class="panel"><h2 class="panel-title">团队成员</h2><p class="panel-sub">角色决定操作边界；系统至少保留一名管理员</p><div class="table-wrap"><table><thead><tr><th>成员</th><th>角色</th><th>职责</th></tr></thead><tbody>${rows||'<tr><td colspan="3" class="muted">加载中</td></tr>'}</tbody></table></div></section><aside class="panel"><h2 class="panel-title">角色说明</h2><p class="panel-sub">业务确认权与系统管理权分离</p><div class="role-cards">${Object.entries(ROLE_NAMES).map(([k,v])=>`<div class="role-card"><h3>${v}</h3><p>${{admin:'账号、角色和项目授权',pm:'分析、修正、确认和导出',sales:'提交材料与处理客户追问',presale:'能力匹配查看与补充意见'}[k]}</p></div>`).join('')}</div></aside></div><section class="panel" style="margin-top:20px"><h2 class="panel-title">权限边界</h2><p class="panel-sub">固定矩阵，与后端校验一致</p><div class="table-wrap"><table><thead><tr><th>能力</th><th>管理员</th><th>产品经理</th><th>销售</th><th>售前</th></tr></thead><tbody><tr><td>上传材料 / 创建分析</td><td>—</td><td>允许</td><td>允许</td><td>—</td></tr><tr><td>查看报告</td><td>全部项目</td><td>全部项目</td><td>部分 · 追问</td><td>部分 · 匹配</td></tr><tr><td>修正与确认需求</td><td>—</td><td>允许</td><td>—</td><td>—</td></tr><tr><td>材料问答</td><td>—</td><td>允许</td><td>允许</td><td>允许</td></tr><tr><td>导出 Word</td><td>允许</td><td>允许</td><td>仅追问清单</td><td>允许</td></tr><tr><td>成员、角色与项目授权</td><td>允许</td><td>—</td><td>—</td><td>—</td></tr></tbody></table></div></section>`;
 }
 boot();
 </script>

@@ -54,3 +54,12 @@ def test_role_nav_filters_links_by_matrix():
     assert "AI 问答" in presale and "评测看板" not in presale and "成员权限" not in presale
 
     assert "退出登录" in sales and "陈屿" in sales
+
+
+def test_legacy_rolenav_links_point_into_spa():
+    """旧页面导航条必须指回 SPA hash 路由，避免跳出统一界面。"""
+    links = {a: href for a, href, _ in web_demo.NAV_LINKS}
+    assert links["chat"] == "/#chat"
+    assert links["members"] == "/#members"
+    assert links["dashboard"] == "/#eval"
+    assert links["home"].startswith("/#")

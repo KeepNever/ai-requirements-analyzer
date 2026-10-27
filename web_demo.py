@@ -947,11 +947,11 @@ def members_page(user: dict, error: str = "") -> str:
 
 # ── 角色导航条（按 auth 权限矩阵过滤链接，对齐原型 saas-ui-v1.html）──
 NAV_LINKS = [
-    ("home", "/", "工作台"),
-    ("library", "/library", "资料库"),
-    ("chat", "/chat", "AI 问答"),
-    ("dashboard", "/dashboard", "评测看板"),
-    ("members", "/members", "成员权限"),
+    ("home", "/#dashboard", "工作台"),
+    ("library", "/#dashboard", "资料库"),
+    ("chat", "/#chat", "AI 问答"),
+    ("dashboard", "/#eval", "评测看板"),
+    ("members", "/#members", "成员权限"),
 ]
 
 
@@ -1204,8 +1204,12 @@ class Handler(BaseHTTPRequestHandler):
             self._send(with_rolenav(user, render(HOME_PAGE, css=PAGE_CSS, cases=list_cases()), "home"))
         elif path == "/dashboard":
             if deny("dashboard"): return
-            self._send(with_rolenav(user, render(DASHBOARD_PAGE, css=PAGE_CSS,
-                              data=json.dumps(load_snapshots(), ensure_ascii=False)), "dashboard"))
+            dash = render(DASHBOARD_PAGE, css=PAGE_CSS,
+                          data=json.dumps(load_snapshots(), ensure_ascii=False))
+            if "embed=1" in (urlparse(self.path).query or ""):
+                self._send(dash)          # SPA 内嵌视图：统一外壳由前端提供
+            else:
+                self._send(with_rolenav(user, dash, "dashboard"))
         elif path == "/library":
             if deny("library"): return
             self._send(with_rolenav(user, render(LIBRARY_PAGE, css=PAGE_CSS), "library"))
