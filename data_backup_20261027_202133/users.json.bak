@@ -1,0 +1,14 @@
+{
+  "users": [
+    {
+      "user_id": "c4c516542ee84c64b506a3f992390115",
+      "name": "阿",
+      "email": "3147396930@qq.com",
+      "role": "admin",
+      "salt": "1138bd3ceefb2c58cab3f76a1ba0fc72",
+      "password_hash": "72020b8da14c65126a157fde7e37006daa7f2a6a4dc3d92f8d6f79160189c0de",
+      "created_at": "2026-10-27T20:19:57",
+      "org": "良"
+    }
+  ]
+}

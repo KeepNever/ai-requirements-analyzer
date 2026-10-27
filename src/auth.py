@@ -38,6 +38,8 @@ PAGE_ACCESS: dict[str, set[str]] = {
     "members": {"admin"},
     # 完整分析报告 / Pipeline 视图：销售暂只开放追问专用页面
     "report": {"pm", "admin", "presale"},
+    # 追问清单是完整报告的销售子集视图，四角色都可看
+    "questions": ALL_ROLES,
     "export_docx": {"pm", "admin", "presale"},
     "case": ALL_ROLES,
     # 材料清洗与完整分析属于业务提交动作

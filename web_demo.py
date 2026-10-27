@@ -146,6 +146,13 @@ PAGE_CSS = """
     color:var(--text); text-decoration:none; font-size:14px; border-radius:6px; }
   .list-link:hover { background:var(--panel2); }
   @media (max-width:900px){ .qa-grid { grid-template-columns:1fr; } }
+  .rolenav { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;
+    background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:10px 16px; margin-bottom:18px; }
+  .rolenav .who { font-size:13px; color:var(--muted); }
+  .rolenav .who b { color:var(--blues); }
+  .rolenav nav a { margin-right:14px; color:var(--blues); text-decoration:none; font-size:13.5px; font-weight:600; }
+  .rolenav nav a.active { color:var(--blue); border-bottom:2px solid var(--blue); padding-bottom:2px; }
+  .rolenav .out { color:var(--muted); text-decoration:none; font-size:12.5px; }
 """
 
 HOME_PAGE = """<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">
@@ -154,7 +161,6 @@ HOME_PAGE = """<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">
 <body><div class="wrap">
 <div class="tag">产 品 工 作 台</div>
 <h1>AI 客户需求分析助手</h1>
-<div class="sub topnav"><a href="/">工作台</a><a href="/library">资料库</a><a href="/chat">AI 问答</a><a href="/dashboard">评测 Dashboard</a></div>
 
 <div class="panel">
 <h2>① 输入原始材料</h2>
@@ -363,7 +369,6 @@ DASHBOARD_PAGE = """<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8
 <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
 </head>
 <body><div class="wrap">
-<p><a class="back" href="/">← 返回工作台</a></p>
 <div class="tag">评 测 驱 动 迭 代</div>
 <h1>评测 Dashboard</h1>
 <div class="sub">现役口径：Prompt v1.7.1 · 评测器 v1.5 · GT v1.1/v1.0 ｜ 17 案例三层验证集，双人盲评校准</div>
@@ -429,7 +434,6 @@ LIBRARY_PAGE = """<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>资料库 · AI 客户需求分析助手</title><style>__CSS__</style></head>
 <body><div class="wrap">
-<p><a class="back" href="/">← 返回工作台</a>　<a class="back" href="/dashboard">评测 Dashboard</a></p>
 <div class="tag">资 料 库</div>
 <h1>项目资料库</h1>
 <div class="sub">项目 → 文档 → 版本 → 分析运行，全部历史可追溯、不可覆盖</div>
@@ -457,7 +461,6 @@ LIBRARY_PROJECT_PAGE = """<!DOCTYPE html><html lang="zh-CN"><head><meta charset=
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>__TITLE__ · 资料库</title><style>__CSS__</style></head>
 <body><div class="wrap">
-<p><a class="back" href="/library">← 返回资料库</a>　<a class="back" href="/">工作台</a>　<a class="back" href="/dashboard">评测 Dashboard</a></p>
 <div class="tag">项 目 资 料</div>
 <h1>__TITLE__</h1>
 <div class="sub">创建于 __CREATED__</div>
@@ -470,6 +473,7 @@ LIBRARY_PROJECT_PAGE = """<!DOCTYPE html><html lang="zh-CN"><head><meta charset=
 </div>
 <script>
 var PID = __PID__;
+var ROLE = '__ROLE__';
 function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
 fetch('/api/project/'+encodeURIComponent(PID)).then(r=>r.json()).then(function(t){
   document.getElementById('docs').innerHTML = t.documents.length ? t.documents.map(function(d){
@@ -486,9 +490,14 @@ fetch('/api/project/'+encodeURIComponent(PID)).then(r=>r.json()).then(function(t
   }).join('') : '<em>无文档</em>';
   document.getElementById('runs').innerHTML = t.runs.length ? t.runs.map(function(r){
     var badge = r.status==='done' ? '<span class="pill p-ok">done</span>' : '<span class="pill p-mid">'+esc(r.status)+'</span>';
-    var links = '　<a class="back" href="/pipeline/'+encodeURIComponent(r.project_id)+'">流水线</a>'
-      + (r.report_exists ? '　<a class="back" href="/report/'+encodeURIComponent(r.project_id)+'">报告</a>' : '')
-      + '　<a class="back" href="/export/docx/'+encodeURIComponent(r.project_id)+'/'+encodeURIComponent(r.run_id)+'">导出 Word</a>';
+    var links = '';
+    if (ROLE === 'sales') {
+      links = '　<a class="back" href="/questions/'+encodeURIComponent(r.project_id)+'">追问清单</a>';
+    } else {
+      links = '　<a class="back" href="/pipeline/'+encodeURIComponent(r.project_id)+'">流水线</a>'
+        + (r.report_exists ? '　<a class="back" href="/report/'+encodeURIComponent(r.project_id)+'">报告</a>' : '')
+        + '　<a class="back" href="/export/docx/'+encodeURIComponent(r.project_id)+'/'+encodeURIComponent(r.run_id)+'">导出 Word</a>';
+    }
     return '<div style="padding:8px 0;border-bottom:1px solid var(--line);font-size:13px">'
       + '<b style="color:var(--blues)">'+esc(r.run_id)+'</b> '+badge
       + '　Prompt '+esc(r.prompt_version||'unknown')
@@ -516,7 +525,6 @@ CHAT_PAGE = """<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AI 问答 · 客户材料分析工作台</title><style>__CSS__</style></head>
 <body><div class="wrap">
-<p><a class="back" href="/">← 返回工作台</a>　<a class="back" href="/library">资料库</a>　<a class="back" href="/dashboard">评测 Dashboard</a></p>
 <div class="tag">引 用 式 问 答 · 多 轮 对 话</div>
 <h1>对项目材料提问</h1>
 <div class="sub">支持多轮追问（代词与上下文自动衔接），答案只依据材料段落，每条结论带 D 编号引用回链；依据不足时明确提示，不编造。</div>
@@ -937,6 +945,61 @@ def members_page(user: dict, error: str = "") -> str:
     return f"""<!doctype html><html lang="zh-CN"><meta charset="utf-8"><title>成员与权限</title><style>{AUTH_CSS}</style><div class="wrap" style="max-width:720px"><div style="display:flex;justify-content:space-between;align-items:center"><div class="brand">成员与权限</div><a href="/">返回工作台</a> · <a href="/logout">退出</a></div>{err}<table><tr><th>成员</th><th>角色</th><th>说明</th></tr>{''.join(rows)}</table><h1 style="font-size:20px;margin-top:32px">添加成员</h1><p class="sub">固定角色边界；至少保留一名管理员。</p>{create_form}</div>"""
 
 
+# ── 角色导航条（按 auth 权限矩阵过滤链接，对齐原型 saas-ui-v1.html）──
+NAV_LINKS = [
+    ("home", "/", "工作台"),
+    ("library", "/library", "资料库"),
+    ("chat", "/chat", "AI 问答"),
+    ("dashboard", "/dashboard", "评测看板"),
+    ("members", "/members", "成员权限"),
+]
+
+
+def role_nav(user: dict, active: str = "") -> str:
+    links = []
+    for action, href, label in NAV_LINKS:
+        if action != "home" and not auth.can(user["role"], action):
+            continue
+        mark = ' class="active"' if action == active else ""
+        links.append(f'<a href="{href}"{mark}>{label}</a>')
+    role_name = auth.ROLES.get(user["role"], user["role"])
+    return (f'<div class="rolenav"><span class="who">当前登录：<b>{html.escape(user.get("name", ""))}</b>'
+            f'（{role_name}）</span><nav>{"".join(links)}</nav>'
+            f'<a class="out" href="/logout">退出登录</a></div>')
+
+
+def with_rolenav(user: dict, body: str, active: str = "") -> str:
+    return body.replace('<div class="wrap">', '<div class="wrap">' + role_nav(user, active), 1)
+
+
+# ── 销售专用视图：追问清单（缺口 → 影响 → 追问），对应原型报告页"待确认与追问"页签 ──
+def build_questions_page(name: str) -> tuple[str, int]:
+    ana_path = PROJECT_ROOT / "output" / name / "analysis.json"
+    if not ana_path.exists():
+        return (auth_page("追问清单", "暂无分析数据",
+                          "<p>该案例还没有生成分析。</p><p><a href='/library'>返回资料库</a></p>"), 404)
+    ana = json.loads(ana_path.read_text(encoding="utf-8"))
+    node2 = ana.get("node2") or {}
+    pend = node2.get("pending_confirmations") or []
+    decisive = sum(1 for n in pend if n.get("level") == "决定性")
+    rows = "".join(
+        f"<tr><td>{html.escape(str(n.get('gap', '')))}</td>"
+        f"<td>{html.escape(str(n.get('level', '')))}</td>"
+        f"<td>{html.escape(str(n.get('impact', '')))}</td>"
+        f"<td>{html.escape(str(n.get('question', '')))}</td></tr>"
+        for n in pend) or "<tr><td colspan='4'>本分析没有待确认问题</td></tr>"
+    body = f"""<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{html.escape(name)} · 追问清单</title><style>{PAGE_CSS}</style></head>
+<body><div class="wrap">
+<div class="tag">追 问 清 单 · 销 售 视 图</div>
+<h1>{html.escape(name)}</h1>
+<div class="sub">共 {len(pend)} 条待确认（决定性 {decisive} 条）。完整需求判断由产品经理负责；你带着这份清单与客户沟通即可，客户回复可粘贴回工作台作为新材料。</div>
+<div class="panel"><table><tr><th style="width:22%">信息缺口</th><th style="width:10%">级别</th><th style="width:30%">判断影响</th><th>建议追问</th></tr>{rows}</table></div>
+</div></body></html>"""
+    return body, 200
+
+
 def render(template: str, **kw: str) -> str:
     body = template
     for k, v in kw.items():
@@ -1015,14 +1078,14 @@ class Handler(BaseHTTPRequestHandler):
             self._send(members_page(user))
         elif path in ("/", "/index.html"):
             if deny("home"): return
-            self._send(render(HOME_PAGE, css=PAGE_CSS, cases=list_cases()))
+            self._send(with_rolenav(user, render(HOME_PAGE, css=PAGE_CSS, cases=list_cases()), "home"))
         elif path == "/dashboard":
             if deny("dashboard"): return
-            self._send(render(DASHBOARD_PAGE, css=PAGE_CSS,
-                              data=json.dumps(load_snapshots(), ensure_ascii=False)))
+            self._send(with_rolenav(user, render(DASHBOARD_PAGE, css=PAGE_CSS,
+                              data=json.dumps(load_snapshots(), ensure_ascii=False)), "dashboard"))
         elif path == "/library":
             if deny("library"): return
-            self._send(render(LIBRARY_PAGE, css=PAGE_CSS))
+            self._send(with_rolenav(user, render(LIBRARY_PAGE, css=PAGE_CSS), "library"))
         elif path.startswith("/library/"):
             if deny("library"): return
             pid = path.split("/library/", 1)[1]
@@ -1030,9 +1093,10 @@ class Handler(BaseHTTPRequestHandler):
             if tree is None:
                 self._send("<h1>项目不存在</h1><p><a href='/library'>返回资料库</a></p>", 404)
                 return
-            self._send(render(LIBRARY_PROJECT_PAGE, css=PAGE_CSS, title=html.escape(pid),
+            self._send(with_rolenav(user, render(LIBRARY_PROJECT_PAGE, css=PAGE_CSS, title=html.escape(pid),
                               created=html.escape(tree["project"].get("created_at", "")),
-                              pid=json.dumps(pid, ensure_ascii=False)))
+                              pid=json.dumps(pid, ensure_ascii=False),
+                              role=user["role"]), "library"))
         elif path == "/api/projects":
             self._json(storage.list_projects())
         elif path.startswith("/api/project/"):
@@ -1045,7 +1109,7 @@ class Handler(BaseHTTPRequestHandler):
             self._json(tree)
         elif path == "/chat":
             if deny("chat"): return
-            self._send(render(CHAT_PAGE, css=PAGE_CSS))
+            self._send(with_rolenav(user, render(CHAT_PAGE, css=PAGE_CSS), "chat"))
         elif path.startswith("/api/conversations/"):
             if deny("chat"): return
             pid = path.split("/api/conversations/", 1)[1]
@@ -1096,6 +1160,11 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Content-Length", str(len(data)))
             self.end_headers()
             self.wfile.write(data)
+        elif path.startswith("/questions/"):
+            if deny("questions"): return
+            name = path.split("/questions/", 1)[1]
+            qbody, qcode = build_questions_page(name)
+            self._send(with_rolenav(user, qbody, "library"), qcode)
         elif path.startswith("/api/version/"):
             if deny("library"): return
             _, rest = path.split("/api/version/", 1)
@@ -1115,6 +1184,9 @@ class Handler(BaseHTTPRequestHandler):
             a, m = got
             self._json({"analysis": a, "mapping": m})
         elif path.startswith("/pipeline/"):
+            if role == "sales":
+                self._redirect("/questions/" + url_quote(path.split("/pipeline/", 1)[1]))
+                return
             if deny("report"): return
             name = path.split("/pipeline/", 1)[1]
             got = load_case(name)
@@ -1123,9 +1195,12 @@ class Handler(BaseHTTPRequestHandler):
                 return
             a, m = got
             body, chart = build_pipeline_body(a, m)
-            self._send(render(PIPELINE_PAGE, title=html.escape(name), css=PAGE_CSS,
-                              urlname=name, body=body, chart=chart))
+            self._send(with_rolenav(user, render(PIPELINE_PAGE, title=html.escape(name), css=PAGE_CSS,
+                              urlname=name, body=body, chart=chart), "library"))
         elif path.startswith("/report/"):
+            if role == "sales":
+                self._redirect("/questions/" + url_quote(path.split("/report/", 1)[1]))
+                return
             if deny("report"): return
             name = path.split("/report/", 1)[1]
             report = PROJECT_ROOT / "output" / name / "report.md"
@@ -1135,8 +1210,8 @@ class Handler(BaseHTTPRequestHandler):
                 return
             raw = json.dumps(report.read_text(encoding="utf-8"), ensure_ascii=False)
             a = ana.read_text(encoding="utf-8") if ana.exists() else "{}"
-            self._send(render(REPORT_PAGE, title=html.escape(name), css=PAGE_CSS,
-                              urlname=name, raw=raw, ana=a))
+            self._send(with_rolenav(user, render(REPORT_PAGE, title=html.escape(name), css=PAGE_CSS,
+                              urlname=name, raw=raw, ana=a), "library"))
         else:
             self._send("<h1>404</h1>", 404)
 
