@@ -60,6 +60,10 @@ def _mock_by_schema(scene: dict, material_block: str) -> dict:
     sample = lines[0][:40] if lines else ""
     out = {"summary": f"（mock）{scene['name']}：基于材料完成 {scene['name']} 分析。"}
     for sec in scene["sections"]:
+        if sec.get("mock_rows"):                      # 场景自带 mock 样例（如 BANT 四维度）
+            out.setdefault(sec["key"], []).extend(
+                json.loads(json.dumps(r, ensure_ascii=False)) for r in sec["mock_rows"])
+            continue
         cols = sec.get("columns") or []
         item = {}
         if cols:                              # 表格段

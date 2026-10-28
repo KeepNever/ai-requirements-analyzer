@@ -14,6 +14,7 @@ sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
 import storage  # noqa: E402
 from pipeline import cleaner  # noqa: E402
+from pipeline import scenes as scene_engine  # noqa: E402
 from pipeline.service_diagnosis import (  # noqa: E402
     SD_PROMPT_VERSION, analyze_service_diagnosis,
     build_citations_service, build_service_report)
@@ -24,8 +25,8 @@ MIN_MATERIAL_CHARS = 30
 def run_scene_case(material_path: str, scene: str = "service_diagnosis",
                    mock: bool = True, project_name: str | None = None) -> Path:
     """跑一次场景分析并落盘到版本化存储，返回 run 目录。"""
-    if scene not in ("service_diagnosis", "presale"):
-        raise ValueError(f"未知场景：{scene}")
+    if scene != "presale" and scene not in scene_engine.list_template_scenes():
+        raise ValueError(f"未知场景：{scene}（可用模板场景：{sorted(scene_engine.list_template_scenes())}）")
     material_path = Path(material_path)
 
     # 1. 清洗（cleaner v3，无 P 编号自动兜底）
@@ -52,7 +53,8 @@ def run_scene_case(material_path: str, scene: str = "service_diagnosis",
     refs = [{"document_id": doc_id, "version_id": "v1"}]
 
     # 3. 运行（meta 带 scene 标识——场景隔离的锚点）
-    prompt_ver = SD_PROMPT_VERSION if scene == "service_diagnosis" else "v1.7.1"
+    prompt_ver = (scene_engine.get_scene(scene).get("prompt_version", "v1.0")
+                  if scene != "presale" else "v1.7.1")
     rdir = storage.create_run(pid, refs, prompt_ver, "deepseek-chat")
     meta = storage._read_json(rdir / "meta.json")
     meta["scene"] = scene
@@ -85,7 +87,6 @@ def run_scene_case(material_path: str, scene: str = "service_diagnosis",
         return rdir
 
     # 模板场景（JSON 配置驱动，Task 8 场景化）
-    from pipeline import scenes as scene_engine
     sc = scene_engine.get_scene(scene)
     sd = scene_engine.analyze_scene(sc, data.cleaned_text(), mock=mock)
     cits = scene_engine.build_citations_scene(sd, sc, pid, refs)

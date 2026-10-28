@@ -1,0 +1,54 @@
+{
+  "case": "lead_01_恒达精密工单Agent咨询",
+  "scene": "lead_qualification",
+  "scene_name": "销售线索预审",
+  "gt_version": "v1.0",
+  "note": "人工标注的 BANT 判定与缺口；验证维度完整性与关键判断方向。",
+  "checks": [
+    {
+      "type": "bant_dimensions_complete",
+      "desc": "BANT 四维度必须齐全",
+      "expect_dimensions": ["预算", "决策权", "需求", "时间线"],
+      "scope": "bant_assessment"
+    },
+    {
+      "type": "budget_status",
+      "desc": "预算状态：客户原话「不算数，得领导拍板」→ 部分确认（不得判已确认）",
+      "dimension_keyword": "预算",
+      "expect_status": "部分确认",
+      "scope": "bant_assessment"
+    },
+    {
+      "type": "authority_status",
+      "desc": "决策权：IT 总监与分管副总拍板 → 部分确认或已确认均可（决策链明确但未最终表态）",
+      "dimension_keyword": "决策权",
+      "expect_status_any": ["部分确认", "已确认"],
+      "scope": "bant_assessment"
+    },
+    {
+      "type": "needs_confirmed",
+      "desc": "需求：售后工单自动分类+知识库，场景明确 → 应判已确认",
+      "dimension_keyword": "需求",
+      "expect_status": "已确认",
+      "scope": "bant_assessment"
+    },
+    {
+      "type": "gap_budget_followup",
+      "desc": "缺口必须包含预算相关追问（预算未最终确认）",
+      "expect_keyword_any": ["预算", "领导", "拍板", "审批"],
+      "scope": "gaps"
+    },
+    {
+      "type": "gap_has_question",
+      "desc": "每条缺口须带建议追问话术（question 非空）",
+      "expect_all_have_question": true,
+      "scope": "gaps"
+    },
+    {
+      "type": "no_fabricated_status",
+      "desc": "禁止无依据判「已确认」——材料未提及的维度只能是未确认",
+      "expect_no_unsupported_confirmed": true,
+      "scope": "bant_assessment"
+    }
+  ]
+}

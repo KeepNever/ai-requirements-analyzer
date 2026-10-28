@@ -30,6 +30,7 @@ import export_docx  # noqa: E402
 import auth  # noqa: E402
 import notes as notes_mod  # noqa: E402
 import access as access_mod  # noqa: E402
+from pipeline import scenes as scenes_mod  # noqa: E402
 from pipeline import llm_client  # noqa: E402
 from pipeline import config  # noqa: E402
 
@@ -1019,6 +1020,21 @@ def _pending_count(analysis: dict) -> int:
     return len(node2.get("pending_confirmations") or [])
 
 
+def _scene_render_spec(scene_id: str):
+    """模板场景的渲染声明（剔除 Prompt 等内部字段，只下发渲染所需）。"""
+    try:
+        sc = scenes_mod.get_scene(scene_id)
+    except (ValueError, OSError):
+        return None
+    spec = {"scene_id": scene_id, "scene_name": sc.get("name", scene_id),
+            "summary_title": sc.get("summary_title", "摘要"),
+            "sections": sc.get("sections", []),
+            "citation_note": sc.get("citation_note", "")}
+    if sc.get("actions_section"):
+        spec["actions_section"] = sc["actions_section"]
+    return spec
+
+
 def load_report_payload(name: str):
     """统一报告数据源：入库项目（projects/）优先，其次案例（output/），再按 run_id 反查。"""
     def project_payload(pid: str, run_id: str):
@@ -1026,7 +1042,10 @@ def load_report_payload(name: str):
         ana = rdir / "analysis.json"
         a = json.loads(ana.read_text(encoding="utf-8"))
         rep_md = rdir / "report.md"
+        meta = storage._read_json(rdir / "meta.json") if (rdir / "meta.json").exists() else {}
+        spec = _scene_render_spec(meta.get("scene", "")) if meta.get("scene") else None
         return {"source": "project", "name": pid, "run_id": run_id, "analysis": a,
+                "scene_id": meta.get("scene", ""), "render_spec": spec,
                 "report_md": rep_md.read_text(encoding="utf-8") if rep_md.exists() else "",
                 "export_url": f"/export/docx/{url_quote(pid)}/{run_id}"}
 
@@ -1054,7 +1073,15 @@ def load_report_payload(name: str):
 
 
 def strip_sales_report(payload: dict) -> dict:
-    """销售只拿追问数据，完整分析不下发。"""
+    """销售只拿追问数据，完整分析不下发；模板场景返回渲染声明与其数据子集。"""
+    if payload.get("render_spec"):
+        keys = [sec["key"] for sec in payload["render_spec"].get("sections", [])]
+        if payload["render_spec"].get("actions_section"):
+            keys.append(payload["render_spec"]["actions_section"]["key"])
+        sub = {k: (payload.get("analysis") or {}).get(k) for k in keys}
+        return {"source": payload.get("source"), "name": payload.get("name"),
+                "run_id": payload.get("run_id"), "scene_id": payload.get("scene_id"),
+                "render_spec": payload.get("render_spec"), "analysis": sub}
     node2 = (payload.get("analysis") or {}).get("node2") or {}
     return {"source": payload.get("source"), "name": payload.get("name"),
             "run_id": payload.get("run_id"),
@@ -1334,6 +1361,11 @@ class Handler(BaseHTTPRequestHandler):
             grants = {a["project_id"]: a["grants"] for a in access_mod.access_overview()}
             self._json({"projects": projects, "members": members,
                         "restricted": list(grants.keys()), "grants": grants})
+        elif path == "/api/scenes":
+            scenes = [{"id": "presale", "name": "售前需求分析"}]
+            for sid, sc in sorted(scenes_mod.list_template_scenes().items()):
+                scenes.append({"id": sid, "name": sc.get("name", sid)})
+            self._json(scenes)
         elif path == "/api/usage/my":
             self._json(llm_client.my_usage(user["user_id"]))
         elif path == "/api/settings/model":
@@ -1707,13 +1739,16 @@ class Handler(BaseHTTPRequestHandler):
                     return
                 stem = save_material(material)
                 scene = (payload.get("scene") or "presale").strip()
-                if scene == "service_diagnosis":
+                # 演示模式或无可用 Key（服务端与用户均无）时自动走离线 mock
+                mock = DEMO_MODE or not (config.DEEPSEEK_API_KEY
+                                         or auth.get_model_key(user["user_id"]))
+                if scene in scenes_mod.list_template_scenes():
                     from scene_runner import run_scene_case
                     rdir = run_scene_case(str(UPLOAD_DIR / f"{stem}.md"),
-                                          scene=scene, mock=False)
+                                          scene=scene, mock=mock)
                     self._json({"case": stem, "scene": scene, "run_id": rdir.name})
                 else:
-                    wf.run_case(str(UPLOAD_DIR / f"{stem}.md"), mock=False)
+                    wf.run_case(str(UPLOAD_DIR / f"{stem}.md"), mock=mock)
                     self._json({"case": stem})
             except Exception as e:  # noqa: BLE001
                 self._json({"error": f"{type(e).__name__}: {e}"}, 500)

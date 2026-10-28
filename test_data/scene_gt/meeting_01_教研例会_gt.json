@@ -1,0 +1,53 @@
+{
+  "case": "meeting_01_教研例会",
+  "scene": "meeting_notes",
+  "scene_name": "会议纪要结构化",
+  "gt_version": "v1.0",
+  "note": "人工标注的关键条目；评测采用条目级关键词匹配（非全等），用于验证提取的准确性与覆盖度。",
+  "checks": [
+    {
+      "type": "attendee_names",
+      "desc": "参会人名单须完整（三人）",
+      "expect_any": [["张明远"], ["李萍"], ["王浩"]],
+      "scope": "attendees"
+    },
+    {
+      "type": "attendee_count",
+      "desc": "参会人应为 3 人（不多列不漏列）",
+      "expect_count": 3,
+      "scope": "attendees"
+    },
+    {
+      "type": "topic_keywords",
+      "desc": "三个议题均须出现且关键词命中",
+      "expect_any": [
+        ["评估课程", "实操课", "实操"],
+        ["数据集", "用例"],
+        ["上线", "新班"]
+      ],
+      "scope": "topics"
+    },
+    {
+      "type": "topic_conclusion_keywords",
+      "desc": "关键结论须体现：聚焦两卡点不扩范围 / 数据集30条 / 下月初上线",
+      "expect_any": [
+        ["数据集建设", "评分器"],
+        ["30 条", "30条", "十五"],
+        ["下月初", "月初"]
+      ],
+      "scope": "topics"
+    },
+    {
+      "type": "todo_count_min",
+      "desc": "待办至少 3 条（出样例/15条/标准答案/同步招生）",
+      "expect_count_min": 3,
+      "scope": "todo_items"
+    },
+    {
+      "type": "todo_owner_keywords",
+      "desc": "负责人须落到具体人",
+      "expect_any": [["王浩"], ["李萍"], ["张明远"]],
+      "scope": "todo_items"
+    }
+  ]
+}

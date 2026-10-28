@@ -1,0 +1,132 @@
+{
+  "id": "meeting_notes",
+  "name": "会议纪要结构化",
+  "prompt_version": "v1.0-mn",
+  "report_title": "会议纪要结构化报告",
+  "meta_headers": [
+    "项目",
+    "纪要运行 ID",
+    "材料与版本",
+    "纪要 Prompt 版本",
+    "生成时间"
+  ],
+  "meta_col_widths": [
+    2.6,
+    3.8,
+    5.0,
+    2.8,
+    2.8
+  ],
+  "system_prompt": "你是会议纪要结构化助手。依据【材料段落】中的会议记录，\n输出结构化 JSON：\n{\n  \"summary\": \"一句话概括：会议主题 + 最重要的结论或待办\",\n  \"attendees\": [\n    {\"name\": \"姓名或称呼\", \"role\": \"角色（主持人/参会人/列席等）\", \"key_points\": \"该参会人的主要发言要点（简短）\"}\n  ],\n  \"topics\": [\n    {\"topic\": \"议题名称\", \"conclusion\": \"讨论后的结论或现状\", \"quote\": \"支撑结论的关键原话\", \"dids\": [\"D003\"]}\n  ],\n  \"todo_items\": [\n    {\"item\": \"待办事项\", \"owner\": \"负责人（材料未明确则写「待定」）\", \"deadline\": \"时限（材料未明确则写「未明确」）\", \"dids\": [\"D010\"]}\n  ]\n}\n规则：\n1. dids 只能引用【材料段落】中真实出现的 D 编号；topics 的结论必须带支撑原话（quote）；\n2. 待办事项必须来自材料中明确提到的分工或承诺，不得自行发明；负责人材料未提到就写「待定」；\n3. 议题只收录有实际讨论内容的，纯寒暄不收录；\n4. 材料与会议无关时全部输出空列表，summary 说明原因。",
+  "task_instruction": "【任务】请对这份会议记录做结构化纪要，按 JSON 结构输出。",
+  "summary_title": "一、会议概要",
+  "sections": [
+    {
+      "key": "attendees",
+      "word_title": "二、参会人员",
+      "empty_text": "（本运行无参会人数据）",
+      "columns": [
+        {
+          "field": "name",
+          "header": "姓名/称呼"
+        },
+        {
+          "field": "role",
+          "header": "角色"
+        },
+        {
+          "field": "key_points",
+          "header": "主要发言要点"
+        }
+      ],
+      "col_widths": [
+        2.4,
+        2.4,
+        12.2
+      ],
+      "mock_rows": [
+        {
+          "name": "（mock）张三",
+          "role": "主持人",
+          "key_points": "（mock）会议主持与议题收束"
+        }
+      ]
+    },
+    {
+      "key": "topics",
+      "word_title": "三、议题与结论",
+      "citation_type": "topic",
+      "citation_reason": "支撑议题结论",
+      "quote_field": "quote",
+      "empty_text": "（本运行无议题数据）",
+      "columns": [
+        {
+          "field": "topic",
+          "header": "议题"
+        },
+        {
+          "field": "conclusion",
+          "header": "结论/现状"
+        },
+        {
+          "field": "quote",
+          "header": "关键原话"
+        },
+        {
+          "field": "_dids",
+          "header": "引用段落"
+        }
+      ],
+      "col_widths": [
+        2.8,
+        5.4,
+        6.4,
+        3.4
+      ]
+    },
+    {
+      "key": "todo_items",
+      "word_title": "四、待办事项",
+      "citation_type": "todo_item",
+      "citation_reason": "支撑待办事项",
+      "quote_field": "item",
+      "empty_text": "（本运行无待办事项）",
+      "columns": [
+        {
+          "field": "item",
+          "header": "待办事项"
+        },
+        {
+          "field": "owner",
+          "header": "负责人"
+        },
+        {
+          "field": "deadline",
+          "header": "时限"
+        },
+        {
+          "field": "_dids",
+          "header": "引用段落"
+        }
+      ],
+      "col_widths": [
+        5.4,
+        2.4,
+        2.6,
+        3.6
+      ],
+      "mock_rows": [
+        {
+          "item": "（mock）跟进会议决定事项",
+          "owner": "待定",
+          "deadline": "未明确",
+          "dids": [
+            "D001"
+          ]
+        }
+      ]
+    }
+  ],
+  "citation_note": "说明：本节结构化引用仅覆盖能够可靠定位来源的结论；参会人名单为材料梳理，不作为证据引用。",
+  "footer_note": "— 本报告由 AI 客户材料分析工作台基于指定历史运行导出，引用均为脱敏后展示文本 —"
+}

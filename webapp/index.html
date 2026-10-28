@@ -51,7 +51,7 @@ const state={booting:true,user:null,page:'dashboard',overview:[],overviewLoading
  members:[],membersLoading:false,addOpen:false,
  myQuestions:[],mqLoading:false,replyFor:null,
  caps:[],capsLoading:false,capsFilter:'全部',noteFor:null,
- confirmFor:null,confirmNote:'',reportNotes:null,modelInfo:null,modelOpen:false,accessData:null};
+ confirmFor:null,confirmNote:'',reportNotes:null,modelInfo:null,modelOpen:false,accessData:null,scenes:null};
 
 function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 function toast(msg){const old=document.querySelector('.toast');if(old)old.remove();const el=document.createElement('div');el.className='toast';el.textContent=msg;document.body.appendChild(el);setTimeout(()=>el.remove(),2600)}
@@ -91,6 +91,7 @@ async function boot(){
   state.user=await api('/api/me');
   if(!routeHash())state.page=state.user.role==='admin'?'members':'dashboard';
   await loadOverview(false);
+  try{state.scenes=await api('/api/scenes')}catch(e){}
   if(state.page==='members'){loadMembers();loadAccess();}
  }catch(e){state.page='login'}
  state.booting=false;render();
@@ -114,6 +115,7 @@ async function doLogin(form){
   state.user=await api('/api/auth/login',{method:'POST',body:{email:f.get('email'),password:f.get('password')}});
   state.page=pageAfterLogin();await loadOverview(false);
   if(state.page==='members'){loadMembers();loadAccess();}
+  try{state.scenes=await api('/api/scenes')}catch(e){}
  }catch(e){showAuthError(e.message);return}
  render();
 }
@@ -124,6 +126,7 @@ async function doRegister(form){
   state.user=await api('/api/auth/register',{method:'POST',body:{name:f.get('name'),org:f.get('org'),email:f.get('email'),password:f.get('password')}});
   state.page=pageAfterLogin();await loadOverview(false);
   if(state.page==='members'){loadMembers();loadAccess();}
+  try{state.scenes=await api('/api/scenes')}catch(e){}
  }catch(e){showAuthError(e.message);return}
  render();toast('团队创建成功，你已成为管理员');
 }
@@ -188,14 +191,16 @@ async function openReport(id){
  state.reportLoading=false;render();window.scrollTo(0,0);
 }
 function reportScene(){
- const a=(state.report&&state.report.analysis)||{};
- if(a.summary&&(a.core_demands||a.emotion_risks||a.response_issues||a.action_items))return 'service';
+ if(state.report&&state.report.render_spec)return 'generic';
  return 'presale';
 }
 function reportTabs(){
- if(reportScene()==='service'){
-  if(state.user.role==='sales')return[{key:'sd_overview',label:'诊断详情'},{key:'sd_issues',label:'响应问题'}];
-  return[{key:'sd_overview',label:'诊断详情'},{key:'sd_issues',label:'响应问题'},{key:'sd_actions',label:'行动清单'},{key:'audit',label:'修正记录'}];
+ const spec=state.report&&state.report.render_spec;
+ if(reportScene()==='generic'&&spec){
+  const tabs=(spec.sections||[]).map(sec=>({key:sec.key,label:String(sec.word_title||sec.key).replace(/^[一二三四五六七八九十]+、/,'')}));
+  if(spec.actions_section)tabs.push({key:spec.actions_section.key,label:String(spec.actions_section.word_title||spec.actions_section.key).replace(/^[一二三四五六七八九十]+、/,'')});
+  if(state.user.role!=='sales')tabs.push({key:'audit',label:'修正记录'});
+  return tabs;
  }
  if(state.user.role==='sales')return[{key:'questions',label:'待确认与追问'}];
  if(state.user.role==='presale')return[{key:'capability',label:'能力匹配'},{key:'questions',label:'待确认信息'}];
@@ -361,7 +366,7 @@ function versionsPanel(){
 }
 function newAnalysisPage(){
  const step2=state.clean?'active':'';
- return `<div class="page-head"><div><h1>新建分析</h1><p>先确认清洗结果，再消耗 API 运行完整分析</p></div></div><div class="steps"><div class="step active"><span class="step-num">1</span>上传材料</div><div class="step-line"></div><div class="step ${step2}"><span class="step-num">2</span>清洗确认</div><div class="step-line"></div><div class="step"><span class="step-num">3</span>生成报告</div></div><section class="panel"><div class="form-grid"><div class="field"><label>分析场景</label><select onchange="setScene(this.value)"><option value="presale" ${state.scene==='presale'?'selected':''}>售前需求分析</option><option value="service_diagnosis" ${state.scene==='service_diagnosis'?'selected':''}>学员服务诊断</option></select></div><div class="field"><label>上传文件（可选）</label><input type="file" accept=".md,.txt" onchange="pickFile(this)"></div></div><div class="field" style="margin-top:6px"><label>粘贴原始材料</label><textarea oninput="setMaterial(this.value)" placeholder="把客户的会议转写 / 邮件 / 微信记录原样粘贴到这里。每段一行，段前标 P1、P2……（不标也能清洗，但引用回链会缺失）">${esc(state.material)}</textarea></div><div class="form-actions"><span class="cost">清洗预览免费 · 完整分析约 1～2 分钟</span><button class="btn" onclick="doClean()" ${state.cleanLoading||state.running?'disabled':''}>${state.cleanLoading?'清洗中…':'清洗预览'}</button></div>${state.clean?cleanResult():''}</section>`;
+ return `<div class="page-head"><div><h1>新建分析</h1><p>先确认清洗结果，再消耗 API 运行完整分析</p></div></div><div class="steps"><div class="step active"><span class="step-num">1</span>上传材料</div><div class="step-line"></div><div class="step ${step2}"><span class="step-num">2</span>清洗确认</div><div class="step-line"></div><div class="step"><span class="step-num">3</span>生成报告</div></div><section class="panel"><div class="form-grid"><div class="field"><label>分析场景</label><select onchange="setScene(this.value)">${(state.scenes||[{id:'presale',name:'售前需求分析'},{id:'service_diagnosis',name:'学员服务诊断'}]).map(sc=>`<option value="${sc.id}" ${state.scene===sc.id?'selected':''}>${esc(sc.name)}</option>`).join('')}</select></div><div class="field"><label>上传文件（可选）</label><input type="file" accept=".md,.txt" onchange="pickFile(this)"></div></div><div class="field" style="margin-top:6px"><label>粘贴原始材料</label><textarea oninput="setMaterial(this.value)" placeholder="把客户的会议转写 / 邮件 / 微信记录原样粘贴到这里。每段一行，段前标 P1、P2……（不标也能清洗，但引用回链会缺失）">${esc(state.material)}</textarea></div><div class="form-actions"><span class="cost">清洗预览免费 · 完整分析约 1～2 分钟</span><button class="btn" onclick="doClean()" ${state.cleanLoading||state.running?'disabled':''}>${state.cleanLoading?'清洗中…':'清洗预览'}</button></div>${state.clean?cleanResult():''}</section>`;
 }
 function cleanResult(){
  const c=state.clean,st=c.stats||{};
@@ -392,15 +397,30 @@ function exportMarkdown(){
  const r=state.report, a=r.analysis||{};
  let md='# '+r.name+' · 分析报告\n\n';
  md+='> 运行 '+(r.run_id||'')+' · AI 草稿，结论需人工确认后使用\n\n';
- if(reportScene()==='service'){
-  md+='## 一、诊断摘要\n\n'+(a.summary||'（无）')+'\n\n';
-  md+='## 二、学员核心诉求\n\n'+mdTable(['编号','诉求','优先级','原话锚点','引用段落'],
-   (a.core_demands||[]).map(c=>[esc2(c.id),esc2(c.content),esc2(c.priority||'—'),esc2(c.quote||''),esc2((c.dids||[]).join('、'))]))+'\n\n';
-  md+='## 三、情绪与风险信号\n\n'+mdTable(['信号','等级','触发原话','引用段落'],
-   (a.emotion_risks||[]).map(e=>[esc2(e.type),esc2(e.level||'—'),esc2(e.evidence_quote||''),esc2((e.dids||[]).join('、'))]))+'\n\n';
-  md+='## 四、服务方响应问题\n\n'+((a.response_issues||[]).map((x,i)=>(i+1)+'. '+esc2(x.issue)+(x.dids&&x.dids.length?'（依据：'+x.dids.join('、')+'）':'')).join('\n')||'无')+'\n\n';
-  md+='## 五、行动清单\n\n'+mdTable(['行动','具体做法与时限','优先级'],
-   (a.action_items||[]).map(x=>[esc2(x.action||''),esc2(x.detail||''),esc2(x.priority||'—')]))+'\n\n';
+ const spec=r.render_spec;
+ if(reportScene()==='generic'&&spec){
+  const secs=(spec.sections||[]).concat(spec.actions_section?[spec.actions_section]:[]);
+  let num=0;
+  for(const sec of secs){
+   num+=1;
+   const title=String(sec.word_title||sec.key).replace(/^[一二三四五六七八九十]+、/,'');
+   const items=a[sec.key]||[];
+   md+='## '+num+'、'+title+'\n\n';
+   if(!items.length){md+=(sec.empty_text||'（无数据）')+'\n\n';continue}
+   if(sec.render==='bullet'){
+    md+=items.map((it,i)=>{
+     const dids=(it.dids||[]).join('、');
+     const vars=Object.assign({},it,{dids});
+     let text=String(sec.bullet_template||'- {issue}');
+     Object.keys(vars).forEach(k=>{text=text.split('{'+k+'}').join(esc2(vars[k]))});
+     return text.replace(/\{[^}]+\}/g,'—');
+    }).join('\n')+'\n\n';
+   }else{
+    md+=mdTable((sec.columns||[]).map(c=>c.header),
+     items.map(it=>(sec.columns||[]).map(c=>c.field==='_dids'?esc2((it.dids||[]).join('、')||'—'):esc2(it[c.field]==null?'—':it[c.field]))))+'\n\n';
+   }
+  }
+  if(a.summary)md='> '+esc2(a.summary)+'\n\n'+md;
  } else {
   const n1=a.node1||{},n2=a.node2||{},pri=a.priority||[];
   const tierMap={};pri.forEach(x=>{tierMap[x.id]=x.tier});
@@ -441,32 +461,45 @@ function exportReport(){
  toast('案例版暂不支持 Word 导出，请走资料库运行记录');
 }
 function reportBody(a,r){
- if(reportScene()==='service')return serviceBody(a);
+ if(reportScene()==='generic')return genericBody(a);
  if(state.reportTab==='capability')return capabilityBody(a);
  if(state.reportTab==='questions')return questionsBody(a,r);
  if(state.reportTab==='audit')return auditBody();
  return needsBody(a);
 }
-function serviceBody(a){
- if(state.reportTab==='sd_issues')return serviceIssuesBody(a);
- if(state.reportTab==='sd_actions')return serviceActionsBody(a);
- return serviceOverviewBody(a);
-}
-function serviceOverviewBody(a){
- const cds=a.core_demands||[],ers=a.emotion_risks||[];
- const cdRows=cds.map(c=>`<tr><td class="strong">${esc(c.id)}</td><td>${esc(c.content)}</td><td>${pill(c.priority||'—',c.priority==='高'?'red':c.priority==='中'?'amber':'gray')}</td><td>${esc(c.quote||'')}</td><td>${esc((c.dids||[]).join('、'))}</td></tr>`).join('')||'<tr><td colspan="5" class="muted">无</td></tr>';
- const erRows=ers.map(e=>`<tr><td>${esc(e.type)}</td><td>${pill(e.level||'—',e.level==='高'?'red':e.level==='中'?'amber':'gray')}</td><td>${esc(e.evidence_quote||'')}</td><td>${esc((e.dids||[]).join('、'))}</td></tr>`).join('')||'<tr><td colspan="4" class="muted">无</td></tr>';
- return `<section class="panel"><h2 class="panel-title">诊断摘要</h2><p class="report-summary" style="text-indent:0">${esc(a.summary||'（无摘要）')}</p><h2 class="panel-title" style="margin-top:22px">学员核心诉求（带原话锚点）</h2><div class="table-wrap"><table><thead><tr><th>编号</th><th>诉求</th><th>优先级</th><th>原话锚点</th><th>引用段落</th></tr></thead><tbody>${cdRows}</tbody></table></div><h2 class="panel-title" style="margin-top:22px">情绪与风险信号</h2><div class="table-wrap"><table><thead><tr><th>信号</th><th>等级</th><th>触发原话</th><th>引用段落</th></tr></thead><tbody>${erRows}</tbody></table></div><div class="notice" style="margin-top:16px">服务诊断场景：本报告为草稿态，行动清单是给服务方的建议而非证据；学员服务诊断报告可从报告页导出 Word 完整版。</div></section>`;
-}
-function serviceIssuesBody(a){
- const ris=a.response_issues||[];
- const rows=ris.map((x,i)=>`<div class="todo" style="padding:14px 0"><div style="display:flex;gap:8px;align-items:center"><b style="margin:0">问题 ${i+1}</b></div><div class="evidence" style="margin-top:8px"><b>问题</b>${esc(x.issue||'')}</div>${(x.dids||[]).length?`<div class="chain-box"><span>依据段落</span>${esc(x.dids.join('、'))}</div>`:''}</div>`).join('');
- return `<section class="panel"><h2 class="panel-title">服务方响应问题</h2><p class="panel-sub">结论不超出对话证据；只记录到某时刻的会写「尚未看到」而非断言未行动</p>${rows||'<div class="empty">未发现服务响应问题。</div>'}</section>`;
-}
-function serviceActionsBody(a){
- const acts=a.action_items||[];
- const rows=acts.map(x=>`<tr><td class="strong">${esc(x.action||'')}</td><td>${esc(x.detail||'')}</td><td>${pill(x.priority||'—',x.priority==='高'?'red':x.priority==='中'?'amber':'gray')}</td></tr>`).join('')||'<tr><td colspan="3" class="muted">无</td></tr>';
- return `<section class="panel"><h2 class="panel-title">行动清单</h2><p class="panel-sub">给服务方的具体行动建议（建议时限需服务负责人确认）；行动是建议而非证据</p><div class="table-wrap"><table><thead><tr><th>行动</th><th>具体做法与时限</th><th>优先级</th></tr></thead><tbody>${rows}</tbody></table></div></section>`;
+function genericBody(a){
+ const spec=(state.report&&state.report.render_spec)||{};
+ const sec=(spec.sections||[]).find(x=>x.key===state.reportTab)||spec.actions_section;
+ if(!sec)return `<section class="panel"><div class="empty">该场景暂无渲染声明（未知字段已兜底跳过）。</div></section>`;
+ const items=a[sec.key]||[];
+ const isActions=spec.actions_section&&spec.actions_section.key===sec.key;
+ let inner='';
+ if(!items.length){
+  inner=`<div class="empty">${esc(sec.empty_text||'（本段无数据）')}</div>`;
+ }else if(sec.render==='bullet'){
+  inner=items.map((it,i)=>{
+   const dids=(it.dids||[]).join('、');
+   const vars=Object.assign({},it,{dids});
+   let text=String(sec.bullet_template||'- {issue}');
+   Object.keys(vars).forEach(k=>{text=text.split('{'+k+'}').join(esc(String(vars[k]==null?'—':vars[k])))});
+   text=text.replace(/\{[^}]+\}/g,'—');
+   return `<div class="todo" style="padding:12px 0"><div style="display:flex;gap:8px;align-items:center"><b style="margin:0">条目 ${i+1}</b></div><div class="evidence" style="margin-top:8px">${text}</div>${dids?`<div class="chain-box"><span>依据段落</span>${esc(dids)}</div>`:''}</div>`;
+  }).join('');
+ }else{
+  const cols=sec.columns||[];
+  const head=cols.map(c=>`<th>${esc(c.header)}</th>`).join('');
+  const rows=items.map(it=>`<tr>${cols.map(c=>{
+   if(c.field==='_dids')return `<td>${esc((it.dids||[]).join('、')||'—')}</td>`;
+   const v=it[c.field];
+   const text=(v===undefined||v===null||v==='')?'—':esc(String(v));
+   return `<td>${text}</td>`;
+  }).join('')}</tr>`).join('');
+  inner=`<div class="table-wrap"><table><thead><tr>${head}</tr></thead><tbody>${rows||`<tr><td colspan="${cols.length}" class="muted">${esc(sec.empty_text||'（无数据）')}</td></tr>`}</tbody></table></div>`;
+ }
+ const isFirst=(spec.sections||[])[0]&&spec.sections[0].key===sec.key;
+ const summary=(isFirst&&a.summary)?`<h2 class="panel-title">${esc(spec.summary_title||'摘要')}</h2><p class="report-summary" style="text-indent:0">${esc(a.summary)}</p>`:'';
+ const notice=isActions?'<div class="notice" style="margin-top:16px">本段是给服务方的行动建议而非证据，建议时限需负责人确认。</div>':'';
+ return `<section class="panel"><h2 class="panel-title">${esc(String(sec.word_title||sec.key).replace(/^[一二三四五六七八九十]+、/,''))}</h2>${summary}${inner}${notice}</section>`;
 }
 function pill(v,cls){return `<span class="pill ${cls}">${esc(v)}</span>`}
 function needsBody(a){

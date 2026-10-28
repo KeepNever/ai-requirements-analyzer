@@ -1,0 +1,154 @@
+{
+  "id": "lead_qualification",
+  "name": "销售线索预审",
+  "prompt_version": "v1.0-lq",
+  "report_title": "销售线索预审报告",
+  "meta_headers": [
+    "项目",
+    "预审运行 ID",
+    "材料与版本",
+    "预审 Prompt 版本",
+    "生成时间"
+  ],
+  "meta_col_widths": [
+    2.6,
+    3.8,
+    5.0,
+    2.8,
+    2.8
+  ],
+  "system_prompt": "你是销售线索预审助手。依据【材料段落】中销售与潜在客户的初步沟通记录，\n按 BANT 框架做商机资格审查，输出 JSON：\n{\n  \"summary\": \"一句话资格判定：商机等级（高/中/低）+ 判定核心理由\",\n  \"bant_assessment\": [\n    {\"dimension\": \"预算（Budget）\", \"status\": \"已确认/部分确认/未确认\", \"evidence\": \"客户原话或「材料未提及」\", \"dids\": [\"D003\"]}\n    // dimension 固定四项：预算（Budget）/决策权（Authority）/需求（Needs）/时间线（Timeline）\n  ],\n  \"gaps\": [\n    {\"level\": \"决定性/重要\", \"gap\": \"信息缺口描述\", \"impact\": \"为什么影响商机判断\", \"question\": \"建议追问话术\", \"dids\": [\"D010\"]}\n  ],\n  \"next_actions\": [\n    {\"action\": \"下一步跟进动作\", \"detail\": \"具体做法与建议时限（需销售负责人确认）\", \"priority\": \"高/中/低\"}\n  ]\n}\n规则：\n1. dids 只能引用【材料段落】中真实出现的 D 编号；每个维度的 status 必须有原话或明确标注「材料未提及」；\n2. 不得替客户回答——客户没说预算就说「未确认」，禁止从身份推测预算；\n3. gaps 按对商机判断的影响分级：不问清就无法判断资格的标「决定性」；\n4. question 是销售可以直接照着问的话术，口语化、不带攻击性；\n5. next_actions 不需要 dids，是建议而非证据，时限表述为「建议时限（需销售负责人确认）」；\n6. 材料与销售线索无关时全部输出空列表，summary 说明原因。",
+  "task_instruction": "【任务】请对这份初步沟通记录做销售线索预审，按 JSON 结构输出。",
+  "summary_title": "一、资格判定摘要",
+  "sections": [
+    {
+      "key": "bant_assessment",
+      "word_title": "二、BANT 资格评估",
+      "citation_type": "bant_item",
+      "citation_reason": "支撑 BANT 资格判定",
+      "quote_field": "evidence",
+      "empty_text": "（本运行无 BANT 评估数据）",
+      "columns": [
+        {
+          "field": "dimension",
+          "header": "维度"
+        },
+        {
+          "field": "status",
+          "header": "状态"
+        },
+        {
+          "field": "evidence",
+          "header": "客户原话/依据"
+        },
+        {
+          "field": "_dids",
+          "header": "引用段落"
+        }
+      ],
+      "col_widths": [
+        2.8,
+        2.0,
+        9.4,
+        3.6
+      ],
+      "mock_rows": [
+        {
+          "dimension": "预算（Budget）",
+          "status": "部分确认",
+          "evidence": "（mock）客户提及预算范围但需领导确认",
+          "dids": [
+            "D001"
+          ]
+        },
+        {
+          "dimension": "决策权（Authority）",
+          "status": "部分确认",
+          "evidence": "（mock）决策链已明确但未最终表态",
+          "dids": [
+            "D001"
+          ]
+        },
+        {
+          "dimension": "需求（Needs）",
+          "status": "已确认",
+          "evidence": "（mock）客户明确了业务场景",
+          "dids": [
+            "D001"
+          ]
+        },
+        {
+          "dimension": "时间线（Timeline）",
+          "status": "部分确认",
+          "evidence": "（mock）客户给出了期望时间",
+          "dids": [
+            "D001"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "gaps",
+      "word_title": "三、信息缺口与建议追问",
+      "citation_type": "gap",
+      "citation_reason": "支撑信息缺口识别",
+      "quote_field": "gap",
+      "empty_text": "（本运行无信息缺口数据）",
+      "columns": [
+        {
+          "field": "level",
+          "header": "等级"
+        },
+        {
+          "field": "gap",
+          "header": "缺口"
+        },
+        {
+          "field": "impact",
+          "header": "判断影响"
+        },
+        {
+          "field": "question",
+          "header": "建议追问"
+        },
+        {
+          "field": "_dids",
+          "header": "引用段落"
+        }
+      ],
+      "col_widths": [
+        1.6,
+        4.2,
+        4.6,
+        5.0,
+        2.6
+      ]
+    }
+  ],
+  "actions_section": {
+    "key": "next_actions",
+    "word_title": "四、下一步跟进建议",
+    "empty_text": "（本运行无跟进建议）",
+    "columns": [
+      {
+        "field": "action",
+        "header": "行动"
+      },
+      {
+        "field": "priority",
+        "header": "优先级"
+      },
+      {
+        "field": "detail",
+        "header": "具体做法与建议时限"
+      }
+    ],
+    "col_widths": [
+      3.4,
+      1.4,
+      12.2
+    ]
+  },
+  "citation_note": "说明：本节结构化引用仅覆盖能够可靠定位来源的结论；跟进建议为销售建议，不作为证据引用。",
+  "footer_note": "— 本报告由 AI 客户材料分析工作台基于指定历史运行导出，引用均为脱敏后展示文本 —"
+}
