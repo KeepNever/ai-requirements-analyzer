@@ -51,7 +51,7 @@ const state={booting:true,user:null,page:'dashboard',overview:[],overviewLoading
  members:[],membersLoading:false,addOpen:false,
  myQuestions:[],mqLoading:false,replyFor:null,
  caps:[],capsLoading:false,capsFilter:'全部',noteFor:null,
- confirmFor:null,confirmNote:'',reportNotes:null,modelInfo:null,modelOpen:false,accessData:null,scenes:null};
+ confirmFor:null,confirmNote:'',reportNotes:null,modelInfo:null,modelOpen:false,accessData:null,scenes:null,customSpec:null,customDesigning:false};
 
 function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 function toast(msg){const old=document.querySelector('.toast');if(old)old.remove();const el=document.createElement('div');el.className='toast';el.textContent=msg;document.body.appendChild(el);setTimeout(()=>el.remove(),2600)}
@@ -165,13 +165,34 @@ async function doClean(){
 }
 async function doRun(){
  if(!state.material.trim()){toast('请先粘贴或上传材料');return}
+ if(state.scene==='custom'&&!state.customSpec){toast('请先设计并确认输出结构');return}
  state.running=true;render();
  try{
-  const r=await api('/run-text',{method:'POST',body:{material:state.material,scene:state.scene}});
+  const body={material:state.material,scene:state.scene};
+  if(state.scene==='custom'){body.custom_spec=state.customSpec;body.requirement=(state.customReq||'').trim();}
+  const r=await api('/run-text',{method:'POST',body});
   state.running=false;state.clean=null;state.material='';
   toast('分析完成');
   openReport(r.case);
  }catch(e){state.running=false;toast('分析失败：'+e.message);render()}
+}
+function customPanel(){
+ const spec=state.customSpec;
+ let preview='';
+ if(spec){
+  const secs=(spec.sections||[]).map(sec=>`<div style="margin:6px 0"><b>${esc(String(sec.word_title||sec.key).replace(/^[一二三四五六七八九十]+、/,''))}</b>：${esc((sec.columns||[]).map(c=>c.header).join(' / '))}</div>`).join('');
+  preview=`<div class="side-section" style="margin-top:12px"><h3>输出结构预览（确认后运行）</h3><div style="margin-top:6px"><b>${esc(spec.scene_name||'自定义提炼')}</b></div>${secs}</div>`;
+ }
+ return `<div class="field" style="margin-top:6px"><label>提炼需求描述（一句话说明你想从材料里得到什么）</label><textarea oninput="state.customReq=this.value" placeholder="例：帮我把这些对话按问题类型分类，统计每类数量，并各给一个典型例子">${esc(state.customReq||'')}</textarea></div><div class="form-actions"><button class="btn secondary" onclick="designCustom()" ${state.customDesigning?'disabled':''}>${state.customDesigning?'结构设计中…':'设计输出结构'}</button></div>${preview}`;
+}
+async function designCustom(){
+ const req=(state.customReq||'').trim();
+ if(!req){toast('请先填写提炼需求描述');return}
+ state.customDesigning=true;render();
+ try{
+  state.customSpec=await api('/api/scene/design',{method:'POST',body:{requirement:req,material_sample:(state.material||'').slice(0,1200)}});
+  state.customDesigning=false;render();toast('输出结构已生成，确认后即可运行分析');
+ }catch(e){state.customDesigning=false;render();toast('结构设计失败：'+e.message)}
 }
 function pickFile(input){
  const file=input.files&&input.files[0];
@@ -366,7 +387,7 @@ function versionsPanel(){
 }
 function newAnalysisPage(){
  const step2=state.clean?'active':'';
- return `<div class="page-head"><div><h1>新建分析</h1><p>先确认清洗结果，再消耗 API 运行完整分析</p></div></div><div class="steps"><div class="step active"><span class="step-num">1</span>上传材料</div><div class="step-line"></div><div class="step ${step2}"><span class="step-num">2</span>清洗确认</div><div class="step-line"></div><div class="step"><span class="step-num">3</span>生成报告</div></div><section class="panel"><div class="form-grid"><div class="field"><label>分析场景</label><select onchange="setScene(this.value)">${(state.scenes||[{id:'presale',name:'售前需求分析'},{id:'service_diagnosis',name:'学员服务诊断'}]).map(sc=>`<option value="${sc.id}" ${state.scene===sc.id?'selected':''}>${esc(sc.name)}</option>`).join('')}</select></div><div class="field"><label>上传文件（可选）</label><input type="file" accept=".md,.txt" onchange="pickFile(this)"></div></div><div class="field" style="margin-top:6px"><label>粘贴原始材料</label><textarea oninput="setMaterial(this.value)" placeholder="把客户的会议转写 / 邮件 / 微信记录原样粘贴到这里。每段一行，段前标 P1、P2……（不标也能清洗，但引用回链会缺失）">${esc(state.material)}</textarea></div><div class="form-actions"><span class="cost">清洗预览免费 · 完整分析约 1～2 分钟</span><button class="btn" onclick="doClean()" ${state.cleanLoading||state.running?'disabled':''}>${state.cleanLoading?'清洗中…':'清洗预览'}</button></div>${state.clean?cleanResult():''}</section>`;
+ return `<div class="page-head"><div><h1>新建分析</h1><p>先确认清洗结果，再消耗 API 运行完整分析</p></div></div><div class="steps"><div class="step active"><span class="step-num">1</span>上传材料</div><div class="step-line"></div><div class="step ${step2}"><span class="step-num">2</span>清洗确认</div><div class="step-line"></div><div class="step"><span class="step-num">3</span>生成报告</div></div><section class="panel"><div class="form-grid"><div class="field"><label>分析场景</label><select onchange="setScene(this.value);state.customSpec=null;render()">${(state.scenes||[{id:'presale',name:'售前需求分析'},{id:'service_diagnosis',name:'学员服务诊断'}]).map(sc=>`<option value="${sc.id}" ${state.scene===sc.id?'selected':''}>${esc(sc.name)}</option>`).join('')}<option value="custom" ${state.scene==='custom'?'selected':''}>自定义提炼（描述你想要的结果）</option></select></div>${state.scene==='custom'?customPanel():''}<div class="field"><label>上传文件（可选）</label><input type="file" accept=".md,.txt" onchange="pickFile(this)"></div></div><div class="field" style="margin-top:6px"><label>粘贴原始材料</label><textarea oninput="setMaterial(this.value)" placeholder="把客户的会议转写 / 邮件 / 微信记录原样粘贴到这里。每段一行，段前标 P1、P2……（不标也能清洗，但引用回链会缺失）">${esc(state.material)}</textarea></div><div class="form-actions"><span class="cost">清洗预览免费 · 完整分析约 1～2 分钟</span><button class="btn" onclick="doClean()" ${state.cleanLoading||state.running?'disabled':''}>${state.cleanLoading?'清洗中…':'清洗预览'}</button></div>${state.clean?cleanResult():''}</section>`;
 }
 function cleanResult(){
  const c=state.clean,st=c.stats||{};

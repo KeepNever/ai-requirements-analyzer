@@ -22,10 +22,15 @@ from pipeline.service_diagnosis import (  # noqa: E402
 MIN_MATERIAL_CHARS = 30
 
 
-def run_scene_case(material_path: str, scene: str = "service_diagnosis",
-                   mock: bool = True, project_name: str | None = None) -> Path:
-    """跑一次场景分析并落盘到版本化存储，返回 run 目录。"""
-    if scene != "presale" and scene not in scene_engine.list_template_scenes():
+def run_scene_case(material_path: str, scene="service_diagnosis",
+                   mock: bool = True, project_name: str | None = None,
+                   custom_scene: dict | None = None) -> Path:
+    """跑一次场景分析并落盘到版本化存储，返回 run 目录。
+
+    scene 传模板场景 id；custom_scene 传运行时场景 dict（自定义提炼，优先于 scene id）。
+    """
+    is_custom = bool(custom_scene)
+    if not is_custom and scene != "presale" and scene not in scene_engine.list_template_scenes():
         raise ValueError(f"未知场景：{scene}（可用模板场景：{sorted(scene_engine.list_template_scenes())}）")
     material_path = Path(material_path)
 
@@ -53,14 +58,23 @@ def run_scene_case(material_path: str, scene: str = "service_diagnosis",
     refs = [{"document_id": doc_id, "version_id": "v1"}]
 
     # 3. 运行（meta 带 scene 标识——场景隔离的锚点）
-    prompt_ver = (scene_engine.get_scene(scene).get("prompt_version", "v1.0")
-                  if scene != "presale" else "v1.7.1")
+    if is_custom:
+        sc = scene_engine.build_custom_scene(custom_scene,
+                                             custom_scene.get("_requirement", ""))
+        prompt_ver = "custom-runtime"
+    elif scene != "presale":
+        sc = scene_engine.get_scene(scene)
+        prompt_ver = sc.get("prompt_version", "v1.0")
+    else:
+        prompt_ver = "v1.7.1"
     rdir = storage.create_run(pid, refs, prompt_ver, "deepseek-chat")
     meta = storage._read_json(rdir / "meta.json")
-    meta["scene"] = scene
+    meta["scene"] = "custom" if is_custom else scene
+    if is_custom:
+        meta["custom_scene"] = custom_scene
     storage._write_json(rdir / "meta.json", meta)
 
-    if scene == "presale":
+    if not is_custom and scene == "presale":
         # 售前场景：复用 workflow 四节点组件（Prompt/校验/评分不动），产物入 V2 存储
         import json as _json
         from pipeline import workflow as wf, prompts, validators, scoring
@@ -86,8 +100,10 @@ def run_scene_case(material_path: str, scene: str = "service_diagnosis",
                                  None if mock else llm_client.usage_summary())
         return rdir
 
-    # 模板场景（JSON 配置驱动，Task 8 场景化）
-    sc = scene_engine.get_scene(scene)
+    # 模板场景 / 自定义运行时场景（JSON 配置驱动）
+    sc = (scene_engine.build_custom_scene(custom_scene,
+                                          custom_scene.get("_requirement", ""))
+          if is_custom else scene_engine.get_scene(scene))
     sd = scene_engine.analyze_scene(sc, data.cleaned_text(), mock=mock)
     cits = scene_engine.build_citations_scene(sd, sc, pid, refs)
     report_md = scene_engine.render_report_scene(sd, sc, pname, rdir.name)

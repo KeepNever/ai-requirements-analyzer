@@ -1043,7 +1043,16 @@ def load_report_payload(name: str):
         a = json.loads(ana.read_text(encoding="utf-8"))
         rep_md = rdir / "report.md"
         meta = storage._read_json(rdir / "meta.json") if (rdir / "meta.json").exists() else {}
-        spec = _scene_render_spec(meta.get("scene", "")) if meta.get("scene") else None
+        if meta.get("custom_scene"):
+            cs = meta["custom_scene"]
+            spec = {"scene_id": "custom", "scene_name": cs.get("scene_name", "自定义提炼"),
+                    "summary_title": cs.get("summary_title", "摘要"),
+                    "sections": cs.get("sections", []),
+                    "citation_note": cs.get("citation_note", "")}
+            if cs.get("actions_section"):
+                spec["actions_section"] = cs["actions_section"]
+        else:
+            spec = _scene_render_spec(meta.get("scene", "")) if meta.get("scene") else None
         return {"source": "project", "name": pid, "run_id": run_id, "analysis": a,
                 "scene_id": meta.get("scene", ""), "render_spec": spec,
                 "report_md": rep_md.read_text(encoding="utf-8") if rep_md.exists() else "",
@@ -1589,6 +1598,20 @@ class Handler(BaseHTTPRequestHandler):
             return True
 
         # 管理端 JSON 端点（SPA 使用）
+        if path == "/api/scene/design":
+            if deny("run_analysis"): return
+            payload = self._json_body()
+            try:
+                mock = DEMO_MODE or not (config.DEEPSEEK_API_KEY
+                                         or auth.get_model_key(user["user_id"]))
+                spec = scenes_mod.design_custom_scene(
+                    payload.get("requirement", ""),
+                    (payload.get("material_sample") or "")[:1200],
+                    mock=mock)
+                self._json(spec)
+            except ValueError as e:
+                self._json({"error": str(e)}, 400)
+            return
         if path == "/api/admin/access":
             if deny("manage_users"): return
             payload = self._json_body()
@@ -1739,11 +1762,20 @@ class Handler(BaseHTTPRequestHandler):
                     return
                 stem = save_material(material)
                 scene = (payload.get("scene") or "presale").strip()
+                custom_spec = payload.get("custom_spec")
+                if custom_spec is not None and not isinstance(custom_spec, dict):
+                    custom_spec = None
                 # 演示模式或无可用 Key（服务端与用户均无）时自动走离线 mock
                 mock = DEMO_MODE or not (config.DEEPSEEK_API_KEY
                                          or auth.get_model_key(user["user_id"]))
-                if scene in scenes_mod.list_template_scenes():
-                    from scene_runner import run_scene_case
+                from scene_runner import run_scene_case
+                if custom_spec is not None:
+                    spec2 = scenes_mod._validate_custom_spec(custom_spec)
+                    spec2["_requirement"] = str(payload.get("requirement", ""))[:200]
+                    rdir = run_scene_case(str(UPLOAD_DIR / f"{stem}.md"),
+                                          scene="custom", mock=mock, custom_scene=spec2)
+                    self._json({"case": stem, "scene": "custom", "run_id": rdir.name})
+                elif scene in scenes_mod.list_template_scenes():
                     rdir = run_scene_case(str(UPLOAD_DIR / f"{stem}.md"),
                                           scene=scene, mock=mock)
                     self._json({"case": stem, "scene": scene, "run_id": rdir.name})

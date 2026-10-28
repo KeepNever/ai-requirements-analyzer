@@ -1,0 +1,77 @@
+{
+  "tag": "LOCKED-SING-001",
+  "question": "看板？",
+  "mock": false,
+  "prompt_version": "v1.7.1-qa",
+  "hits_full": [
+    {
+      "did": "D003",
+      "pids": [
+        "P3"
+      ],
+      "text": "【王总】想要个实时看板，良品率当天可见。",
+      "score": 1.0
+    }
+  ],
+  "fallback_note": "（小材料模式：已提供全部材料段落，检索命中排序在前）",
+  "fallback_used": false,
+  "elapsed": {
+    "search": 0.001,
+    "llm": 0.0
+  },
+  "usage": {
+    "调用次数": 3,
+    "输入token": 117,
+    "输出token": 58,
+    "估算成本元": 0.0002,
+    "明细": [
+      {
+        "model": "m",
+        "prompt_tokens": 100,
+        "completion_tokens": 50,
+        "cost_cny": 0.000202,
+        "node": "n1",
+        "user_id": "user-1"
+      },
+      {
+        "model": "m",
+        "prompt_tokens": 10,
+        "completion_tokens": 5,
+        "cost_cny": 2e-05,
+        "node": "n2",
+        "user_id": "user-1"
+      },
+      {
+        "model": "m",
+        "prompt_tokens": 7,
+        "completion_tokens": 3,
+        "cost_cny": 1.3e-05,
+        "node": "n1",
+        "user_id": "user-2"
+      }
+    ]
+  },
+  "cited": [
+    "D003"
+  ],
+  "invalid": [],
+  "evidence_status": "GROUNDED",
+  "fail_reason": "",
+  "llm_messages": [
+    {
+      "role": "system",
+      "content": "你是客户材料分析助手。只依据【材料段落】回答用户问题，输出 JSON：\n{\"answer\": \"答案文本，300 字以内\", \"cited_dids\": [\"D001\", ...], \"sufficient\": true 或 false}\n规则：\n1. cited_dids 只能引用【材料段落】中真实出现的 D 编号，每条结论都要有编号支撑；\n2. 材料不足以回答时 sufficient=false，answer 说明已有信息与还缺什么，不编造；\n3. 材料与问题完全无关时 sufficient=false 且 cited_dids 为空；\n4. 【矛盾识别】若不同材料段落对同一事实给出互相矛盾的说法（数字、时间、结论或口径不一致），\n   必须在 answer 中明确指出「存在不一致」：分别说明冲突各方的说法及其 D 编号\n   （冲突双方的编号都要进 cited_dids），并说明在获得客户进一步确认前不选择任何一方；\n   此时 sufficient=false（矛盾未确认前不能作为可靠结论）。"
+    },
+    {
+      "role": "user",
+      "content": "【材料段落】\nD003 【王总】想要个实时看板，良品率当天可见。\n\nD001 【王总】我们厂大概六百人，主要做汽车冲压件。\n\nD002 【李工】我的电话是[手机号已脱敏]，有事打这个。\n\nD004 【李工】ERP是金蝶K3，数据不好接。\n（小材料模式：已提供全部材料段落，检索命中排序在前）\n\n【问题】看板？\n\n（注：若问题中的代词指代此前轮次的内容，请结合对话历史理解；回答须以材料段落或对话历史中已出现的 D 编号为引用依据）"
+    }
+  ],
+  "raw": {
+    "answer": "当天可见（D003）。",
+    "cited_dids": [
+      "D003"
+    ],
+    "sufficient": true
+  }
+}
