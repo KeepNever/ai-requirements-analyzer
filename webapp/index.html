@@ -377,12 +377,48 @@ function reportPage(){
  const srcPill=r.source==='project'?'<span class="pill blue">项目</span>':'<span class="pill gray">案例</span>';
  const a=r.analysis||{};
  const exportBtn=(r.export_url&&state.user.role!=='sales')?`<button class="btn secondary" onclick="location.href='${r.export_url}'">导出 Word</button>`:'';
- return `<div class="report-head"><div class="page-head" style="margin:0"><div><div class="report-title-row"><h1>${esc(r.name)}</h1>${srcPill}<span class="pill amber">AI 草稿</span></div><div class="report-meta"><span>运行 ${esc(r.run_id||'')}</span><span>生成于分析流水线 · 全部结论带引用</span></div></div><div class="head-actions">${state.user.role==='sales'?'<button class="btn" onclick="exportReport()">复制追问清单</button>':(r.export_url?`<button class="btn" onclick="location.href='${r.export_url}'">导出 Word</button>`:`<button class="btn" onclick="exportReport()">导出 Word</button>`)}</div></div></div>${roleNoticeForReport()}<div class="tabs">${tabs.map(t=>`<div class="tab ${state.reportTab===t.key?'active':''}" onclick="setReportTab('${t.key}')">${t.label}</div>`).join('')}</div>${reportBody(a,r)}`;
+ return `<div class="report-head"><div class="page-head" style="margin:0"><div><div class="report-title-row"><h1>${esc(r.name)}</h1>${srcPill}<span class="pill amber">AI 草稿</span></div><div class="report-meta"><span>运行 ${esc(r.run_id||'')}</span><span>生成于分析流水线 · 全部结论带引用</span></div></div><div class="head-actions">${state.user.role==='sales'?'<button class="btn" onclick="exportReport()">复制追问清单</button>':(r.export_url?`<button class="btn" onclick="location.href='${r.export_url}'">导出 Word</button><button class="btn secondary" onclick="exportMarkdown()">导出 Markdown</button>`:`<button class="btn" onclick="exportReport()">导出 Word</button>`)}</div></div></div>${roleNoticeForReport()}<div class="tabs">${tabs.map(t=>`<div class="tab ${state.reportTab===t.key?'active':''}" onclick="setReportTab('${t.key}')">${t.label}</div>`).join('')}</div>${reportBody(a,r)}`;
 }
 function roleNoticeForReport(){
  if(state.user.role==='sales')return '<div class="notice">你正在查看销售专用视图：只展示信息缺口、客户追问和回复入口。</div>';
  if(state.user.role==='presale')return '<div class="notice">你正在查看售前专用视图：可核对能力匹配并补充方案意见，不能确认需求。</div>';
  return '';
+}
+function esc2(v){return String(v==null?'':v).replace(/\|/g,'\\|').replace(/\n/g,' ')}
+function mdTable(headers, rows){
+ return '| '+headers.join(' | ')+' |\n| '+headers.map(()=>'---').join(' | ')+' |\n'+rows.map(r=>'| '+r.join(' | ')+' |').join('\n');
+}
+function exportMarkdown(){
+ const r=state.report, a=r.analysis||{};
+ let md='# '+r.name+' · 分析报告\n\n';
+ md+='> 运行 '+(r.run_id||'')+' · AI 草稿，结论需人工确认后使用\n\n';
+ if(reportScene()==='service'){
+  md+='## 一、诊断摘要\n\n'+(a.summary||'（无）')+'\n\n';
+  md+='## 二、学员核心诉求\n\n'+mdTable(['编号','诉求','优先级','原话锚点','引用段落'],
+   (a.core_demands||[]).map(c=>[esc2(c.id),esc2(c.content),esc2(c.priority||'—'),esc2(c.quote||''),esc2((c.dids||[]).join('、'))]))+'\n\n';
+  md+='## 三、情绪与风险信号\n\n'+mdTable(['信号','等级','触发原话','引用段落'],
+   (a.emotion_risks||[]).map(e=>[esc2(e.type),esc2(e.level||'—'),esc2(e.evidence_quote||''),esc2((e.dids||[]).join('、'))]))+'\n\n';
+  md+='## 四、服务方响应问题\n\n'+((a.response_issues||[]).map((x,i)=>(i+1)+'. '+esc2(x.issue)+(x.dids&&x.dids.length?'（依据：'+x.dids.join('、')+'）':'')).join('\n')||'无')+'\n\n';
+  md+='## 五、行动清单\n\n'+mdTable(['行动','具体做法与时限','优先级'],
+   (a.action_items||[]).map(x=>[esc2(x.action||''),esc2(x.detail||''),esc2(x.priority||'—')]))+'\n\n';
+ } else {
+  const n1=a.node1||{},n2=a.node2||{},pri=a.priority||[];
+  const tierMap={};pri.forEach(x=>{tierMap[x.id]=x.tier});
+  md+='## 一、显性需求\n\n'+mdTable(['编号','需求','优先级','状态'],
+   (n1.explicit_needs||[]).map(n=>[esc2(n.id),esc2(n.content),esc2(tierMap[n.id]||'—'),(state.reportNotes&&state.reportNotes.needs&&state.reportNotes.needs[n.id])?'已确认':'草稿']))+'\n\n';
+  md+='## 二、潜在需求（推断）\n\n'+mdTable(['编号','需求','推断线索','置信度'],
+   (n2.potential_needs||[]).map(n=>[esc2(n.id),esc2(n.content),esc2(n.inference||n.rationale||''),esc2(n.confidence||'')]))+'\n\n';
+  md+='## 三、能力匹配\n\n'+mdTable(['匹配对象','结论','依据'],
+   (n2.capability_match||[]).map(c=>[esc2(c.target),esc2(c.verdict),esc2(c.reason||'')]))+'\n\n';
+  md+='## 四、待确认与追问\n\n'+((n2.pending_confirmations||[]).map((q,i)=>(i+1)+'. 【'+(q.level||'')+'】缺口：'+esc2(q.gap)+'\n   - 影响：'+esc2(q.impact)+'\n   - 建议追问：'+esc2(q.question)).join('\n')||'无')+'\n\n';
+ }
+ md+='---\n\n*由 AI 客户需求分析助手导出 · 草稿态内容，使用前需人工确认*\n';
+ const blob=new Blob([md],{type:'text/markdown;charset=utf-8'});
+ const el=document.createElement('a');
+ el.href=URL.createObjectURL(blob);
+ el.download=r.name+'_分析报告.md';
+ el.click();URL.revokeObjectURL(el.href);
+ toast('Markdown 已导出');
 }
 function exportReport(){
  if(state.report&&state.report.export_url&&state.user.role!=='sales'){location.href=state.report.export_url;return}
