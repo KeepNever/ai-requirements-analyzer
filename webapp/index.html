@@ -187,7 +187,16 @@ async function openReport(id){
  }
  state.reportLoading=false;render();window.scrollTo(0,0);
 }
+function reportScene(){
+ const a=(state.report&&state.report.analysis)||{};
+ if(a.summary&&(a.core_demands||a.emotion_risks||a.response_issues||a.action_items))return 'service';
+ return 'presale';
+}
 function reportTabs(){
+ if(reportScene()==='service'){
+  if(state.user.role==='sales')return[{key:'sd_overview',label:'诊断详情'},{key:'sd_issues',label:'响应问题'}];
+  return[{key:'sd_overview',label:'诊断详情'},{key:'sd_issues',label:'响应问题'},{key:'sd_actions',label:'行动清单'},{key:'audit',label:'修正记录'}];
+ }
  if(state.user.role==='sales')return[{key:'questions',label:'待确认与追问'}];
  if(state.user.role==='presale')return[{key:'capability',label:'能力匹配'},{key:'questions',label:'待确认信息'}];
  return[{key:'needs',label:'需求分析'},{key:'capability',label:'能力匹配'},{key:'questions',label:'待确认追问'},{key:'audit',label:'修正记录'}];
@@ -368,7 +377,7 @@ function reportPage(){
  const srcPill=r.source==='project'?'<span class="pill blue">项目</span>':'<span class="pill gray">案例</span>';
  const a=r.analysis||{};
  const exportBtn=(r.export_url&&state.user.role!=='sales')?`<button class="btn secondary" onclick="location.href='${r.export_url}'">导出 Word</button>`:'';
- return `<div class="report-head"><div class="page-head" style="margin:0"><div><div class="report-title-row"><h1>${esc(r.name)}</h1>${srcPill}<span class="pill amber">AI 草稿</span></div><div class="report-meta"><span>运行 ${esc(r.run_id||'')}</span><span>生成于分析流水线 · 全部结论带引用</span></div></div><div class="head-actions"><button class="btn" onclick="exportReport()">${state.user.role==='sales'?'复制追问清单':'导出 Word'}</button>${exportBtn}</div></div></div>${roleNoticeForReport()}<div class="tabs">${tabs.map(t=>`<div class="tab ${state.reportTab===t.key?'active':''}" onclick="setReportTab('${t.key}')">${t.label}</div>`).join('')}</div>${reportBody(a,r)}`;
+ return `<div class="report-head"><div class="page-head" style="margin:0"><div><div class="report-title-row"><h1>${esc(r.name)}</h1>${srcPill}<span class="pill amber">AI 草稿</span></div><div class="report-meta"><span>运行 ${esc(r.run_id||'')}</span><span>生成于分析流水线 · 全部结论带引用</span></div></div><div class="head-actions">${state.user.role==='sales'?'<button class="btn" onclick="exportReport()">复制追问清单</button>':(r.export_url?`<button class="btn" onclick="location.href='${r.export_url}'">导出 Word</button>`:`<button class="btn" onclick="exportReport()">导出 Word</button>`)}</div></div></div>${roleNoticeForReport()}<div class="tabs">${tabs.map(t=>`<div class="tab ${state.reportTab===t.key?'active':''}" onclick="setReportTab('${t.key}')">${t.label}</div>`).join('')}</div>${reportBody(a,r)}`;
 }
 function roleNoticeForReport(){
  if(state.user.role==='sales')return '<div class="notice">你正在查看销售专用视图：只展示信息缺口、客户追问和回复入口。</div>';
@@ -378,6 +387,14 @@ function roleNoticeForReport(){
 function exportReport(){
  if(state.report&&state.report.export_url&&state.user.role!=='sales'){location.href=state.report.export_url;return}
  if(state.user.role==='sales'){
+  const a=(state.report&&state.report.analysis)||{};
+  if(reportScene()==='service'){
+   const cds=(a.core_demands||[]).map(c=>'【'+(c.priority||'')+'】诉求：'+c.content+'｜原话：'+(c.quote||'')).join('\n');
+   const text='学员核心诉求清单\n'+(cds||'（无）');
+   if(navigator.clipboard)navigator.clipboard.writeText(text).then(()=>toast('诉求清单已复制到剪贴板'),()=>toast('复制失败，请手动选择文本'));
+   else toast('当前浏览器不支持自动复制');
+   return;
+  }
   const pend=(state.report&&(state.report.questions||(state.report.analysis&&state.report.analysis.node2&&state.report.analysis.node2.pending_confirmations)))||[];
   const lines=pend.map(n=>'【'+(n.level||'')+'】缺口：'+n.gap+'｜影响：'+n.impact+'｜建议追问：'+n.question).join('\n');
   const text='待确认与追问清单\n'+(lines||'（无）');
@@ -388,10 +405,32 @@ function exportReport(){
  toast('案例版暂不支持 Word 导出，请走资料库运行记录');
 }
 function reportBody(a,r){
+ if(reportScene()==='service')return serviceBody(a);
  if(state.reportTab==='capability')return capabilityBody(a);
  if(state.reportTab==='questions')return questionsBody(a,r);
  if(state.reportTab==='audit')return auditBody();
  return needsBody(a);
+}
+function serviceBody(a){
+ if(state.reportTab==='sd_issues')return serviceIssuesBody(a);
+ if(state.reportTab==='sd_actions')return serviceActionsBody(a);
+ return serviceOverviewBody(a);
+}
+function serviceOverviewBody(a){
+ const cds=a.core_demands||[],ers=a.emotion_risks||[];
+ const cdRows=cds.map(c=>`<tr><td class="strong">${esc(c.id)}</td><td>${esc(c.content)}</td><td>${pill(c.priority||'—',c.priority==='高'?'red':c.priority==='中'?'amber':'gray')}</td><td>${esc(c.quote||'')}</td><td>${esc((c.dids||[]).join('、'))}</td></tr>`).join('')||'<tr><td colspan="5" class="muted">无</td></tr>';
+ const erRows=ers.map(e=>`<tr><td>${esc(e.type)}</td><td>${pill(e.level||'—',e.level==='高'?'red':e.level==='中'?'amber':'gray')}</td><td>${esc(e.evidence_quote||'')}</td><td>${esc((e.dids||[]).join('、'))}</td></tr>`).join('')||'<tr><td colspan="4" class="muted">无</td></tr>';
+ return `<section class="panel"><h2 class="panel-title">诊断摘要</h2><p class="report-summary" style="text-indent:0">${esc(a.summary||'（无摘要）')}</p><h2 class="panel-title" style="margin-top:22px">学员核心诉求（带原话锚点）</h2><div class="table-wrap"><table><thead><tr><th>编号</th><th>诉求</th><th>优先级</th><th>原话锚点</th><th>引用段落</th></tr></thead><tbody>${cdRows}</tbody></table></div><h2 class="panel-title" style="margin-top:22px">情绪与风险信号</h2><div class="table-wrap"><table><thead><tr><th>信号</th><th>等级</th><th>触发原话</th><th>引用段落</th></tr></thead><tbody>${erRows}</tbody></table></div><div class="notice" style="margin-top:16px">服务诊断场景：本报告为草稿态，行动清单是给服务方的建议而非证据；学员服务诊断报告可从报告页导出 Word 完整版。</div></section>`;
+}
+function serviceIssuesBody(a){
+ const ris=a.response_issues||[];
+ const rows=ris.map((x,i)=>`<div class="todo" style="padding:14px 0"><div style="display:flex;gap:8px;align-items:center"><b style="margin:0">问题 ${i+1}</b></div><div class="evidence" style="margin-top:8px"><b>问题</b>${esc(x.issue||'')}</div>${(x.dids||[]).length?`<div class="chain-box"><span>依据段落</span>${esc(x.dids.join('、'))}</div>`:''}</div>`).join('');
+ return `<section class="panel"><h2 class="panel-title">服务方响应问题</h2><p class="panel-sub">结论不超出对话证据；只记录到某时刻的会写「尚未看到」而非断言未行动</p>${rows||'<div class="empty">未发现服务响应问题。</div>'}</section>`;
+}
+function serviceActionsBody(a){
+ const acts=a.action_items||[];
+ const rows=acts.map(x=>`<tr><td class="strong">${esc(x.action||'')}</td><td>${esc(x.detail||'')}</td><td>${pill(x.priority||'—',x.priority==='高'?'red':x.priority==='中'?'amber':'gray')}</td></tr>`).join('')||'<tr><td colspan="3" class="muted">无</td></tr>';
+ return `<section class="panel"><h2 class="panel-title">行动清单</h2><p class="panel-sub">给服务方的具体行动建议（建议时限需服务负责人确认）；行动是建议而非证据</p><div class="table-wrap"><table><thead><tr><th>行动</th><th>具体做法与时限</th><th>优先级</th></tr></thead><tbody>${rows}</tbody></table></div></section>`;
 }
 function pill(v,cls){return `<span class="pill ${cls}">${esc(v)}</span>`}
 function needsBody(a){
