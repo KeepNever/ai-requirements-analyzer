@@ -278,10 +278,15 @@ function modelModal(){
   server:'使用服务端模型：分析消耗服务方额度',
   none:'尚未配置模型：真实分析不可用'}[m.mode]||m.mode;
  const savedTip=state.modelKeySaved?'<div class="ok" style="margin-top:12px">✓ 已保存生效：真实分析与问答现在消耗你自己的额度</div>':'';
- return `<div class="modal-mask" onclick="if(event.target===this){state.modelOpen=false;render()}"><div class="modal"><h2>模型设置</h2><p class="muted small-text" style="margin-bottom:16px">配置个人 DeepSeek API Key 后，真实分析与问答将消耗你自己的额度。</p><div class="${m.mode==='personal'?'ok':'notice'}" style="margin-bottom:16px">${esc(modeText)}</div>${savedTip}<div class="field"><label>个人 DeepSeek API Key</label><input class="input" id="modelKey" type="password" name="model_key_setting" autocomplete="new-password" placeholder="${m.mode==='personal'?'已配置（输入新值可覆盖）':'sk-...'}"><div class="password-hint">Key 明文存储于服务端本地文件（不入代码库）。公网环境建议使用专用低额度 Key。</div></div><div style="display:flex;justify-content:flex-end;gap:10px">${m.mode==='personal'?'<button class="btn secondary small" onclick="clearModelKey()">清除已存 Key</button>':''}<button class="btn secondary small" onclick="state.modelOpen=false;render()">关闭</button><button class="btn small" onclick="saveModelKey()">保存</button></div></div></div>`;
+ const u=state.myUsage;
+ const usageBlock=u?`<div class="side-section" style="margin-bottom:16px"><h3>本次服务运行期间你的消耗</h3><div class="stat" style="grid-template-columns:repeat(4,1fr);margin:8px 0 0"><div><b style="font-size:16px">${u['调用次数']}</b><span>调用次数</span></div><div><b style="font-size:16px">${u['输入token']}</b><span>输入token</span></div><div><b style="font-size:16px">${u['输出token']}</b><span>输出token</span></div><div><b style="font-size:16px">${u['估算成本元']}</b><span>估算成本(元)</span></div></div></div>`:'';
+ return `<div class="modal-mask" onclick="if(event.target===this){state.modelOpen=false;render()}"><div class="modal"><h2>模型设置</h2><p class="muted small-text" style="margin-bottom:16px">配置个人 DeepSeek API Key 后，真实分析与问答将消耗你自己的额度。</p>${usageBlock}<div class="${m.mode==='personal'?'ok':'notice'}" style="margin-bottom:16px">${esc(modeText)}</div>${savedTip}<div class="field"><label>个人 DeepSeek API Key</label><input class="input" id="modelKey" type="password" name="model_key_setting" autocomplete="new-password" placeholder="${m.mode==='personal'?'已配置（输入新值可覆盖）':'sk-...'}"><div class="password-hint">Key 明文存储于服务端本地文件（不入代码库）。公网环境建议使用专用低额度 Key。</div></div><div style="display:flex;justify-content:flex-end;gap:10px">${m.mode==='personal'?'<button class="btn secondary small" onclick="clearModelKey()">清除已存 Key</button>':''}<button class="btn secondary small" onclick="state.modelOpen=false;render()">关闭</button><button class="btn small" onclick="saveModelKey()">保存</button></div></div></div>`;
 }
 async function openModel(){
- try{state.modelInfo=await api('/api/settings/model');state.modelOpen=true;state.modelKeySaved=false;render();}
+ try{
+  state.modelInfo=await api('/api/settings/model');
+  try{state.myUsage=await api('/api/usage/my')}catch(e){}
+  state.modelOpen=true;state.modelKeySaved=false;render();}
  catch(e){toast('加载模型设置失败：'+e.message)}
 }
 async function clearModelKey(){

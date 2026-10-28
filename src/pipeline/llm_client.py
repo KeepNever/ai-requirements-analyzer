@@ -17,10 +17,12 @@ from . import config
 # 请求级用户 Key：线程化服务下每请求独立 context，互不串线。
 # 优先级：用户自带 Key > 服务端 .env Key；DEMO_MODE 下服务端 Key 被屏蔽（保护服务方 token）。
 _user_api_key: contextvars.ContextVar = contextvars.ContextVar("user_api_key", default="")
+_user_id: contextvars.ContextVar = contextvars.ContextVar("request_user_id", default="")
 
 
-def set_request_user_key(key: str):
+def set_request_user_key(key: str, user_id: str = ""):
     _user_api_key.set((key or "").strip())
+    _user_id.set((user_id or "").strip())
 
 
 def _resolve_key() -> str:
@@ -67,6 +69,16 @@ def usage_summary() -> dict:
     }
 
 
+def my_usage(user_id: str) -> dict:
+    """当前用户（自带 Key 调用）的用量汇总与明细（服务运行期间）。"""
+    rows = [u for u in usage_log if u.get("user_id") == (user_id or "").strip()]
+    return {"调用次数": len(rows),
+            "输入token": sum(u["prompt_tokens"] for u in rows),
+            "输出token": sum(u["completion_tokens"] for u in rows),
+            "估算成本元": round(sum(u["cost_cny"] for u in rows), 4),
+            "明细": rows}
+
+
 def reset_usage():
     usage_log.clear()
 
@@ -76,7 +88,8 @@ def _record_usage(model: str, data: dict, node: str):
     pt, ct = int(u.get("prompt_tokens", 0)), int(u.get("completion_tokens", 0))
     cost = (pt / 1e6 * PRICE_INPUT_USD_PER_M + ct / 1e6 * PRICE_OUTPUT_USD_PER_M) * USD_TO_CNY
     usage_log.append({"model": model, "prompt_tokens": pt, "completion_tokens": ct,
-                      "cost_cny": round(cost, 6), "node": node})
+                      "cost_cny": round(cost, 6), "node": node,
+                      "user_id": (_user_id.get() or "")})
 
 
 def _classify_and_raise(e: Exception, status: int | None):

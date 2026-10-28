@@ -87,3 +87,33 @@ def test_resolve_key_priority_and_demo_shield(tmp_path, monkeypatch):
     assert llm_client._resolve_key() == ""                 # 演示模式屏蔽服务端 Key
     llm_client.set_request_user_key("sk-user")
     assert llm_client._resolve_key() == "sk-user"          # 但用户自己的 Key 仍可用
+
+
+def test_my_usage_filters_by_user(tmp_path, monkeypatch):
+    from pipeline import llm_client
+    llm_client.set_request_user_key("sk-u1", "user-1")
+    llm_client.usage_log.clear()
+    llm_client._record_usage("m", {"usage": {"prompt_tokens": 100, "completion_tokens": 50}}, "n1")
+    llm_client._record_usage("m", {"usage": {"prompt_tokens": 10, "completion_tokens": 5}}, "n2")
+    llm_client.set_request_user_key("sk-u2", "user-2")
+    llm_client._record_usage("m", {"usage": {"prompt_tokens": 7, "completion_tokens": 3}}, "n1")
+    mine = llm_client.my_usage("user-1")
+    assert mine["调用次数"] == 2 and mine["输入token"] == 110
+    other = llm_client.my_usage("user-2")
+    assert other["调用次数"] == 1
+    assert all(u["user_id"] == "user-1" for u in mine["明细"])
+
+
+def test_my_usage_filters_by_user(tmp_path, monkeypatch):
+    from pipeline import llm_client
+    llm_client.set_request_user_key("sk-u1", "user-1")
+    llm_client.usage_log.clear()
+    llm_client._record_usage("m", {"usage": {"prompt_tokens": 100, "completion_tokens": 50}}, "n1")
+    llm_client._record_usage("m", {"usage": {"prompt_tokens": 10, "completion_tokens": 5}}, "n2")
+    llm_client.set_request_user_key("sk-u2", "user-2")
+    llm_client._record_usage("m", {"usage": {"prompt_tokens": 7, "completion_tokens": 3}}, "n1")
+    mine = llm_client.my_usage("user-1")
+    assert mine["调用次数"] == 2 and mine["输入token"] == 110
+    other = llm_client.my_usage("user-2")
+    assert other["调用次数"] == 1
+    assert all(u["user_id"] == "user-1" for u in mine["明细"])

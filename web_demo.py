@@ -1214,7 +1214,8 @@ class Handler(BaseHTTPRequestHandler):
     def _user(self):
         user = auth.user_from_cookie(self.headers.get("Cookie"))
         # 请求级模型 Key 注入：登录用户优先用自带 Key；未登录清空防串线
-        llm_client.set_request_user_key(auth.get_model_key(user["user_id"]) if user else "")
+        uid = user["user_id"] if user else ""
+        llm_client.set_request_user_key(auth.get_model_key(uid) if user else "", uid)
         return user
 
     def do_GET(self):
@@ -1333,6 +1334,8 @@ class Handler(BaseHTTPRequestHandler):
             grants = {a["project_id"]: a["grants"] for a in access_mod.access_overview()}
             self._json({"projects": projects, "members": members,
                         "restricted": list(grants.keys()), "grants": grants})
+        elif path == "/api/usage/my":
+            self._json(llm_client.my_usage(user["user_id"]))
         elif path == "/api/settings/model":
             mode = ("personal" if user.get("has_model_key")
                     else ("demo-offline" if DEMO_MODE
