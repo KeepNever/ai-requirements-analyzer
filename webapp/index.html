@@ -91,7 +91,7 @@ async function boot(){
   state.user=await api('/api/me');
   if(!routeHash())state.page=state.user.role==='admin'?'members':'dashboard';
   await loadOverview(false);
-  if(state.page==='members')loadMembers();
+  if(state.page==='members'){loadMembers();loadAccess();}
  }catch(e){state.page='login'}
  state.booting=false;render();
 }
@@ -113,7 +113,7 @@ async function doLogin(form){
  try{
   state.user=await api('/api/auth/login',{method:'POST',body:{email:f.get('email'),password:f.get('password')}});
   state.page=pageAfterLogin();await loadOverview(false);
-  if(state.page==='members')loadMembers();
+  if(state.page==='members'){loadMembers();loadAccess();}
  }catch(e){showAuthError(e.message);return}
  render();
 }
@@ -123,7 +123,7 @@ async function doRegister(form){
  try{
   state.user=await api('/api/auth/register',{method:'POST',body:{name:f.get('name'),org:f.get('org'),email:f.get('email'),password:f.get('password')}});
   state.page=pageAfterLogin();await loadOverview(false);
-  if(state.page==='members')loadMembers();
+  if(state.page==='members'){loadMembers();loadAccess();}
  }catch(e){showAuthError(e.message);return}
  render();toast('团队创建成功，你已成为管理员');
 }
@@ -215,6 +215,7 @@ async function loadAccess(){
  if(state.user.role!=='admin')return;
  try{state.accessData=await api('/api/admin/access')}
  catch(e){toast('加载项目授权失败：'+e.message)}
+ render();
 }
 async function toggleAccess(pid, checked){
  try{
@@ -277,7 +278,7 @@ function modelModal(){
   server:'使用服务端模型：分析消耗服务方额度',
   none:'尚未配置模型：真实分析不可用'}[m.mode]||m.mode;
  const savedTip=state.modelKeySaved?'<div class="ok" style="margin-top:12px">✓ 已保存生效：真实分析与问答现在消耗你自己的额度</div>':'';
- return `<div class="modal-mask" onclick="if(event.target===this)state.modelOpen=false;render()"><div class="modal"><h2>模型设置</h2><p class="muted small-text" style="margin-bottom:16px">配置个人 DeepSeek API Key 后，真实分析与问答将消耗你自己的额度。</p><div class="${m.mode==='personal'?'ok':'notice'}" style="margin-bottom:16px">${esc(modeText)}</div>${savedTip}<div class="field"><label>个人 DeepSeek API Key</label><input class="input" id="modelKey" type="password" placeholder="${m.mode==='personal'?'已配置（输入新值可覆盖）':'sk-...'}"><div class="password-hint">Key 明文存储于服务端本地文件（不入代码库）。公网环境建议使用专用低额度 Key。</div></div><div style="display:flex;justify-content:flex-end;gap:10px">${m.mode==='personal'?'<button class="btn secondary small" onclick="clearModelKey()">清除已存 Key</button>':''}<button class="btn secondary small" onclick="state.modelOpen=false;render()">关闭</button><button class="btn small" onclick="saveModelKey()">保存</button></div></div></div>`;
+ return `<div class="modal-mask" onclick="if(event.target===this)state.modelOpen=false;render()"><div class="modal"><h2>模型设置</h2><p class="muted small-text" style="margin-bottom:16px">配置个人 DeepSeek API Key 后，真实分析与问答将消耗你自己的额度。</p><div class="${m.mode==='personal'?'ok':'notice'}" style="margin-bottom:16px">${esc(modeText)}</div>${savedTip}<div class="field"><label>个人 DeepSeek API Key</label><input class="input" id="modelKey" type="password" name="model_key_setting" autocomplete="new-password" placeholder="${m.mode==='personal'?'已配置（输入新值可覆盖）':'sk-...'}"><div class="password-hint">Key 明文存储于服务端本地文件（不入代码库）。公网环境建议使用专用低额度 Key。</div></div><div style="display:flex;justify-content:flex-end;gap:10px">${m.mode==='personal'?'<button class="btn secondary small" onclick="clearModelKey()">清除已存 Key</button>':''}<button class="btn secondary small" onclick="state.modelOpen=false;render()">关闭</button><button class="btn small" onclick="saveModelKey()">保存</button></div></div></div>`;
 }
 async function openModel(){
  try{state.modelInfo=await api('/api/settings/model');state.modelOpen=true;state.modelKeySaved=false;render();}

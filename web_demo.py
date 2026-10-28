@@ -920,7 +920,7 @@ REGISTER_FORM = """
   <label>你的姓名</label><input name="name" required>
   <label>团队 / 企业名称</label><input name="org" required>
   <label>工作邮箱</label><input name="email" type="email" required>
-  <label>设置密码</label><input name="password" type="password" minlength="8" required>
+  <label>设置密码</label><input name="new_password_setting" type="password" autocomplete="new-password" minlength="8" required>
   <button>创建团队并进入</button>
 </form>
 <p style="margin-top:18px;font-size:13px">已有账号？<a href="/login">返回登录</a></p>
@@ -944,7 +944,7 @@ def members_page(user: dict, error: str = "") -> str:
 <div><label>角色</label><select name="role"><option value="sales">销售</option><option value="pm">产品经理</option><option value="presale">售前</option><option value="admin">管理员</option></select></div>
 </div>
 <label>工作邮箱</label><input name="email" type="email" required>
-<label>初始密码</label><input name="password" type="password" minlength="8" required>
+<label>初始密码</label><input name="new_password_setting" type="password" autocomplete="new-password" minlength="8" required>
 <button>添加成员</button>
 </form>"""
     err = f'<div class="error">{html.escape(error)}</div>' if error else ""
@@ -1505,7 +1505,7 @@ class Handler(BaseHTTPRequestHandler):
             form = self._form()
             if path == "/login":
                 try:
-                    u = auth.authenticate(form.get("email", ""), form.get("password", ""))
+                    u = auth.authenticate(form.get("email", ""), form.get("new_password_setting", form.get("password", "")))
                     token = auth.make_session(u["user_id"])
                     self._redirect(auth.login_redirect_target(u), auth.session_cookie(token))
                 except auth.AuthError as e:
@@ -1514,7 +1514,7 @@ class Handler(BaseHTTPRequestHandler):
             if auth.count_users() == 0:
                 try:
                     u = auth.register_first_admin(form.get("name", ""), form.get("email", ""),
-                                                  form.get("password", ""), form.get("org", ""))
+                                                  form.get("new_password_setting", form.get("password", "")), form.get("org", ""))
                     token = auth.make_session(u["user_id"])
                     self._redirect(auth.login_redirect_target(u), auth.session_cookie(token))
                 except auth.AuthError as e:
@@ -1524,7 +1524,7 @@ class Handler(BaseHTTPRequestHandler):
                 # 演示环境开放注册，默认产品经理角色（全功能体验）
                 try:
                     u = auth.create_user(form.get("name", ""), form.get("email", ""),
-                                         form.get("password", ""), "pm")
+                                         form.get("new_password_setting", form.get("password", "")), "pm")
                     token = auth.make_session(u["user_id"])
                     self._redirect("/", auth.session_cookie(token))
                 except auth.AuthError as e:
@@ -1638,7 +1638,7 @@ class Handler(BaseHTTPRequestHandler):
             form = self._form()
             try:
                 auth.create_user(form.get("name", ""), form.get("email", ""),
-                                 form.get("password", ""), form.get("role", "sales"))
+                                 form.get("new_password_setting", form.get("password", "")), form.get("role", "sales"))
                 self._redirect("/members")
             except auth.AuthError as e:
                 self._send(members_page(user, str(e)), 400)
