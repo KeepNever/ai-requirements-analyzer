@@ -29,6 +29,7 @@ import retrieval  # noqa: E402
 import export_docx  # noqa: E402
 import auth  # noqa: E402
 import notes as notes_mod  # noqa: E402
+import access as access_mod  # noqa: E402
 from pipeline import llm_client  # noqa: E402
 from pipeline import config  # noqa: E402
 
@@ -1108,6 +1109,16 @@ def build_overview() -> list:
     return items
 
 
+def build_overview_for(user: dict) -> list:
+    """按用户过滤后的工作台总览（admin/pm 恒全量）。"""
+    items = build_overview()
+    return [x for x in items if _visible_to_user(x["id"], user)]
+
+
+def _visible_to_user(entry_id: str, user: dict) -> bool:
+    return access_mod.visible_to(entry_id, user.get("role", ""), user.get("user_id", ""))
+
+
 def aggregate_questions() -> list:
     """跨项目汇总待确认问题（销售追问跟进 / 产品待办）。回复过的问题标记已答。"""
     out = []
@@ -1283,9 +1294,12 @@ class Handler(BaseHTTPRequestHandler):
         elif path == "/api/me":
             self._json(user)
         elif path == "/api/overview":
-            self._json(build_overview())
+            self._json(build_overview_for(user))
         elif path.startswith("/api/report/"):
             name = unquote(path.split("/api/report/", 1)[1])
+            if not _visible_to_user(name, user):
+                self._json({"error": "报告不存在"}, 404)
+                return
             payload = load_report_payload(name)
             if payload is None:
                 self._json({"error": "报告不存在"}, 404)
@@ -1311,6 +1325,14 @@ class Handler(BaseHTTPRequestHandler):
             elif role == "presale":
                 payload["presale_notes"] = item.get("presale_notes", [])
             self._json(payload)
+        elif path == "/api/admin/access":
+            if deny("manage_users"): return
+            projects = [{"id": x["id"], "name": x["name"], "source": x["source"]}
+                        for x in build_overview()]
+            members = auth.list_users_public()
+            grants = {a["project_id"]: a["grants"] for a in access_mod.access_overview()}
+            self._json({"projects": projects, "members": members,
+                        "restricted": list(grants.keys()), "grants": grants})
         elif path == "/api/settings/model":
             mode = ("personal" if user.get("has_model_key")
                     else ("demo-offline" if DEMO_MODE
@@ -1532,6 +1554,17 @@ class Handler(BaseHTTPRequestHandler):
             return True
 
         # 管理端 JSON 端点（SPA 使用）
+        if path == "/api/admin/access":
+            if deny("manage_users"): return
+            payload = self._json_body()
+            pid = payload.get("project_id", "")
+            if not pid:
+                self._json({"error": "project_id 为空"}, 400)
+                return
+            restricted = bool(payload.get("restricted"))
+            grants = payload.get("grants") if isinstance(payload.get("grants"), list) else None
+            self._json(access_mod.set_restricted(pid, restricted, grants))
+            return
         if path == "/api/settings/model":
             payload = self._json_body()
             try:

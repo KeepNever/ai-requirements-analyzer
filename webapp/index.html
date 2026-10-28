@@ -51,7 +51,7 @@ const state={booting:true,user:null,page:'dashboard',overview:[],overviewLoading
  members:[],membersLoading:false,addOpen:false,
  myQuestions:[],mqLoading:false,replyFor:null,
  caps:[],capsLoading:false,capsFilter:'全部',noteFor:null,
- confirmFor:null,confirmNote:'',reportNotes:null,modelInfo:null,modelOpen:false};
+ confirmFor:null,confirmNote:'',reportNotes:null,modelInfo:null,modelOpen:false,accessData:null};
 
 function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 function toast(msg){const old=document.querySelector('.toast');if(old)old.remove();const el=document.createElement('div');el.className='toast';el.textContent=msg;document.body.appendChild(el);setTimeout(()=>el.remove(),2600)}
@@ -140,7 +140,7 @@ function go(page){
  try{history.replaceState(null,'','#'+page)}catch(e){}
  if(page==='dashboard')loadOverview();
  if(page==='chat'&&!state.overview.length)loadOverview(false);
- if(page==='members')loadMembers();
+ if(page==='members'){loadMembers();loadAccess();}
  if(page==='myquestions')loadMyQuestions();
  if(page==='caps')loadCaps();
  render();window.scrollTo(0,0);
@@ -210,6 +210,27 @@ async function sendQuestion(){
  }catch(e){state.chatMsgs.push({from:'ai',text:'出错了：'+e.message})}
  state.chatBusy=false;render();
  const log=document.querySelector('.chat-log');if(log)log.scrollTop=log.scrollHeight;
+}
+async function loadAccess(){
+ if(state.user.role!=='admin')return;
+ try{state.accessData=await api('/api/admin/access')}
+ catch(e){toast('加载项目授权失败：'+e.message)}
+}
+async function toggleAccess(pid, checked){
+ try{
+  const prev=(state.accessData.grants||{})[pid]||[];
+  await api('/api/admin/access',{method:'POST',body:{project_id:pid, restricted:checked,
+    grants:checked?prev.concat():[]}});
+  toast(checked?'项目已设为受限访问':'项目已恢复全员可见');
+ }catch(e){toast('设置失败：'+e.message)}
+ loadAccess();render();
+}
+async function toggleGrant(pid, uid, checked){
+ const grants=new Set(((state.accessData.grants||{})[pid])||[]);
+ if(checked)grants.add(uid); else grants.delete(uid);
+ try{await api('/api/admin/access',{method:'POST',body:{project_id:pid, restricted:true, grants:[...grants]}});}
+ catch(e){toast('保存失败：'+e.message)}
+ loadAccess();render();
 }
 async function loadMembers(){
  if(state.user.role!=='admin')return;
@@ -472,7 +493,22 @@ async function submitNote(i){
 function membersPage(){
  if(state.membersLoading)return '<div class="loading">成员加载中…</div>';
  const rows=state.members.map(m=>`<tr><td><div class="member-person"><div class="mini-avatar">${esc((m.name||'?').slice(0,1))}</div><div><b>${esc(m.name)}</b><span>${esc(m.email)}</span></div></div></td><td><select onchange="changeMemberRole('${esc(m.email)}',this.value)">${Object.entries(ROLE_NAMES).map(([k,v])=>`<option value="${k}" ${m.role===k?'selected':''}>${v}</option>`).join('')}</select></td><td class="muted small-text">${m.role==='admin'?'成员、角色与项目授权':m.role==='pm'?'分析、修正、确认和导出':m.role==='sales'?'提交材料与处理客户追问':'能力匹配查看与补充意见'}</td></tr>`).join('');
- return `<div class="page-head"><div><h1>${state.user.role==='admin'?'管理控制台':'成员与权限'}</h1><p>${state.user.role==='admin'?'邀请企业成员、分配角色；业务确认权与系统管理权分离，至少保留一名管理员':'四种预设角色覆盖当前业务，不开放复杂自定义权限'}</p></div><div class="head-actions"><button class="btn" onclick="state.addOpen=!state.addOpen;render()">邀请成员</button></div></div>${state.addOpen?`<section class="panel" style="margin-bottom:20px"><h2 class="panel-title">添加成员</h2><p class="panel-sub">先指定角色；成员用分配的邮箱和初始密码登录</p><form onsubmit="event.preventDefault();addMember(this)"><div class="form-grid"><div class="field"><label>姓名</label><input class="input" name="name" required></div><div class="field"><label>角色</label><select class="input" name="role"><option value="sales">销售</option><option value="pm">产品经理</option><option value="presale">售前</option><option value="admin">管理员</option></select></div></div><div class="field"><label>工作邮箱</label><input class="input" name="email" type="email" required></div><div class="field"><label>初始密码</label><input class="input" name="password" type="password" minlength="8" required></div><button class="btn small" type="submit">添加成员</button></form></section>`:''}<div class="permission-grid"><section class="panel"><h2 class="panel-title">团队成员</h2><p class="panel-sub">角色决定操作边界；系统至少保留一名管理员</p><div class="table-wrap"><table><thead><tr><th>成员</th><th>角色</th><th>职责</th></tr></thead><tbody>${rows||'<tr><td colspan="3" class="muted">加载中</td></tr>'}</tbody></table></div></section><aside class="panel"><h2 class="panel-title">角色说明</h2><p class="panel-sub">业务确认权与系统管理权分离</p><div class="role-cards">${Object.entries(ROLE_NAMES).map(([k,v])=>`<div class="role-card"><h3>${v}</h3><p>${{admin:'账号、角色和项目授权',pm:'分析、修正、确认和导出',sales:'提交材料与处理客户追问',presale:'能力匹配查看与补充意见'}[k]}</p></div>`).join('')}</div></aside></div><section class="panel" style="margin-top:20px"><h2 class="panel-title">权限边界</h2><p class="panel-sub">固定矩阵，与后端校验一致</p><div class="table-wrap"><table><thead><tr><th>能力</th><th>管理员</th><th>产品经理</th><th>销售</th><th>售前</th></tr></thead><tbody><tr><td>上传材料 / 创建分析</td><td>—</td><td>允许</td><td>允许</td><td>—</td></tr><tr><td>查看报告</td><td>全部项目</td><td>全部项目</td><td>部分 · 追问</td><td>部分 · 匹配</td></tr><tr><td>修正与确认需求</td><td>—</td><td>允许</td><td>—</td><td>—</td></tr><tr><td>材料问答</td><td>—</td><td>允许</td><td>允许</td><td>允许</td></tr><tr><td>导出 Word</td><td>允许</td><td>允许</td><td>仅追问清单</td><td>允许</td></tr><tr><td>成员、角色与项目授权</td><td>允许</td><td>—</td><td>—</td><td>—</td></tr></tbody></table></div></section>`;
+ return `<div class="page-head"><div><h1>${state.user.role==='admin'?'管理控制台':'成员与权限'}</h1><p>${state.user.role==='admin'?'邀请企业成员、分配角色；业务确认权与系统管理权分离，至少保留一名管理员':'四种预设角色覆盖当前业务，不开放复杂自定义权限'}</p></div><div class="head-actions"><button class="btn" onclick="state.addOpen=!state.addOpen;render()">邀请成员</button></div></div>${state.addOpen?`<section class="panel" style="margin-bottom:20px"><h2 class="panel-title">添加成员</h2><p class="panel-sub">先指定角色；成员用分配的邮箱和初始密码登录</p><form onsubmit="event.preventDefault();addMember(this)"><div class="form-grid"><div class="field"><label>姓名</label><input class="input" name="name" required></div><div class="field"><label>角色</label><select class="input" name="role"><option value="sales">销售</option><option value="pm">产品经理</option><option value="presale">售前</option><option value="admin">管理员</option></select></div></div><div class="field"><label>工作邮箱</label><input class="input" name="email" type="email" required></div><div class="field"><label>初始密码</label><input class="input" name="password" type="password" minlength="8" required></div><button class="btn small" type="submit">添加成员</button></form></section>`:''}<div class="permission-grid"><section class="panel"><h2 class="panel-title">团队成员</h2><p class="panel-sub">角色决定操作边界；系统至少保留一名管理员</p><div class="table-wrap"><table><thead><tr><th>成员</th><th>角色</th><th>职责</th></tr></thead><tbody>${rows||'<tr><td colspan="3" class="muted">加载中</td></tr>'}</tbody></table></div></section><aside class="panel"><h2 class="panel-title">角色说明</h2><p class="panel-sub">业务确认权与系统管理权分离</p><div class="role-cards">${Object.entries(ROLE_NAMES).map(([k,v])=>`<div class="role-card"><h3>${v}</h3><p>${{admin:'账号、角色和项目授权',pm:'分析、修正、确认和导出',sales:'提交材料与处理客户追问',presale:'能力匹配查看与补充意见'}[k]}</p></div>`).join('')}</div></aside></div><section class="panel" style="margin-top:20px"><h2 class="panel-title">权限边界</h2><p class="panel-sub">固定矩阵，与后端校验一致</p><div class="table-wrap"><table><thead><tr><th>能力</th><th>管理员</th><th>产品经理</th><th>销售</th><th>售前</th></tr></thead><tbody><tr><td>上传材料 / 创建分析</td><td>—</td><td>允许</td><td>允许</td><td>—</td></tr><tr><td>查看报告</td><td>全部项目</td><td>全部项目</td><td>部分 · 追问</td><td>部分 · 匹配</td></tr><tr><td>修正与确认需求</td><td>—</td><td>允许</td><td>—</td><td>—</td></tr><tr><td>材料问答</td><td>—</td><td>允许</td><td>允许</td><td>允许</td></tr><tr><td>导出 Word</td><td>允许</td><td>允许</td><td>仅追问清单</td><td>允许</td></tr><tr><td>成员、角色与项目授权</td><td>允许</td><td>—</td><td>—</td><td>—</td></tr></tbody></table></div></div></section>${accessPanel()}`;
+}
+function accessPanel(){
+ if(!state.accessData)return '<section class="panel" style="margin-top:20px"><div class="loading">项目授权加载中…</div></section>';
+ const ad=state.accessData;
+ const salesPresale=(ad.members||[]).filter(m=>m.role==='sales'||m.role==='presale');
+ const rows=(ad.projects||[]).map(p=>{
+  const restricted=(ad.restricted||[]).includes(p.id);
+  const grants=(ad.grants||{})[p.id]||[];
+  const grantChips=salesPresale.map(m=>{
+    const on=grants.includes(m.user_id);
+    return `<label class="check" style="margin-right:12px;font-size:12px"><input type="checkbox" ${on?'checked':''} onchange="toggleGrant('${esc(p.id)}','${esc(m.user_id)}',this.checked)"> ${esc(m.name)}</label>`;
+  }).join('');
+  return `<div class="todo" style="padding:14px 0"><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><b style="margin:0">${esc(p.name)}</b><span class="pill ${p.source==='project'?'blue':'gray'}">${p.source==='project'?'项目':'案例'}</span><label class="check" style="margin-left:auto"><input type="checkbox" ${restricted?'checked':''} onchange="toggleAccess('${esc(p.id)}',this.checked)"> 受限访问</label></div>${restricted?`<div style="margin-top:10px;padding:10px 12px;background:var(--bg);border-radius:7px"><span class="muted small-text">可见成员（销售/售前，管理员与产品经理恒可见）：</span>${grantChips||'<span class="muted small-text">暂未授权任何成员</span>'}</div>`:''}</div>`;
+ }).join('');
+ return `<section class="panel" style="margin-top:20px"><h2 class="panel-title">项目访问控制</h2><p class="panel-sub">默认全员可见；开启受限后仅管理员、产品经理与被授权成员可见</p>${rows||'<div class="empty">暂无项目</div>'}</section>`;
 }
 boot();
 </script>
