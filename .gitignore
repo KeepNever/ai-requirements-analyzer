@@ -8,3 +8,6 @@ projects/
 
 # 本地账号与会话密钥
 data/
+
+# pytest 本地临时目录
+.pytest_tmp/

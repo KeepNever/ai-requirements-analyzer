@@ -6,12 +6,30 @@ M2 治理升级（对应 05 框架兜底机制 §8 与 08 审阅 P2 待办）：
 
 运行时零第三方依赖（开发期 dev 依赖 pytest 不计入）。
 """
+import contextvars
 import json
 import time
 import urllib.error
 import urllib.request
 
 from . import config
+
+# 请求级用户 Key：线程化服务下每请求独立 context，互不串线。
+# 优先级：用户自带 Key > 服务端 .env Key；DEMO_MODE 下服务端 Key 被屏蔽（保护服务方 token）。
+_user_api_key: contextvars.ContextVar = contextvars.ContextVar("user_api_key", default="")
+
+
+def set_request_user_key(key: str):
+    _user_api_key.set((key or "").strip())
+
+
+def _resolve_key() -> str:
+    user_key = (_user_api_key.get() or "").strip()
+    if user_key:
+        return user_key
+    if (config.ENV.get("DEMO_MODE", "").strip() == "1"):
+        return ""          # 演示模式：绝不消耗服务方 token
+    return config.DEEPSEEK_API_KEY
 
 
 class LLMError(Exception):
@@ -86,10 +104,15 @@ def chat(messages: list, model: str | None = None, temperature: float | None = N
         "response_format": {"type": "json_object"} if json_mode else {"type": "text"},
     }
     url = config.DEEPSEEK_BASE_URL.rstrip("/") + "/chat/completions"
-    config.require_api_key()
+    api_key = _resolve_key()
+    if not api_key:
+        raise LLMFatalError(
+            "当前为演示模式且未配置个人模型 Key：请在右上角「模型设置」填入你自己的 "
+            "DeepSeek API Key，或使用离线演示模式。"
+        )
     headers = {
         "Content-Type": "application/json",
-        "Authorization": f"Bearer {config.DEEPSEEK_API_KEY}",
+        "Authorization": f"Bearer {api_key}",
     }
 
     last_err = None

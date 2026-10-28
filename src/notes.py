@@ -9,8 +9,11 @@ from __future__ import annotations
 
 import json
 import os
+import threading
 import time
 from pathlib import Path
+
+_DATA_LOCK = threading.RLock()   # 可重入：防嵌套调用死锁
 
 DATA_PATH = Path(os.environ.get(
     "NOTES_DATA_PATH",
@@ -30,7 +33,8 @@ def _load() -> dict:
 
 def _save(data: dict) -> None:
     DATA_PATH.parent.mkdir(parents=True, exist_ok=True)
-    DATA_PATH.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    with _DATA_LOCK:
+        DATA_PATH.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 def _now() -> str:

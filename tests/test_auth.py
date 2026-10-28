@@ -1,6 +1,8 @@
 """账号与会话底座测试：密码、首次注册、角色边界、签名会话。"""
 from __future__ import annotations
 
+import json
+
 import pytest
 
 import auth
@@ -64,3 +66,24 @@ def test_fixed_role_permission_matrix(auth_env):
     assert auth.can("admin", "members")
     assert not auth.can("admin", "run_analysis")
     assert auth.can("pm", "run_analysis") and auth.can("pm", "report")
+
+
+def test_model_key_roundtrip(auth_env, tmp_path, monkeypatch):
+    admin = auth.register_first_admin("林然", "pm@demo.cn", "demo12345")
+    auth.update_model_key(admin["user_id"], "  sk-user-key-123  ")
+    assert auth.get_model_key(admin["user_id"]) == "sk-user-key-123"
+    pub = auth.authenticate("pm@demo.cn", "demo12345")
+    assert pub["has_model_key"] is True          # 布尔可见
+    assert "sk-user-key" not in json.dumps(pub)  # Key 本体永不下发
+
+
+def test_resolve_key_priority_and_demo_shield(tmp_path, monkeypatch):
+    from pipeline import llm_client, config
+    monkeypatch.setattr(config, "DEEPSEEK_API_KEY", "sk-server")
+    llm_client.set_request_user_key("sk-user")
+    assert llm_client._resolve_key() == "sk-user"          # 用户 Key 优先
+    monkeypatch.setitem(config.ENV, "DEMO_MODE", "1")
+    llm_client.set_request_user_key("")
+    assert llm_client._resolve_key() == ""                 # 演示模式屏蔽服务端 Key
+    llm_client.set_request_user_key("sk-user")
+    assert llm_client._resolve_key() == "sk-user"          # 但用户自己的 Key 仍可用

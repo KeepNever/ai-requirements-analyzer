@@ -15,10 +15,13 @@ import hmac
 import json
 import os
 import secrets
+import threading
 import time
 import uuid
 from pathlib import Path
 from urllib.parse import quote
+
+_SAVE_LOCK = threading.RLock()   # 可重入：update_model_key 嵌套调用 save_users
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 # 测试 / 隔离部署可通过环境变量重定向账号数据；默认落在项目 data/ 下（已 gitignore）
@@ -95,13 +98,14 @@ def load_users() -> dict:
 
 def save_users(data: dict) -> None:
     USERS_PATH.parent.mkdir(parents=True, exist_ok=True)
-    USERS_PATH.write_text(
-        json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8"
-    )
+    with _SAVE_LOCK:
+        USERS_PATH.write_text(
+            json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
 
 
 def to_public(user: dict) -> dict:
-    """返回可放进页面 / 会话的用户信息，剔除任何敏感字段。"""
+    """返回可放进页面 / 会话的用户信息，剔除任何敏感字段（含模型 Key 本体）。"""
     return {
         "user_id": user["user_id"],
         "name": user.get("name", ""),
@@ -109,8 +113,29 @@ def to_public(user: dict) -> dict:
         "role": user.get("role", ""),
         "role_name": ROLES.get(user.get("role", ""), user.get("role", "")),
         "org": user.get("org", ""),
+        "has_model_key": bool(user.get("model_key", "")),
         "created_at": user.get("created_at", ""),
     }
+
+
+def update_model_key(user_id: str, key: str) -> dict:
+    """用户配置个人模型 Key（明文存 data/users.json，该目录已在 gitignore）。"""
+    with _SAVE_LOCK:
+        data = load_users()
+        for u in data["users"]:
+            if u.get("user_id") == user_id:
+                u["model_key"] = (key or "").strip()
+                save_users(data)
+                return to_public(u)
+    raise AuthError("用户不存在")
+
+
+def get_model_key(user_id: str) -> str:
+    """服务端内部使用：取用户个人模型 Key（不经过 to_public 下发）。"""
+    for u in load_users()["users"]:
+        if u.get("user_id") == user_id:
+            return (u.get("model_key") or "").strip()
+    return ""
 
 
 def count_users() -> int:
@@ -143,6 +168,7 @@ def create_user(name: str, email: str, password: str, role: str,
         "role": role,
         "salt": salt,
         "password_hash": _hash_password(password, salt),
+        "model_key": "",
         "created_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
     }
     users.append(user)

@@ -15,7 +15,7 @@ import re
 import sys
 import time
 import uuid
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
 from urllib.parse import unquote, urlparse, quote as url_quote, parse_qs
 
@@ -29,6 +29,10 @@ import retrieval  # noqa: E402
 import export_docx  # noqa: E402
 import auth  # noqa: E402
 import notes as notes_mod  # noqa: E402
+from pipeline import llm_client  # noqa: E402
+from pipeline import config  # noqa: E402
+
+DEMO_MODE = os.environ.get("DEMO_MODE", config.ENV.get("DEMO_MODE", "")).strip() == "1"
 
 
 def _safe_pid(pid) -> str:
@@ -1197,7 +1201,10 @@ class Handler(BaseHTTPRequestHandler):
         return {k: v[0] for k, v in parse_qs(raw).items()}
 
     def _user(self):
-        return auth.user_from_cookie(self.headers.get("Cookie"))
+        user = auth.user_from_cookie(self.headers.get("Cookie"))
+        # 请求级模型 Key 注入：登录用户优先用自带 Key；未登录清空防串线
+        llm_client.set_request_user_key(auth.get_model_key(user["user_id"]) if user else "")
+        return user
 
     def do_GET(self):
         path = unquote(urlparse(self.path).path)
@@ -1219,6 +1226,9 @@ class Handler(BaseHTTPRequestHandler):
             elif path == "/register":
                 if auth.count_users() == 0:
                     self._send(auth_page("注册并创建团队", "首次注册自动创建管理员", REGISTER_FORM))
+                elif DEMO_MODE:
+                    self._send(auth_page("演示环境", "注册已关闭",
+                        "<p>这是公网演示环境，请使用演示账号登录（账号信息见项目 README）。</p><p><a href='/login'>返回登录</a></p>"), 403)
                 else:
                     self._send(auth_page("注册", "系统已初始化", "<p>新成员请联系管理员添加。</p><p><a href='/login'>返回登录</a></p>"), 403)
             elif path.startswith("/api/"):
@@ -1301,6 +1311,12 @@ class Handler(BaseHTTPRequestHandler):
             elif role == "presale":
                 payload["presale_notes"] = item.get("presale_notes", [])
             self._json(payload)
+        elif path == "/api/settings/model":
+            mode = ("personal" if user.get("has_model_key")
+                    else ("demo-offline" if DEMO_MODE
+                          else ("server" if config.DEEPSEEK_API_KEY else "none")))
+            self._json({"mode": mode, "demo_mode": DEMO_MODE,
+                        "server_key_available": bool(config.DEEPSEEK_API_KEY) and not DEMO_MODE})
         elif path == "/api/my-questions":
             if deny("my_questions"): return
             self._json(aggregate_questions())
@@ -1439,7 +1455,9 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path == "/api/auth/register":
             if auth.count_users() > 0:
-                self._json({"error": "系统已初始化，请使用管理员邀请或登录"}, 403)
+                msg = ("演示环境请使用演示账号登录（见项目 README）。"
+                       if DEMO_MODE else "系统已初始化，请使用管理员邀请或登录")
+                self._json({"error": msg}, 403)
                 return
             payload = self._json_body()
             try:
@@ -1468,8 +1486,10 @@ class Handler(BaseHTTPRequestHandler):
                     self._send(auth_page("登录", "登录后继续处理你的项目与分析任务", LOGIN_FORM, str(e)), 400)
                 return
             if auth.count_users() > 0:
+                msg = ("演示环境请使用演示账号登录（见项目 README）。"
+                       if DEMO_MODE else "新成员请联系管理员在成员页添加。")
                 self._send(auth_page("注册", "系统已初始化",
-                    "<p>新成员请联系管理员在成员页添加。</p><p><a href='/login'>返回登录</a></p>"), 403)
+                    f"<p>{msg}</p><p><a href='/login'>返回登录</a></p>"), 403)
                 return
             try:
                 u = auth.register_first_admin(form.get("name", ""), form.get("email", ""),
@@ -1500,6 +1520,14 @@ class Handler(BaseHTTPRequestHandler):
             return True
 
         # 管理端 JSON 端点（SPA 使用）
+        if path == "/api/settings/model":
+            payload = self._json_body()
+            try:
+                u = auth.update_model_key(user["user_id"], payload.get("model_key", ""))
+                self._json({"has_model_key": u["has_model_key"]})
+            except auth.AuthError as e:
+                self._json({"error": str(e)}, 400)
+            return
         if path == "/api/admin/users/create":
             if deny("manage_users"): return
             payload = self._json_body()
@@ -1677,7 +1705,7 @@ def main():
     print(f"[Web] 工作台：http://127.0.0.1:{port}")
     print(f"[Web] 评测 Dashboard：http://127.0.0.1:{port}/dashboard")
     print("[Web] Ctrl+C 退出")
-    HTTPServer(("127.0.0.1", port), Handler).serve_forever()
+    ThreadingHTTPServer(("0.0.0.0" if DEMO_MODE else "127.0.0.1", port), Handler).serve_forever()
 
 
 if __name__ == "__main__":
