@@ -28,6 +28,7 @@ import storage  # noqa: E402
 import retrieval  # noqa: E402
 import export_docx  # noqa: E402
 import auth  # noqa: E402
+import notes as notes_mod  # noqa: E402
 
 
 def _safe_pid(pid) -> str:
@@ -1103,6 +1104,51 @@ def build_overview() -> list:
     return items
 
 
+def aggregate_questions() -> list:
+    """跨项目汇总待确认问题（销售追问跟进 / 产品待办）。回复过的问题标记已答。"""
+    out = []
+    for entry in build_overview():
+        payload = load_report_payload(entry["id"])
+        if not payload:
+            continue
+        node2 = (payload.get("analysis") or {}).get("node2") or {}
+        pend = node2.get("pending_confirmations") or []
+        if not pend:
+            continue
+        replies = notes_mod.get(payload["source"], entry["id"]).get("replies", [])
+        for q in pend:
+            rec = next((r for r in replies
+                        if r.get("question") == q.get("question") and r.get("reply")), None)
+            out.append({"source": payload["source"], "id": entry["id"], "name": entry["name"],
+                        "gap": q.get("gap", ""), "level": q.get("level", ""),
+                        "impact": q.get("impact", ""), "question": q.get("question", ""),
+                        "answered": rec is not None,
+                        "reply": (rec or {}).get("reply", ""),
+                        "reply_by": (rec or {}).get("by_name", ""),
+                        "reply_at": (rec or {}).get("at", "")})
+    out.sort(key=lambda x: (x["answered"], x["level"] != "决定性"))
+    return out
+
+
+def aggregate_capabilities() -> list:
+    """跨项目汇总能力匹配结论（售前复核）。售前意见随条目返回。"""
+    out = []
+    for entry in build_overview():
+        payload = load_report_payload(entry["id"])
+        if not payload:
+            continue
+        caps = ((payload.get("analysis") or {}).get("node2") or {}).get("capability_match") or []
+        if not caps:
+            continue
+        pnotes = notes_mod.get(payload["source"], entry["id"]).get("presale_notes", [])
+        for c in caps:
+            out.append({"source": payload["source"], "id": entry["id"], "name": entry["name"],
+                        "target": c.get("target", ""), "verdict": c.get("verdict", ""),
+                        "reason": c.get("reason", ""),
+                        "notes": [n for n in pnotes if n.get("target") == c.get("target")]})
+    return out
+
+
 def render(template: str, **kw: str) -> str:
     body = template
     for k, v in kw.items():
@@ -1240,6 +1286,27 @@ class Handler(BaseHTTPRequestHandler):
         elif path == "/api/admin/users":
             if deny("manage_users"): return
             self._json(auth.list_users_public())
+        elif path.startswith("/api/notes/"):
+            rest = unquote(path.split("/api/notes/", 1)[1])
+            source, _, name = rest.partition("/")
+            if source not in ("case", "project") or not name:
+                self._json({"error": "参数不合法"}, 400)
+                return
+            item = notes_mod.get(source, name)
+            payload = {"replies": item.get("replies", [])}
+            if role in ("pm", "admin"):
+                payload["needs"] = notes_mod.need_states(source, name)
+                payload["presale_notes"] = item.get("presale_notes", [])
+                payload["audit"] = notes_mod.audit_entries(source, name)
+            elif role == "presale":
+                payload["presale_notes"] = item.get("presale_notes", [])
+            self._json(payload)
+        elif path == "/api/my-questions":
+            if deny("my_questions"): return
+            self._json(aggregate_questions())
+        elif path == "/api/capability-review":
+            if deny("cap_review"): return
+            self._json(aggregate_capabilities())
         elif path == "/api/projects":
             self._json(storage.list_projects())
         elif path.startswith("/api/project/"):
@@ -1449,6 +1516,46 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 self._json(auth.update_role(payload.get("email", ""), payload.get("role", "")))
             except auth.AuthError as e:
+                self._json({"error": str(e)}, 400)
+            return
+
+        # 标注写端点：需求确认（产品）/ 客户回复（销售）/ 售前意见（售前+产品）
+        if path.startswith("/api/notes/") and path.endswith("/confirm"):
+            if deny("note_confirm"): return
+            rest = unquote(path[len("/api/notes/"):-len("/confirm")])
+            source, _, name = rest.partition("/")
+            payload = self._json_body()
+            try:
+                rec = notes_mod.confirm_need(source, name, payload.get("need_id", ""),
+                                             payload.get("note", ""), user)
+                self._json(rec)
+            except ValueError as e:
+                self._json({"error": str(e)}, 400)
+            return
+        if path.startswith("/api/notes/") and path.endswith("/reply"):
+            if deny("note_reply"): return
+            rest = unquote(path[len("/api/notes/"):-len("/reply")])
+            source, _, name = rest.partition("/")
+            payload = self._json_body()
+            try:
+                rec = notes_mod.add_reply(source, name, payload.get("gap", ""),
+                                          payload.get("question", ""),
+                                          payload.get("reply", ""), user)
+                self._json(rec)
+            except ValueError as e:
+                self._json({"error": str(e)}, 400)
+            return
+        if path.startswith("/api/notes/") and path.endswith("/presale-note"):
+            if deny("note_presale"): return
+            rest = unquote(path[len("/api/notes/"):-len("/presale-note")])
+            source, _, name = rest.partition("/")
+            payload = self._json_body()
+            try:
+                rec = notes_mod.add_presale_note(source, name, payload.get("target", ""),
+                                                 payload.get("verdict", ""),
+                                                 payload.get("note", ""), user)
+                self._json(rec)
+            except ValueError as e:
                 self._json({"error": str(e)}, 400)
             return
 

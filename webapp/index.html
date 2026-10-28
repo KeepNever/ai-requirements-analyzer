@@ -32,20 +32,23 @@
 <script>
 const ROLE_PAGES={
  admin:['dashboard','report','members'],
- pm:['dashboard','new','report','chat'],
- sales:['dashboard','new','report','chat'],
- presale:['dashboard','report','chat']};
+ pm:['dashboard','new','report','chat','myquestions','caps'],
+ sales:['dashboard','new','report','chat','myquestions'],
+ presale:['dashboard','report','chat','caps']};
 const ROLE_NAMES={admin:'管理员',pm:'产品经理',sales:'销售',presale:'售前'};
 const ROLE_DESC={admin:'账号、角色和项目授权',pm:'分析、修正、确认和导出',sales:'提交材料与处理客户追问',presale:'能力匹配查看与补充意见'};
-const PAGE_NAMES={dashboard:'项目工作台',new:'新建分析',report:'分析报告',chat:'材料问答',members:'成员与权限',eval:'质量评测'};
-const NAV_ITEMS=[['dashboard','项目工作台'],['new','新建分析'],['chat','材料问答'],['members','成员与权限']];
+const PAGE_NAMES={dashboard:'项目工作台',new:'新建分析',report:'分析报告',chat:'材料问答',members:'成员与权限',eval:'质量评测',myquestions:'我的追问',caps:'能力匹配'};
+const NAV_GROUPS=[['日常工作',[['dashboard','项目工作台'],['new','新建分析'],['myquestions','我的追问'],['chat','材料问答'],['caps','能力匹配']]],['组织管理',[['members','成员与权限']]]];
 const VERDICT_CLASS={'匹配':'green','部分匹配':'amber','待确认':'gray','不支持':'red'};
 const state={booting:true,user:null,page:'dashboard',overview:[],overviewLoading:true,
  projectView:'projects',versionPid:'',versions:null,
  reportId:'',report:null,reportLoading:false,reportTab:'needs',
  scene:'presale',material:'',clean:null,cleanLoading:false,running:false,
  chatPid:'',chatMode:'mock',chatConv:'',chatMsgs:[],chatBusy:false,
- members:[],membersLoading:false,addOpen:false};
+ members:[],membersLoading:false,addOpen:false,
+ myQuestions:[],mqLoading:false,replyFor:null,
+ caps:[],capsLoading:false,capsFilter:'全部',noteFor:null,
+ confirmFor:null,confirmNote:'',reportNotes:null};
 
 function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 function toast(msg){const old=document.querySelector('.toast');if(old)old.remove();const el=document.createElement('div');el.className='toast';el.textContent=msg;document.body.appendChild(el);setTimeout(()=>el.remove(),2600)}
@@ -64,7 +67,7 @@ async function api(path,opts={}){
 function routeHash(){
  if(!state.user)return false;
  const h=location.hash.replace('#','');
- const allowed={dashboard:'dashboard',new:'new',chat:'chat',members:'members',eval:'eval'};
+ const allowed={dashboard:'dashboard',new:'new',chat:'chat',members:'members',eval:'eval',myquestions:'myquestions',caps:'caps'};
  const target=allowed[h];
  const ok=!!target&&(target==='eval'?can('dashboard'):can(target));
  if(ok){
@@ -98,7 +101,7 @@ function askableProjects(){return state.overview.filter(x=>x.source==='project')
 
 function pageAfterLogin(){
  const h=location.hash.replace('#','');
- const allowed={dashboard:'dashboard',new:'new',chat:'chat',members:'members',eval:'eval'};
+ const allowed={dashboard:'dashboard',new:'new',chat:'chat',members:'members',eval:'eval',myquestions:'myquestions',caps:'caps'};
  if(h&&allowed[h]&&(allowed[h]==='eval'?can('dashboard'):can(allowed[h])))return allowed[h];
  return state.user.role==='admin'?'members':'dashboard';
 }
@@ -135,6 +138,8 @@ function go(page){
  if(page==='dashboard')loadOverview();
  if(page==='chat'&&!state.overview.length)loadOverview(false);
  if(page==='members')loadMembers();
+ if(page==='myquestions')loadMyQuestions();
+ if(page==='caps')loadCaps();
  render();window.scrollTo(0,0);
 }
 function setProjectView(v){state.projectView=v;render()}
@@ -173,6 +178,10 @@ async function openReport(id){
  render();
  try{state.report=await api('/api/report/'+encodeURIComponent(id))}
  catch(e){state.report={error:e.message}}
+ state.reportNotes=null;
+ if(state.report&&!state.report.error){
+  try{state.reportNotes=await api('/api/notes/'+state.report.source+'/'+encodeURIComponent(state.report.name))}catch(e){}
+ }
  state.reportLoading=false;render();window.scrollTo(0,0);
 }
 function reportTabs(){
@@ -232,10 +241,10 @@ function render(){const root=document.getElementById('root');root.innerHTML=stat
 function loginPage(){return `<div class="login"><section class="login-story">${brand()}<div class="story-main"><div class="eyebrow">Evidence before judgement</div><h1>从客户原话，<br>到可追溯的需求判断。</h1><p>把会议、邮件和聊天记录变成结构化分析。每条结论都有出处，每个缺口都有下一步。</p><div class="evidence-flow"><div class="flow-quote"><b>D07</b>「希望按区域查看任务完成情况，不然每周都要人工汇总。」</div><div class="flow-line"></div><div class="flow-result"><div><span>显性需求 EN2</span><b>按区域追踪任务进展</b></div><div><span>待确认问题 Q3</span><b>需要覆盖哪些区域与角色？</b></div></div></div></div><div class="login-foot">内部工作平台 · 材料脱敏 · 版本留痕 · 引用回链</div></section><section class="login-form-side"><form class="login-form" onsubmit="event.preventDefault();doLogin(this)"><h2>欢迎回来</h2><p class="sub">登录后继续处理你的项目与分析任务</p><div id="authError" class="form-error hidden"></div><div class="field"><label>工作邮箱</label><input class="input" name="email" type="email" required></div><div class="field"><label>密码</label><input class="input" name="password" type="password" required></div><button class="btn login-submit" type="submit">登录</button><div class="auth-switch" style="text-align:center;margin-top:22px;font-size:13px;color:var(--muted)">还没有账号？<a class="link" onclick="state.page='register';render()">注册并创建团队</a></div><div class="demo-note">新成员请使用管理员在成员页分配的账号登录。</div><div class="login-meta">AI 客户需求分析助手 · 正式版</div></form></section></div>`}
 function registerPage(){return `<div class="login"><section class="login-story">${brand()}<div class="story-main"><div class="eyebrow">Create your workspace</div><h1>从建立团队开始，<br>让材料与判断归到一起。</h1><p>注册后自动创建独立工作空间。你将成为管理员，再邀请销售、产品经理和售前加入。</p><div class="evidence-flow"><div class="flow-result"><div><span>第一步</span><b>创建团队与管理员账号</b></div><div><span>第二步</span><b>邀请成员并指定角色</b></div></div><div class="flow-line"></div><div class="flow-result"><div><span>数据边界</span><b>项目按授权范围开放</b></div><div><span>已有团队</span><b>通过管理员邀请加入</b></div></div></div></div><div class="login-foot">独立工作空间 · 固定角色边界 · 项目授权访问</div></section><section class="login-form-side"><form class="login-form register-form" onsubmit="event.preventDefault();doRegister(this)"><h2>注册并创建团队</h2><p class="sub">创建人自动成为管理员，后续可邀请团队成员</p><div id="authError" class="form-error hidden"></div><div class="form-grid"><div class="field"><label>你的姓名</label><input id="regName" class="input" name="name" placeholder="例如：林然" required></div><div class="field"><label>团队 / 企业名称</label><input id="regOrg" class="input" name="org" placeholder="例如：星海科技" required></div></div><div class="field"><label>工作邮箱</label><input id="regEmail" class="input" name="email" type="email" placeholder="name@company.cn" required></div><div class="form-grid"><div class="field"><label>设置密码</label><input id="regPassword" class="input" name="password" type="password" placeholder="至少 8 个字符" required><div class="password-hint">建议组合字母、数字与符号</div></div><div class="field"><label>确认密码</label><input id="regConfirm" class="input" name="password2" type="password" placeholder="再次输入密码" required></div></div><button class="btn login-submit" type="submit">创建团队并进入工作台</button><div class="auth-switch" style="text-align:center;margin-top:22px;font-size:13px;color:var(--muted)">已有账号？<a class="link" onclick="state.page='login';render()">返回登录</a></div><div class="demo-note">加入已有团队无需在这里注册，请使用管理员分配的账号。</div></form></section></div>`}
 
-function sidebar(){return `<aside class="sidebar">${brand()}<nav class="nav"><div class="nav-label">日常工作</div>${NAV_ITEMS.slice(0,3).filter(n=>can(n[0])).map(n=>`<div class="nav-item ${state.page===n[0]?'active':''}" onclick="go('${n[0]}')"><i class="nav-dot"></i><span>${n[1]}</span></div>`).join('')}<div class="nav-label">组织管理</div>${NAV_ITEMS.slice(3).filter(n=>can(n[0])).map(n=>`<div class="nav-item ${state.page===n[0]?'active':''}" onclick="go('${n[0]}')"><i class="nav-dot"></i><span>${n[1]}</span></div>`).join('')}<div class="nav-item ${state.page==='eval'?'active':''}" onclick="go('eval')"><i class="nav-dot"></i><span>质量评测</span></div></nav><div class="sidebar-foot"><a class="link small-text" onclick="doLogout()">退出登录</a><div class="version">正式版 · 引用可追溯</div></div></aside>`}
+function sidebar(){return `<aside class="sidebar">${brand()}<nav class="nav">${NAV_GROUPS.map(([label,items])=>{const vis=items.filter(n=>can(n[0]));return vis.length?`<div class="nav-label">${label}</div>`+vis.map(n=>`<div class="nav-item ${state.page===n[0]?'active':''}" onclick="go('${n[0]}')"><i class="nav-dot"></i><span>${n[1]}</span></div>`).join(''):''}).join('')}${can('dashboard')?`<div class="nav-item ${state.page==='eval'?'active':''}" onclick="go('eval')"><i class="nav-dot"></i><span>质量评测</span></div>`:''}</nav><div class="sidebar-foot"><a class="link small-text" onclick="doLogout()">退出登录</a><div class="version">正式版 · 引用可追溯</div></div></aside>`}
 function topbar(){return `<header class="topbar"><div class="breadcrumb">${esc(state.user.org||'工作空间')} / <b>${PAGE_NAMES[state.page]||''}</b></div><div class="top-actions"><span class="small-text muted">${ROLE_NAMES[state.user.role]} · ${esc(state.user.name)}</span><div class="avatar">${esc(state.user.name.slice(0,1))}</div></div></header>`}
 
-function app(){let body='';if(state.page==='eval')body=can('dashboard')?evalPage():noAccess();else if(!can(state.page))body=noAccess();else if(state.page==='dashboard')body=dashboardPage();else if(state.page==='new')body=newAnalysisPage();else if(state.page==='report')body=reportPage();else if(state.page==='chat')body=chatPage();else if(state.page==='members')body=membersPage();return `<div class="app">${sidebar()}<main class="main">${topbar()}<div class="content">${body}</div></main></div>`}
+function app(){let body='';if(state.page==='eval')body=can('dashboard')?evalPage():noAccess();else if(!can(state.page))body=noAccess();else if(state.page==='dashboard')body=dashboardPage();else if(state.page==='new')body=newAnalysisPage();else if(state.page==='report')body=reportPage();else if(state.page==='chat')body=chatPage();else if(state.page==='members')body=membersPage();else if(state.page==='myquestions')body=myQuestionsPage();else if(state.page==='caps')body=capsPage();return `<div class="app">${sidebar()}<main class="main">${topbar()}<div class="content">${body}</div></main></div>`}
 function noAccess(){return `<div class="no-access"><h1>当前角色无权访问</h1><p>返回工作台，或联系管理员调整角色。</p><button class="btn" onclick="go('dashboard')">返回工作台</button></div>`}
 
 function roleNotice(){
@@ -327,10 +336,16 @@ function needsBody(a){
  const high=pri.filter(x=>x.tier==='高').length;
  const en=(n1.explicit_needs||[]),pn=(n2.potential_needs||[]),pend=(n2.pending_confirmations||[]);
  const quote=en[0]?`<div class="evidence"><b>${esc((en[0].dids||[]).join('、')||'引用')}</b>「${esc(en[0].quote||en[0].content||'')}」</div>`:'';
- const enRows=en.map(n=>`<tr><td class="strong">${esc(n.id)}</td><td>${esc(n.content)}</td><td>${tierMap[n.id]?pill(tierMap[n.id],tierMap[n.id]==='高'?'blue':tierMap[n.id]==='中'?'amber':'gray'):'<span class="muted">—</span>'}</td><td><span class="pill gray">草稿</span></td></tr>`).join('')||'<tr><td colspan="4" class="muted">无</td></tr>';
+ const canConfirm=state.user.role==='pm';
+ const needs=(state.reportNotes&&state.reportNotes.needs)||{};
+ const enRows=en.map(n=>{const st=needs[n.id];
+  const tier=tierMap[n.id]?pill(tierMap[n.id],tierMap[n.id]==='高'?'blue':tierMap[n.id]==='中'?'amber':'gray'):'<span class="muted">—</span>';
+  const stCell=st?pill('已确认','green'):'<span class="pill gray">草稿</span>';
+  const opCell=!canConfirm?'':(st?`<span class="muted small-text">${esc(((st.history||[]).slice(-1)[0]||{}).by_name||'')} 确认</span>`:`<button class="btn text" onclick="state.confirmFor='${esc(n.id)}';state.confirmNote='';render()">确认</button>`);
+  return `<tr><td class="strong">${esc(n.id)}</td><td>${esc(n.content)}</td><td>${tier}</td><td>${stCell}</td>${canConfirm?`<td>${opCell}</td>`:''}</tr>`;}).join('')||`<tr><td colspan="${canConfirm?5:4}" class="muted">无</td></tr>`;
  const pnRows=pn.map(n=>`<tr><td class="strong">${esc(n.id)}</td><td>${esc(n.content)}</td><td class="muted">${esc(n.reasoning||'')}</td><td>${esc(n.confidence||'')}</td></tr>`).join('')||'<tr><td colspan="4" class="muted">无</td></tr>';
  const priRows=pri.slice(0,6).map(x=>`<tr><td class="strong">${esc(x.id)}</td><td>${esc((x.content||'').slice(0,24))}</td><td>${x.weighted}</td><td>${pill(x.tier,x.tier==='高'?'blue':x.tier==='中'?'amber':'gray')}</td></tr>`).join('')||'<tr><td colspan="4" class="muted">无</td></tr>';
- return `<div class="report-layout"><section class="panel"><h2 class="panel-title">需求分析摘要</h2><p class="panel-sub">AI 提取与推断分离，所有判断保留原文依据</p><p class="report-summary">显性需求 ${en.length} 条（高优先级 ${high} 条）；潜在需求 ${pn.length} 条；待确认 ${pend.length} 条（决定性 ${pend.filter(x=>x.level==='决定性').length} 条）。本报告为草稿态，优先级结论、能力匹配与待确认分级须经产品经理确认后方可进入需求池。</p>${quote}<div class="table-wrap"><table><thead><tr><th>编号</th><th>显性需求</th><th>优先级</th><th>状态</th></tr></thead><tbody>${enRows}</tbody></table></div><h2 class="panel-title" style="margin-top:24px">潜在需求（推断）</h2><div class="table-wrap"><table><thead><tr><th>编号</th><th>需求</th><th>推断线索</th><th>置信度</th></tr></thead><tbody>${pnRows}</tbody></table></div><h2 class="panel-title" style="margin-top:24px">优先级建议（Top 6）</h2><div class="table-wrap"><table><thead><tr><th>编号</th><th>需求</th><th>加权</th><th>档位</th></tr></thead><tbody>${priRows}</tbody></table></div></section><aside class="panel"><div class="side-section"><h3>报告口径</h3><div class="side-item">AI 结果为草稿，不自动进入排期</div><div class="side-item">潜在需求必须经人工确认</div><div class="side-item">引用基于清洗后 D 编号原文</div></div><div class="side-section"><h3>下一步</h3><button class="btn secondary small" onclick="setReportTab('questions')">查看 ${pend.length} 项待确认问题</button></div></aside></div>`;
+ return `<div class="report-layout"><section class="panel"><h2 class="panel-title">需求分析摘要</h2><p class="panel-sub">AI 提取与推断分离，所有判断保留原文依据</p><p class="report-summary">显性需求 ${en.length} 条（高优先级 ${high} 条）；潜在需求 ${pn.length} 条；待确认 ${pend.length} 条（决定性 ${pend.filter(x=>x.level==='决定性').length} 条）。本报告为草稿态，优先级结论、能力匹配与待确认分级须经产品经理确认后方可进入需求池。</p>${quote}<div class="table-wrap"><table><thead><tr><th>编号</th><th>显性需求</th><th>优先级</th><th>状态</th>${canConfirm?'<th>操作</th>':''}</tr></thead><tbody>${enRows}</tbody></table></div>${canConfirm&&state.confirmFor?`<div class="comment-box"><label class="strong small-text">确认 ${esc(state.confirmFor)}（可附修改原因，自动留痕）</label><textarea id="confirmNote" oninput="state.confirmNote=this.value"></textarea><div style="text-align:right;margin-top:10px"><button class="btn small" onclick="confirmNeed('${esc(state.confirmFor)}')">确认入库</button> <button class="btn secondary small" onclick="state.confirmFor=null;render()">取消</button></div></div>`:''}<h2 class="panel-title" style="margin-top:24px">潜在需求（推断）</h2><div class="table-wrap"><table><thead><tr><th>编号</th><th>需求</th><th>推断线索</th><th>置信度</th></tr></thead><tbody>${pnRows}</tbody></table></div><h2 class="panel-title" style="margin-top:24px">优先级建议（Top 6）</h2><div class="table-wrap"><table><thead><tr><th>编号</th><th>需求</th><th>加权</th><th>档位</th></tr></thead><tbody>${priRows}</tbody></table></div></section><aside class="panel"><div class="side-section"><h3>报告口径</h3><div class="side-item">AI 结果为草稿，不自动进入排期</div><div class="side-item">潜在需求必须经人工确认</div><div class="side-item">引用基于清洗后 D 编号原文</div></div><div class="side-section"><h3>下一步</h3><button class="btn secondary small" onclick="setReportTab('questions')">查看 ${pend.length} 项待确认问题</button></div></aside></div>`;
 }
 function capabilityBody(a){
  const caps=((a.node2||{}).capability_match)||[];
@@ -340,11 +355,21 @@ function capabilityBody(a){
 function questionsBody(a,r){
  const pend=(r.questions)||((a.node2||{}).pending_confirmations)||[];
  if(!pend.length)return '<section class="panel"><div class="empty">本分析没有待确认问题，信息缺口已收敛。</div></section>';
- const items=pend.map((n,i)=>`<div class="evidence" style="margin-top:${i?'18px':'14px'}"><b>${esc(n.level||'')}</b>缺口：${esc(n.gap)}</div><div class="question-chain"><div class="chain-box"><span>判断影响</span>${esc(n.impact)}</div><div class="chain-box"><span>建议追问 Q${i+1}</span>「${esc(n.question)}」</div></div>`).join('');
- const salesBox=state.user.role==='sales'?`<div class="comment-box"><label class="strong small-text">客户沟通后，把回复原话提交回系统</label><textarea placeholder="客户回复可粘贴回工作台「新建分析」，作为项目新材料留存"></textarea><div style="text-align:right;margin-top:10px"><button class="btn small" onclick="toast('请回到工作台粘贴客户回复并新建分析，回复会进入版本库')">知道了</button></div></div>`:'';
- return `<section class="panel"><h2 class="panel-title">信息缺口与客户追问</h2><p class="panel-sub">每个问题都说明为什么需要，而不是只给一张问题清单</p>${items}${salesBox}</section>`;
+ const isSales=state.user.role==='sales';
+ const replies=(state.reportNotes&&state.reportNotes.replies)||[];
+ const items=pend.map((n,i)=>{
+  const rec=replies.find(x=>x.question===n.question&&x.reply);
+  const replyBlock=rec?`<div class="evidence" style="margin-top:10px"><b>客户回复</b>${esc(rec.reply)}（${esc(rec.by_name||'')} · ${esc(rec.at||'')}）</div>`
+   :(isSales?(state.replyFor===i?`<div class="comment-box"><textarea id="replyText" placeholder="粘贴客户对这条追问的原话回复"></textarea><div style="text-align:right;margin-top:10px"><button class="btn small" onclick="submitReplyReport(${i})">提交回复</button> <button class="btn secondary small" onclick="state.replyFor=null;render()">取消</button></div></div>`:`<button class="btn secondary small" onclick="state.replyFor=${i};render()">录入客户回复</button>`):'');
+  return `<div class="evidence" style="margin-top:${i?'18px':'14px'}"><b>${esc(n.level||'')}</b>缺口：${esc(n.gap)}</div><div class="question-chain"><div class="chain-box"><span>判断影响</span>${esc(n.impact)}</div><div class="chain-box"><span>建议追问 Q${i+1}</span>「${esc(n.question)}」</div></div>${replyBlock}`;
+ }).join('');
+ return `<section class="panel"><h2 class="panel-title">信息缺口与客户追问</h2><p class="panel-sub">每个问题都说明为什么需要；${isSales?'录入回复后产品经理同步可见':'销售录入的回复自动留痕'}</p>${items}</section>`;
 }
-function auditBody(){return '<section class="panel"><h2 class="panel-title">人工修正留痕</h2><p class="panel-sub">保留 AI 原判断、人工判断和修改原因</p><div class="empty">修正留痕接口将在下一轮接入；当前报告均为草稿态，确认流转由产品经理线下完成。</div></section>'}
+function auditBody(){
+ const list=(state.reportNotes&&state.reportNotes.audit)||[];
+ const rows=list.map(e=>`<div class="audit"><b>${esc(e.type)} · ${esc(e.title)}</b><p>${esc(e.detail||'')}</p><span>${esc(e.by||'')} · ${esc(e.at||'')}</span></div>`).join('');
+ return `<section class="panel"><h2 class="panel-title">人工修正留痕</h2><p class="panel-sub">确认流转、客户回复、售前意见全部追加式留痕，不覆盖历史</p>${rows||'<div class="empty">暂无修正记录；产品确认需求、销售录入回复、售前补充意见后会自动留痕。</div>'}</section>`;
+}
 
 function chatPage(){
  const projs=askableProjects();
@@ -356,6 +381,56 @@ function chatPage(){
 }
 function evalPage(){
  return `<div class="page-head"><div><h1>质量评测</h1><p>评测驱动迭代 · 六指标四数据集，与工作台同源</p></div><div class="head-actions"><button class="btn secondary" onclick="window.open('/dashboard','_blank')">新窗口打开</button></div></div><iframe src="/dashboard?embed=1" style="width:100%;height:calc(100vh - 210px);min-height:560px;border:1px solid var(--line);border-radius:10px;background:#fff"></iframe>`;
+}
+async function loadMyQuestions(){state.mqLoading=true;render();try{state.myQuestions=await api('/api/my-questions')}catch(e){toast('加载失败：'+e.message)}state.mqLoading=false;render()}
+function qCard(q,idx,done){
+ const replyForm=!done&&state.user.role==='sales'?(state.replyFor===('mq'+idx)?`<div class="comment-box"><textarea id="replyText" placeholder="粘贴客户对这条追问的原话回复"></textarea><div style="text-align:right;margin-top:10px"><button class="btn small" onclick="submitReplyMine(${idx})">提交回复</button> <button class="btn secondary small" onclick="state.replyFor=null;render()">取消</button></div></div>`:`<button class="btn secondary small" onclick="state.replyFor='mq${idx}';render()">录入回复</button>`):'';
+ return `<div class="todo" style="padding:16px 0"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><b style="margin:0">${esc(q.name)}</b><span class="pill ${q.level==='决定性'?'red':'amber'}">${esc(q.level)}</span>${done?pill('已回复','green'):pill('待追问','amber')}</div><div class="evidence" style="margin:10px 0"><b>缺口</b>${esc(q.gap)}</div><div class="chain-box"><span>判断影响</span>${esc(q.impact)}</div><div class="chain-box" style="margin-top:10px"><span>建议追问</span>「${esc(q.question)}」</div>${done&&q.reply?`<div class="evidence" style="margin-top:10px"><b>客户回复</b>${esc(q.reply)}（${esc(q.reply_by||'')} · ${esc(q.reply_at||'')}）</div>`:''}${replyForm}</div>`;
+}
+function myQuestionsPage(){
+ if(state.mqLoading)return '<div class="loading">追问加载中…</div>';
+ const list=state.myQuestions||[];
+ const open=list.filter(x=>!x.answered),done=list.filter(x=>x.answered);
+ return `<div class="page-head"><div><h1>我的追问</h1><p>跨项目汇总所有待确认问题，决定性缺口排前；客户沟通后在此录入回复，产品经理同步可见</p></div></div>${list.length?'':`<section class="panel"><div class="empty">当前没有待确认问题。</div></section>`}${open.length?`<section class="panel"><h2 class="panel-title">待追问（${open.length}）</h2>${open.map(q=>qCard(q,list.indexOf(q),false)).join('')}</section>`:''}${done.length?`<section class="panel"><h2 class="panel-title">已回复（${done.length}）</h2>${done.map(q=>qCard(q,list.indexOf(q),true)).join('')}</section>`:''}`;
+}
+async function submitReplyMine(idx){
+ const q=state.myQuestions[idx];
+ const box=document.getElementById('replyText');const reply=box?box.value.trim():'';
+ if(!reply){toast('请填写客户回复');return}
+ try{await api('/api/notes/'+q.source+'/'+encodeURIComponent(q.id)+'/reply',{method:'POST',body:{gap:q.gap,question:q.question,reply}});toast('回复已登记，产品经理可见');state.replyFor=null;loadMyQuestions();}
+ catch(e){toast('提交失败：'+e.message)}
+}
+async function submitReplyReport(i){
+ const pend=(state.report.questions)||(state.report.analysis.node2.pending_confirmations);
+ const q=pend[i];
+ const box=document.getElementById('replyText');const reply=box?box.value.trim():'';
+ if(!reply){toast('请填写客户回复');return}
+ try{await api('/api/notes/'+state.report.source+'/'+encodeURIComponent(state.report.name)+'/reply',{method:'POST',body:{gap:q.gap,question:q.question,reply}});toast('回复已登记');state.replyFor=null;openReport(state.reportId);}
+ catch(e){toast('提交失败：'+e.message)}
+}
+async function confirmNeed(needId){
+ const note=(state.confirmNote||'').trim();
+ try{await api('/api/notes/'+state.report.source+'/'+encodeURIComponent(state.report.name)+'/confirm',{method:'POST',body:{need_id:needId,note}});toast(needId+' 已确认入库，留痕完成');state.confirmFor=null;openReport(state.reportId);}
+ catch(e){toast('确认失败：'+e.message)}
+}
+async function loadCaps(){state.capsLoading=true;render();try{state.caps=await api('/api/capability-review')}catch(e){toast('加载失败：'+e.message)}state.capsLoading=false;render()}
+function capCard(x,i,canNote){
+ const noteForm=state.noteFor===('cap'+i)?`<div class="comment-box"><textarea id="noteText" placeholder="能力边界、实现条件或方案建议"></textarea><div style="text-align:right;margin-top:10px"><button class="btn small" onclick="submitNote(${i})">保存意见</button> <button class="btn secondary small" onclick="state.noteFor=null;render()">取消</button></div></div>`:(canNote?`<button class="btn secondary small" onclick="state.noteFor='cap${i}';render()">补充意见</button>`:'');
+ return `<div class="todo" style="padding:16px 0"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><b style="margin:0">${esc(x.name)}</b>${pill(x.verdict,VERDICT_CLASS[x.verdict]||'gray')}</div><div class="muted small-text" style="margin:6px 0">匹配对象：${esc(x.target)}</div><div class="evidence" style="margin:6px 0"><b>AI 依据</b>${esc(x.reason)}</div>${(x.notes||[]).map(n=>`<div class="evidence" style="margin-top:8px"><b>售前意见</b>${esc(n.note)}（${esc(n.by_name||'')} · ${esc(n.at||'')}）</div>`).join('')}${noteForm}</div>`;
+}
+function capsPage(){
+ if(state.capsLoading)return '<div class="loading">能力匹配加载中…</div>';
+ const all=state.caps||[],fl=state.capsFilter;
+ const list=fl==='全部'?all:all.filter(x=>x.verdict===fl);
+ const canNote=state.user.role==='presale'||state.user.role==='pm';
+ return `<div class="page-head"><div><h1>能力匹配复核</h1><p>跨项目汇总非「匹配」结论；售前在此补充方案意见，意见全员可见并留痕</p></div></div><div class="tabs">${['全部','部分匹配','待确认','不支持'].map(v=>`<div class="tab ${fl===v?'active':''}" onclick="state.capsFilter='${v}';render()">${v}</div>`).join('')}</div>${list.length?`<section class="panel">${list.map((x,i)=>capCard(x,all.indexOf(x),canNote)).join('')}</section>`:`<section class="panel"><div class="empty">${fl==='全部'?'当前没有能力匹配数据。':'该分类下暂无条目。'}</div></section>`}`;
+}
+async function submitNote(i){
+ const x=state.caps[i];
+ const box=document.getElementById('noteText');const note=box?box.value.trim():'';
+ if(!note){toast('请填写意见内容');return}
+ try{await api('/api/notes/'+x.source+'/'+encodeURIComponent(x.id)+'/presale-note',{method:'POST',body:{target:x.target,verdict:x.verdict,note}});toast('意见已保存并留痕');state.noteFor=null;loadCaps();}
+ catch(e){toast('保存失败：'+e.message)}
 }
 function membersPage(){
  if(state.membersLoading)return '<div class="loading">成员加载中…</div>';
