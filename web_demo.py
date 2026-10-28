@@ -1227,8 +1227,8 @@ class Handler(BaseHTTPRequestHandler):
                 if auth.count_users() == 0:
                     self._send(auth_page("注册并创建团队", "首次注册自动创建管理员", REGISTER_FORM))
                 elif DEMO_MODE:
-                    self._send(auth_page("演示环境", "注册已关闭",
-                        "<p>这是公网演示环境，请使用演示账号登录（账号信息见项目 README）。</p><p><a href='/login'>返回登录</a></p>"), 403)
+                    self._send(auth_page("注册体验", "演示环境注册默认产品经理角色（全功能体验）",
+                        REGISTER_FORM.replace("创建团队并进入", "注册并进入").replace("创建人自动成为管理员，后续可邀请团队成员", "演示环境开放注册；分析请配置你自己的模型 Key 或使用离线模式")))
                 else:
                     self._send(auth_page("注册", "系统已初始化", "<p>新成员请联系管理员添加。</p><p><a href='/login'>返回登录</a></p>"), 403)
             elif path.startswith("/api/"):
@@ -1454,15 +1454,19 @@ class Handler(BaseHTTPRequestHandler):
                 self._json({"error": str(e)}, 400)
             return
         if path == "/api/auth/register":
-            if auth.count_users() > 0:
-                msg = ("演示环境请使用演示账号登录（见项目 README）。"
-                       if DEMO_MODE else "系统已初始化，请使用管理员邀请或登录")
-                self._json({"error": msg}, 403)
-                return
             payload = self._json_body()
+            initialized = auth.count_users() > 0
+            if initialized and not DEMO_MODE:
+                self._json({"error": "系统已初始化，请使用管理员邀请或登录"}, 403)
+                return
             try:
-                u = auth.register_first_admin(payload.get("name", ""), payload.get("email", ""),
-                                              payload.get("password", ""), payload.get("org", ""))
+                if initialized:
+                    # 演示环境开放注册，默认产品经理角色（全功能体验）
+                    u = auth.create_user(payload.get("name", ""), payload.get("email", ""),
+                                         payload.get("password", ""), "pm")
+                else:
+                    u = auth.register_first_admin(payload.get("name", ""), payload.get("email", ""),
+                                                  payload.get("password", ""), payload.get("org", ""))
                 self._json(u, cookie=auth.session_cookie(auth.make_session(u["user_id"])))
             except auth.AuthError as e:
                 self._json({"error": str(e)}, 400)
@@ -1485,19 +1489,27 @@ class Handler(BaseHTTPRequestHandler):
                 except auth.AuthError as e:
                     self._send(auth_page("登录", "登录后继续处理你的项目与分析任务", LOGIN_FORM, str(e)), 400)
                 return
-            if auth.count_users() > 0:
-                msg = ("演示环境请使用演示账号登录（见项目 README）。"
-                       if DEMO_MODE else "新成员请联系管理员在成员页添加。")
-                self._send(auth_page("注册", "系统已初始化",
-                    f"<p>{msg}</p><p><a href='/login'>返回登录</a></p>"), 403)
+            if auth.count_users() == 0:
+                try:
+                    u = auth.register_first_admin(form.get("name", ""), form.get("email", ""),
+                                                  form.get("password", ""), form.get("org", ""))
+                    token = auth.make_session(u["user_id"])
+                    self._redirect(auth.login_redirect_target(u), auth.session_cookie(token))
+                except auth.AuthError as e:
+                    self._send(auth_page("注册并创建团队", "首次注册自动创建管理员", REGISTER_FORM, str(e)), 400)
                 return
-            try:
-                u = auth.register_first_admin(form.get("name", ""), form.get("email", ""),
-                                              form.get("password", ""), form.get("org", ""))
-                token = auth.make_session(u["user_id"])
-                self._redirect(auth.login_redirect_target(u), auth.session_cookie(token))
-            except auth.AuthError as e:
-                self._send(auth_page("注册并创建团队", "首次注册自动创建管理员", REGISTER_FORM, str(e)), 400)
+            if DEMO_MODE:
+                # 演示环境开放注册，默认产品经理角色（全功能体验）
+                try:
+                    u = auth.create_user(form.get("name", ""), form.get("email", ""),
+                                         form.get("password", ""), "pm")
+                    token = auth.make_session(u["user_id"])
+                    self._redirect("/", auth.session_cookie(token))
+                except auth.AuthError as e:
+                    self._send(auth_page("注册体验", "演示环境注册默认产品经理角色", REGISTER_FORM, str(e)), 400)
+                return
+            self._send(auth_page("注册", "系统已初始化",
+                "<p>新成员请联系管理员在成员页添加。</p><p><a href='/login'>返回登录</a></p>"), 403)
             return
 
         if not user:
@@ -1700,10 +1712,29 @@ class Handler(BaseHTTPRequestHandler):
         self._send("<h1>404</h1>", 404)
 
 
+def seed_demo_accounts():
+    """DEMO_MODE 下空库自动预置演示账号（密码公开于 README，仅演示环境）。"""
+    try:
+        if auth.count_users() > 0:
+            return
+        for name, email, role in [
+            ("演示管理员", "admin@demo.cn", "admin"),
+            ("演示产品", "pm@demo.cn", "pm"),
+            ("演示销售", "sales@demo.cn", "sales"),
+            ("演示售前", "presale@demo.cn", "presale"),
+        ]:
+            auth.create_user(name, email, "demo12345", role)
+        print("[Demo] 已预置演示账号：admin@demo.cn / pm@demo.cn / sales@demo.cn / presale@demo.cn（密码 demo12345，仅演示环境公开使用）")
+    except Exception as e:  # noqa: BLE001
+        print("[Demo] 演示账号初始化失败:", e)
+
+
 def main():
-    port = int(os.environ.get("WEB_PORT", "8000"))
+    port = int(os.environ.get("PORT") or os.environ.get("WEB_PORT") or "8000")
     print(f"[Web] 工作台：http://127.0.0.1:{port}")
     print(f"[Web] 评测 Dashboard：http://127.0.0.1:{port}/dashboard")
+    if DEMO_MODE:
+        seed_demo_accounts()
     print("[Web] Ctrl+C 退出")
     ThreadingHTTPServer(("0.0.0.0" if DEMO_MODE else "127.0.0.1", port), Handler).serve_forever()
 

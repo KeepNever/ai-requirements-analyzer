@@ -41,6 +41,17 @@ python src/run_case.py                 # 离线演示，无需 API Key
 python src/run_case.py --real --case 你的材料.md
 ```
 
+**公网演示环境说明**（`DEMO_MODE=1` 时）：注册关闭，使用预置演示账号登录——
+
+| 账号 | 密码 | 角色 |
+|---|---|---|
+| admin@demo.cn | demo12345 | 管理员 |
+| pm@demo.cn | demo12345 | 产品经理 |
+| sales@demo.cn | demo12345 | 销售 |
+| presale@demo.cn | demo12345 | 售前 |
+
+演示环境不内置服务方 API Key：真实分析需在「模型设置」中配置你自己的 DeepSeek Key，否则可使用离线演示模式。
+
 ## 四角色权限体系
 
 | 能力 | 管理员 | 产品经理 | 销售 | 售前 |

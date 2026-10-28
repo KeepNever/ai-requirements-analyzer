@@ -255,25 +255,32 @@ function modelModal(){
   'demo-offline':'演示环境离线模式：真实分析需在下方配置你自己的 Key',
   server:'使用服务端模型：分析消耗服务方额度',
   none:'尚未配置模型：真实分析不可用'}[m.mode]||m.mode;
- return `<div class="modal-mask" onclick="if(event.target===this)state.modelOpen=false;render()"><div class="modal"><h2>模型设置</h2><p class="muted small-text" style="margin-bottom:16px">配置个人 DeepSeek API Key 后，真实分析与问答将消耗你自己的额度。</p><div class="notice" style="margin-bottom:16px">${esc(modeText)}</div><div class="field"><label>个人 DeepSeek API Key</label><input class="input" id="modelKey" type="password" placeholder="${m.mode==='personal'?'已配置（输入新值可覆盖）':'sk-...'}"><div class="password-hint">Key 明文存储于服务端本地文件（不入代码库）。公网环境建议使用专用低额度 Key。</div></div><div style="display:flex;justify-content:flex-end;gap:10px">${m.mode==='personal'?'<button class="btn secondary small" onclick="clearModelKey()">清除已存 Key</button>':''}<button class="btn secondary small" onclick="state.modelOpen=false;render()">关闭</button><button class="btn small" onclick="saveModelKey()">保存</button></div></div></div>`;
+ const savedTip=state.modelKeySaved?'<div class="ok" style="margin-top:12px">✓ 已保存生效：真实分析与问答现在消耗你自己的额度</div>':'';
+ return `<div class="modal-mask" onclick="if(event.target===this)state.modelOpen=false;render()"><div class="modal"><h2>模型设置</h2><p class="muted small-text" style="margin-bottom:16px">配置个人 DeepSeek API Key 后，真实分析与问答将消耗你自己的额度。</p><div class="${m.mode==='personal'?'ok':'notice'}" style="margin-bottom:16px">${esc(modeText)}</div>${savedTip}<div class="field"><label>个人 DeepSeek API Key</label><input class="input" id="modelKey" type="password" placeholder="${m.mode==='personal'?'已配置（输入新值可覆盖）':'sk-...'}"><div class="password-hint">Key 明文存储于服务端本地文件（不入代码库）。公网环境建议使用专用低额度 Key。</div></div><div style="display:flex;justify-content:flex-end;gap:10px">${m.mode==='personal'?'<button class="btn secondary small" onclick="clearModelKey()">清除已存 Key</button>':''}<button class="btn secondary small" onclick="state.modelOpen=false;render()">关闭</button><button class="btn small" onclick="saveModelKey()">保存</button></div></div></div>`;
 }
 async function openModel(){
- try{state.modelInfo=await api('/api/settings/model');state.modelOpen=true;render();}
+ try{state.modelInfo=await api('/api/settings/model');state.modelOpen=true;state.modelKeySaved=false;render();}
  catch(e){toast('加载模型设置失败：'+e.message)}
 }
 async function clearModelKey(){
  try{await api('/api/settings/model',{method:'POST',body:{model_key:''}});
-  toast('已清除个人模型');state.user=await api('/api/me');state.modelOpen=false;render();}
+  state.modelInfo=await api('/api/settings/model');
+  state.user=await api('/api/me');
+  toast('已清除个人模型，回到离线模式');render();}
  catch(e){toast('清除失败：'+e.message)}
 }
 async function saveModelKey(){
  const box=document.getElementById('modelKey');
  const key=box?box.value.trim():'';
- if(!key){toast('请输入 Key（留空不修改）');return}
- try{const r=await api('/api/settings/model',{method:'POST',body:{model_key:key}});
-  toast(r.has_model_key?'个人模型已配置':'已清除个人模型');
-  state.user=await api('/api/me');state.modelOpen=false;render();}
- catch(e){toast('保存失败：'+e.message)}
+ if(!key){toast('请先输入 Key 再点保存');return}
+ try{
+  await api('/api/settings/model',{method:'POST',body:{model_key:key}});
+  state.modelInfo=await api('/api/settings/model');
+  state.user=await api('/api/me');
+  state.modelKeySaved=true;      // 弹层内联显示保存成功，不关闭
+  render();
+  toast('个人模型已配置，真实分析将消耗你的额度');
+ }catch(e){toast('保存失败：'+e.message)}
 }
 function noAccess(){return `<div class="no-access"><h1>当前角色无权访问</h1><p>返回工作台，或联系管理员调整角色。</p><button class="btn" onclick="go('dashboard')">返回工作台</button></div>`}
 
