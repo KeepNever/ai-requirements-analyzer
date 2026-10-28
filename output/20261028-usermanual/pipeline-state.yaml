@@ -1,0 +1,40 @@
+request_id: "20261028-usermanual"
+created_at: "2026-10-28T20:45:00"
+entry_type: "beautify_only"
+current_stage: "stage3"
+output_docx_path: "C:\\Users\\Administrator\\Desktop\\用户使用手册.docx"
+output_docx_user_specified: true
+user_intent_length: 21
+user_intent_summary: "生成系统使用手册Word版（只要干货讲怎么用），保存到桌面"
+stage_2:
+  status: "completed"
+  completed_at: "2026-10-28T20:50:00"
+  executor: "doc-formatter"
+  content_doc_path: "D:\\workbuddy\\ai需求分析\\AI客户需求分析助手\\docs\\用户使用手册.md"
+  intermediate_dir: "D:\\workbuddy\\ai需求分析\\AI客户需求分析助手\\output\\20261028-usermanual\\stage2\\intermediate\\"
+  entry_type: "standalone"
+  output_format: "html"
+  route: "html"
+  html_sub: "template"
+  output_path: "stage2/formatted-用户使用手册.html"
+  skills_invoked: []
+  fallback: false
+  fallback_reason: null
+stage_3:
+  status: "completed"
+  completed_at: "2026-10-28T20:55:00"
+  executor: "doc-converter"
+  input_format: "html"
+  html_output_path: "D:\\workbuddy\\ai需求分析\\AI客户需求分析助手\\output\\20261028-usermanual\\stage2\\formatted-用户使用手册.html"
+  output_path: "C:\\Users\\Administrator\\Desktop\\用户使用手册.docx"
+  skill_used: ["html-to-doc"]
+  present_files_opened: true
+  fallback: false
+  fallback_used: false
+  fallback_reason: null
+  notes: "edsdk沙箱目录白名单限制：桌面/项目output直写被拒，改输出至editor_uploads工作区后由编排层复制落位（桌面+项目stage3双份）。verify全过：60块0缺失/TOC域11条PAGEREF/17标题样式绑定/分节正确。"
+consistency_check:
+  status: "passed"
+  checked_at: "2026-10-28T20:55:30"
+  notes: "beautify_only链路 S2→S3 完整执行；最终交付 桌面/用户使用手册.docx + 项目docs/用户使用手册.md 双版本"
+consistency_check: "pending"

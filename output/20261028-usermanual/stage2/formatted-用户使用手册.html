@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>AI 客户需求分析助手 · 用户使用手册</title>
+<style>
+  /* 页面规则：页脚居中页码；封面命名页无页码 */
+  @page { @bottom-center { content: "第 " counter(page) " 页"; } }
+  @page cover { @bottom-center { content: none; } }
+  section[role="cover"] { page: cover; }
+  body { font-family: "SimSun", serif; font-size: 12pt; color: #1c2536; line-height: 1.8; }
+  p { text-indent: 2em; margin: 6pt 0; }
+  h1 { font-family: "SimSun", serif; font-size: 18pt; color: #173da8; margin: 18pt 0 10pt; }
+  h2 { font-family: "SimSun", serif; font-size: 15pt; color: #173da8; margin: 14pt 0 8pt; }
+  h3 { font-family: "SimSun", serif; font-size: 13pt; color: #1c2536; margin: 12pt 0 6pt; }
+  table { border-collapse: collapse; width: 100%; margin: 8pt 0; font-size: 10.5pt; }
+  th { background-color: #eef2ff; color: #173da8; border: 1px solid #c9d4ee; padding: 6pt 8pt; text-align: left; }
+  td { border: 1px solid #c9d4ee; padding: 6pt 8pt; }
+  code { font-family: "Consolas", monospace; background-color: #f0f2f7; padding: 1pt 4pt; font-size: 10.5pt; }
+  pre { background-color: #f0f2f7; border: 1px solid #dde3ef; padding: 8pt 10pt; font-size: 10.5pt; white-space: pre-wrap; }
+  pre code { background-color: transparent; padding: 0; }
+  .toc-list, .toc-list ol, .toc-list ul { list-style: none; }
+  .toc-title { font-family: "SimSun", serif; font-size: 18pt; font-weight: bold; text-align: center; margin: 24pt 0 18pt; }
+  .toc-list li { margin: 5pt 0; }
+  .toc-list a { color: #1c2536; text-decoration: none; }
+  .cover-title { font-family: "SimSun", serif; font-size: 30pt; font-weight: bold; text-align: center; margin: 130pt 0 14pt; color: #173da8; }
+  .cover-sub { font-family: "SimSun", serif; font-size: 14pt; text-align: center; color: #68758a; margin: 6pt 0; }
+  .cover-meta { font-family: "SimSun", serif; font-size: 11pt; text-align: center; color: #9aa4b4; margin-top: 60pt; }
+  .callout { background-color: #f5f8ff; border-left: 4px solid #2b5cff; padding: 8pt 12pt; margin: 10pt 0; font-size: 11pt; }
+  .callout-content { text-indent: 0; }
+</style>
+</head>
+<body>
+
+<section role="cover">
+  <p class="cover-title">AI 客户需求分析助手</p>
+  <p class="cover-sub">用户使用手册</p>
+  <p class="cover-sub">只讲操作 · 按角色速查</p>
+  <p class="cover-meta">适用版本：V3 公网演示版 &nbsp;·&nbsp; 2026 年 10 月</p>
+</section>
+
+<section role="cover">
+<nav class="doc-toc" aria-label="文档目录">
+  <p class="toc-title">目录</p>
+  <ol class="toc-list">
+    <li><a href="#section-1">开始前的三件事</a></li>
+    <li><a href="#section-2">产品经理：从一段材料到一条确认需求</a>
+      <ol>
+        <li><a href="#section-2-1">新建分析</a></li>
+        <li><a href="#section-2-2">读报告</a></li>
+        <li><a href="#section-2-3">确认需求（核心动作）</a></li>
+        <li><a href="#section-2-4">导出 Word</a></li>
+      </ol>
+    </li>
+    <li><a href="#section-3">销售：追问闭环</a></li>
+    <li><a href="#section-4">售前：能力匹配复核</a></li>
+    <li><a href="#section-5">管理员：成员与项目授权</a></li>
+    <li><a href="#section-6">常见问题</a></li>
+    <li><a href="#section-7">角色功能速查表</a></li>
+  </ol>
+</nav>
+</section>
+
+<section role="body" data-page-restart="1">
+<h1 id="section-1">开始前的三件事</h1>
+
+<h3>1. 登录</h3>
+<p>打开系统地址，使用账号登录。演示环境账号（密码均为 demo12345）：</p>
+<table>
+  <tr><th>账号</th><th>角色</th></tr>
+  <tr><td>admin@demo.cn</td><td>管理员</td></tr>
+  <tr><td>pm@demo.cn</td><td>产品经理</td></tr>
+  <tr><td>sales@demo.cn</td><td>销售</td></tr>
+  <tr><td>presale@demo.cn</td><td>售前</td></tr>
+</table>
+<p>没有账号：注册页自助注册。演示环境注册默认产品经理角色。</p>
+
+<h3>2. 配置模型 Key（要跑真实分析的人必做）</h3>
+<p>右上角「模型设置」→ 粘贴你自己的 DeepSeek API Key → 保存。看到「已保存生效」即配置成功。配置后，真实分析与问答消耗你自己的额度；同一弹层可随时查看用量统计与清除 Key。</p>
+
+<h3>3. 费用规则</h3>
+<p>清洗预览免费；完整分析一次约 0.3 元，从你配置的 Key 扣。不配置 Key 也可使用：清洗预览、报告查看、全部角色功能均可正常使用，仅「真实分析 / 真实问答」不可用（离线模式返回演示数据）。</p>
+
+<h1 id="section-2">产品经理：从一段材料到一条确认需求</h1>
+
+<h2 id="section-2-1">新建分析</h2>
+<p>第一步：侧栏点「新建分析」。</p>
+<p>第二步：选择场景（售前需求分析 / 学员服务诊断）。</p>
+<p>第三步：粘贴原始材料。每段一行，段前标 P1、P2……（不标注也能清洗，但报告中的引用回链会缺失）。也可以上传 .md 或 .txt 文件。</p>
+<p>第四步：点「清洗预览」（免费）。检查两点：段落编号是否正确、手机号等隐私信息是否已脱敏打码。</p>
+<p>第五步：确认无误后点「运行完整分析」。等待 1~2 分钟，完成后自动跳转报告页。</p>
+
+<h2 id="section-2-2">读报告</h2>
+<p>报告共四个页签：</p>
+<table>
+  <tr><th>页签</th><th>内容</th></tr>
+  <tr><td>需求分析</td><td>显性需求（带原文引用）、潜在需求（推断，带置信度）、优先级 Top 6</td></tr>
+  <tr><td>能力匹配</td><td>产品能力与需求的裁定结果：匹配 / 部分匹配 / 待确认 / 不支持</td></tr>
+  <tr><td>待确认追问</td><td>信息缺口 + 判断影响 + 建议追问话术</td></tr>
+  <tr><td>修正记录</td><td>全部确认、客户回复、售前意见的留痕（追加式，不覆盖历史）</td></tr>
+</table>
+
+<h2 id="section-2-3">确认需求（核心动作）</h2>
+<p>在需求分析页签，目标需求行点「确认」→ 可填写修改原因（建议填写，留痕需要）→ 点「确认入库」。该需求状态变为「已确认」，修正记录自动追加一条。</p>
+<div class="callout"><p class="callout-content"><b>原则：AI 结果全部是草稿态，未经产品经理确认不进入需求池。</b></p></div>
+
+<h2 id="section-2-4">导出 Word</h2>
+<p>报告右上角点「导出 Word」下载 .docx 文件，内容为脱敏文本，可直接外发。</p>
+
+<h1 id="section-3">销售：追问闭环</h1>
+<p>第一步：侧栏点「我的追问」。跨项目汇总所有待确认问题，决定性缺口排在最前。</p>
+<p>第二步：每条追问包含三块信息——缺口是什么、为什么影响判断、建议追问话术。见客户时照着问即可。</p>
+<p>第三步：客户回复后，点「录入回复」→ 粘贴客户原话 → 提交。状态变为「已回复」，产品经理同步可见。</p>
+<p>销售看到的报告只有追问视图，完整需求分析由产品经理把关。</p>
+
+<h1 id="section-4">售前：能力匹配复核</h1>
+<p>侧栏点「能力匹配」：跨项目汇总所有非「匹配」结论，可按部分匹配 / 待确认 / 不支持筛选。</p>
+<p>对每条结论点「补充意见」，填写能力边界、实现条件或方案建议（例如：两层下钻需定制开发，POC 可演示一层）。意见全员可见并自动留痕。</p>
+<p>「材料问答」可基于项目材料核对功能细节。</p>
+
+<h1 id="section-5">管理员：成员与项目授权</h1>
+
+<h2>邀请成员</h2>
+<p>管理控制台 → 点「邀请成员」→ 填写姓名、邮箱、初始密码、角色 → 添加。成员用该邮箱和初始密码登录。</p>
+
+<h2>调整角色</h2>
+<p>成员列表的角色下拉直接修改。各角色职责见文末速查表。</p>
+
+<h2>项目访问控制</h2>
+<p>管理控制台底部「项目访问控制」区域：每个项目一个「受限访问」开关。</p>
+<p>默认全员可见。开启受限后，该项目仅管理员、产品经理和被授权成员可见——其他人的项目列表里直接消失，直连链接也返回 404。开启后可按需勾选可见成员。</p>
+
+<h2>质量评测看板</h2>
+<p>侧栏「质量评测」：查看六指标四数据集的评测结果，了解系统当前的分析质量水位。</p>
+
+<h1 id="section-6">常见问题</h1>
+<table>
+  <tr><th>问题</th><th>处理</th></tr>
+  <tr><td>点「运行完整分析」报错提示未配置 Key</td><td>右上角「模型设置」配置你自己的 DeepSeek Key</td></tr>
+  <tr><td>列表里看不到某个项目</td><td>该项目被设为受限访问，找管理员授权</td></tr>
+  <tr><td>忘记密码</td><td>找管理员在成员页重置</td></tr>
+  <tr><td>清洗预览和完整分析的区别</td><td>清洗纯代码不花钱、可反复调；完整分析调用模型，消耗 Key</td></tr>
+  <tr><td>分析结果可以直接用吗</td><td>不可以。全部是草稿态，产品经理确认后才进需求池</td></tr>
+  <tr><td>回复客户问题需要依据</td><td>材料问答的每条回答带段落编号，可回链原文核对</td></tr>
+</table>
+
+<h1 id="section-7">角色功能速查表</h1>
+<table>
+  <tr><th>能力</th><th>管理员</th><th>产品经理</th><th>销售</th><th>售前</th></tr>
+  <tr><td>上传材料 / 创建分析</td><td>—</td><td>允许</td><td>允许</td><td>—</td></tr>
+  <tr><td>查看报告</td><td>全部项目</td><td>全部项目</td><td>仅追问视图</td><td>匹配+追问</td></tr>
+  <tr><td>需求确认与修正</td><td>—</td><td>允许</td><td>—</td><td>—</td></tr>
+  <tr><td>我的追问 + 录入回复</td><td>—</td><td>允许</td><td>允许</td><td>—</td></tr>
+  <tr><td>能力匹配复核 + 补意见</td><td>—</td><td>允许</td><td>—</td><td>允许</td></tr>
+  <tr><td>材料问答</td><td>—</td><td>允许</td><td>允许</td><td>允许</td></tr>
+  <tr><td>导出 Word</td><td>允许</td><td>允许</td><td>仅追问清单</td><td>允许</td></tr>
+  <tr><td>成员 / 角色 / 项目授权</td><td>允许</td><td>—</td><td>—</td><td>—</td></tr>
+</table>
+
+</section>
+</body>
+</html>
