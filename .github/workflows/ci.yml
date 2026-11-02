@@ -1,0 +1,29 @@
+# CI：push / PR 自动全量测试（142 项）+ 语法编译检查
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: 安装依赖（运行时零依赖纪律：仅 pytest + python-docx）
+        run: pip install pytest "python-docx>=1.1.0"
+
+      - name: 语法编译检查（全量 py 文件）
+        run: python -m compileall -q src web_demo.py
+
+      - name: 全量测试
+        run: python -m pytest tests/ -q --basetemp=.pytest_tmp

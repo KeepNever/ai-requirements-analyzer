@@ -7,7 +7,8 @@
 粘贴客户的会议转写、微信记录或邮件——系统自动产出结构化需求分析：
 每一条结论都带原文引用，每一个缺口都配好了追问话术。
 
-[![tests](https://img.shields.io/badge/tests-131%20passed-brightgreen)](#-质量与可信)
+[![CI](https://github.com/KeepNever/ai-requirements-analyzer/actions/workflows/ci.yml/badge.svg)](https://github.com/KeepNever/ai-requirements-analyzer/actions/workflows/ci.yml)
+[![tests](https://img.shields.io/badge/tests-142%20passed-brightgreen)](#-质量与可信)
 [![python](https://img.shields.io/badge/Python-3.10%2B-blue)](https://www.python.org)
 [![deps](https://img.shields.io/badge/%E8%BF%90%E8%A1%8C%E6%97%B6%E4%BE%9D%E8%B5%96-0-orange)](#-设计取舍)
 [![demo](https://img.shields.io/badge/%F0%9F%8C%90-%E5%9C%A8%E7%BA%BF%E6%BC%94%E7%A4%BA-2b5cff)](#-在线演示)
@@ -98,7 +99,7 @@ python src/run_case.py --real --case 你的材料.md
 
 - **评测体系**：17 案例双人标注、四层数据集纪律（开发反复回归 / 冻结阶段收口 / 盲测用后转回归集绝不复用）、六项量化指标、评估器独立版本号
 - **失败留档**：`docs/experiments/` 17 篇实验报告，含两轮未通过验收的完整归因与回滚记录——大多数项目只有成功案例，这里连失败都可审计
-- **测试**：131 项自动化测试（流水线校验 / 引用防编造 / 权限矩阵 / 账号会话 / 访问控制 / 用量统计）
+- **测试**：142 项自动化测试（流水线校验 / 引用防编造 / 权限矩阵 / 账号会话 / 访问控制 / 用量统计 / 登录限速），push 由 GitHub Actions 自动执行
 - **零运行时依赖**：LLM 调用、Web 服务、密码哈希全部标准库实现，克隆即跑
 
 <details>
