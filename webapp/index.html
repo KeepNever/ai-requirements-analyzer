@@ -58,7 +58,7 @@ function toast(msg){const old=document.querySelector('.toast');if(old)old.remove
 function can(p){return !!(state.user&&ROLE_PAGES[state.user.role]&&ROLE_PAGES[state.user.role].includes(p))}
 
 async function api(path,opts={}){
- const init={method:opts.method||'GET',headers:{}};
+ const init={method:opts.method||'GET',headers:{'X-Requested-With':'XMLHttpRequest'}};
  if(opts.body!==undefined){init.headers['Content-Type']='application/json';init.body=JSON.stringify(opts.body)}
  const r=await fetch(path,init);
  let data={};try{data=await r.json()}catch(e){}

@@ -1511,6 +1511,12 @@ class Handler(BaseHTTPRequestHandler):
         path = unquote(urlparse(self.path).path)
         user = self._user()
 
+        # CSRF 防线：/api/* 状态变更请求必须携带自定义头（跨站表单无法携带，
+        # 跨站 fetch/XHR 会被 CORS 预检拦截；不依赖代理转发行为）
+        if path.startswith("/api/") and (self.headers.get("X-Requested-With") or "") != "XMLHttpRequest":
+            self._json({"error": "非法请求来源（缺少请求头校验）"}, 403)
+            return
+
         if path == "/api/auth/login":
             payload = self._json_body()
             try:

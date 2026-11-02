@@ -189,17 +189,60 @@ def register_first_admin(name: str, email: str, password: str, org: str = "") ->
     return user
 
 
+# ── 登录限速（防暴力尝试；按邮箱滑动窗口 + 失败锁定）────────
+_THROTTLE_LOCK = threading.Lock()
+_FAIL_LOG: dict[str, list[float]] = {}
+LOGIN_MAX_FAILS = 5        # 窗口内最多失败次数
+LOGIN_FAIL_WINDOW = 600.0  # 失败计数窗口（10 分钟）
+LOGIN_LOCK_SECONDS = 900.0  # 触发后锁定时长（15 分钟）
+
+
+def login_locked(key: str) -> int:
+    """返回剩余锁定秒数；0 表示未锁定。"""
+    now = time.time()
+    with _THROTTLE_LOCK:
+        log = _FAIL_LOG.get(key)
+        if not log:
+            return 0
+        log = [t for t in log if now - t < LOGIN_FAIL_WINDOW]
+        _FAIL_LOG[key] = log
+        if len(log) >= LOGIN_MAX_FAILS and now - log[-1] < LOGIN_LOCK_SECONDS:
+            return int(LOGIN_LOCK_SECONDS - (now - log[-1])) + 1
+    return 0
+
+
+def record_login_failure(key: str):
+    now = time.time()
+    with _THROTTLE_LOCK:
+        log = [t for t in _FAIL_LOG.get(key, []) if now - t < LOGIN_FAIL_WINDOW]
+        log.append(now)
+        _FAIL_LOG[key] = log
+
+
+def clear_login_failures(key: str):
+    with _THROTTLE_LOCK:
+        _FAIL_LOG.pop(key, None)
+
+
 def authenticate(email: str, password: str) -> dict:
     email = _norm_email(email)
+    key = f"login:{email}"
+    remain = login_locked(key)
+    if remain:
+        raise AuthError(f"登录失败次数过多，账号已临时锁定（约 {max(1, remain // 60)} 分钟后可重试）")
     user = _find_user(load_users()["users"], email)
     if not user:
+        # 不存在的邮箱不计失败（防恶意锁号），同样报错防用户枚举
         raise AuthError("邮箱或密码不正确")
     try:
         got = _hash_password(password, user.get("salt", ""))
     except AuthError:
+        record_login_failure(key)
         raise AuthError("邮箱或密码不正确") from None
     if not hmac.compare_digest(got, user.get("password_hash", "")):
+        record_login_failure(key)
         raise AuthError("邮箱或密码不正确")
+    clear_login_failures(key)
     return to_public(user)
 
 
@@ -267,11 +310,11 @@ def verify_session(token: str) -> dict | None:
 
 
 def session_cookie(token: str) -> str:
-    return f"session={token}; Path=/; HttpOnly; SameSite=Lax; Max-Age={_SESSION_TTL}"
+    return f"session={token}; Path=/; HttpOnly; SameSite=Strict; Max-Age={_SESSION_TTL}"
 
 
 def clear_session_cookie() -> str:
-    return "session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0"
+    return "session=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0"
 
 
 def user_from_cookie(cookie_header: str | None) -> dict | None:
